@@ -1,0 +1,27 @@
+[package]
+name = "origincloud-sdk-generator"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Generates the service crates of the Origin Cloud SDK from the API definitions."
+
+[dependencies]
+anyhow = "1"
+base64 = "0.22"
+heck = "0.5"
+pbjson-build = "0.9"
+prettyplease = "0.2"
+proc-macro2 = "1"
+prost = "0.14"
+prost-build = "0.14"
+prost-reflect = "0.16"
+prost-types = "0.14"
+protox = "0.9"
+quote = "1"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha3 = "0.10"
+syn = { version = "2", features = ["full", "parsing", "printing"] }
+ureq = { version = "3", features = ["json"] }
