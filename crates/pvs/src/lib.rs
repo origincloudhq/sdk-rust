@@ -49,3 +49,7 @@ mod generated;
 
 pub use generated::*;
 
+/// The README's examples, compiled as tests.
+#[doc = include_str!("../../../README.md")]
+#[cfg(doctest)]
+pub struct ReadmeDoctests;

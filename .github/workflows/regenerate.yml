@@ -1,0 +1,89 @@
+# Keeps the SDK current with the API: daily, and when run by hand,
+# scripts/update.sh moves it to the head of origincloudhq/api and generates
+# it again. When that changes anything, the result is one pull request from
+# the branch `regenerate`, refreshed by each later run until it is merged;
+# when it changes nothing, an open one is closed.
+#
+# The pull request is opened with the workflow token, which starts no
+# pull_request run, so this dispatches CI on the branch; its result shows on
+# the pull request's commit. Opening it needs "Allow GitHub Actions to create
+# and approve pull requests" in the repository's Actions settings.
+name: Regenerate
+
+on:
+  schedule:
+    - cron: '47 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: regenerate
+  cancel-in-progress: false
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: regenerate
+    steps:
+      - name: Checkout
+        uses: 'actions/checkout@v4'
+        with:
+          ref: main
+          fetch-depth: 0
+
+      # rustup installs the toolchain rust-toolchain.toml names.
+      - name: Rust
+        run: rustup toolchain install
+
+      - name: Cache
+        uses: 'Swatinem/rust-cache@v2'
+
+      - name: Update
+        run: |
+          previous="$(cat API_REVISION)"
+          scripts/update.sh
+          echo "PREVIOUS=${previous}" >> "$GITHUB_ENV"
+
+      - name: Pull request
+        run: |
+          set -euo pipefail
+          open="$(gh pr list --head "${BRANCH}" --base main --state open --json number --jq '.[0].number // empty')"
+          if [[ -z "$(git status --porcelain)" ]]; then
+            echo "already current"
+            if [[ -n "${open}" ]]; then
+              gh pr close "${open}" --delete-branch --comment "main is current with the API."
+            fi
+            exit 0
+          fi
+
+          revision="$(cat API_REVISION)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch --quiet -C "${BRANCH}"
+          git add --all
+          git commit --quiet -m "Regenerate from origincloudhq/api@${revision:0:12}" \
+            -m "API: https://github.com/origincloudhq/api/compare/${PREVIOUS}...${revision}"
+
+          # Unchanged since the last run: nothing to push or check again.
+          if git fetch --quiet origin "${BRANCH}" 2>/dev/null && git diff --quiet FETCH_HEAD HEAD; then
+            echo "pull request #${open:-?} is current"
+            exit 0
+          fi
+          git push --quiet --force origin "${BRANCH}"
+
+          body="Generated from [origincloudhq/api@${revision:0:12}](https://github.com/origincloudhq/api/commit/${revision}) ([changes](https://github.com/origincloudhq/api/compare/${PREVIOUS}...${revision})) by scripts/update.sh.
+
+          If CI fails, the API uses something the generator (generator/) doesn't support yet, or a new service needs its crate; extend it on this branch."
+          if [[ -n "${open}" ]]; then
+            gh pr edit "${open}" --body "${body}"
+          else
+            gh pr create --base main --head "${BRANCH}" \
+              --title "Regenerate from the latest API" --body "${body}"
+          fi
+          gh workflow run ci.yml --ref "${BRANCH}"

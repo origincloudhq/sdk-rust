@@ -1,0 +1,62 @@
+# Checks every pull request and every push to main: the generated code is
+# what the pinned API definitions generate (scripts/generate.sh --check),
+# the code is formatted and lint-free, the tests pass (the live tests skip
+# without a zone), the documentation builds, and the crates package.
+#
+# The regeneration pull request is opened with the workflow token, which
+# starts no pull_request run, so regenerate.yml dispatches this workflow on
+# its branch instead.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: 'actions/checkout@v4'
+
+      # rustup installs the toolchain rust-toolchain.toml names.
+      - name: Rust
+        run: rustup toolchain install
+
+      - name: Cache
+        uses: 'Swatinem/rust-cache@v2'
+
+      - name: Generated code
+        run: scripts/generate.sh --check
+
+      - name: Formatting
+        run: cargo fmt --all --check
+
+      - name: Lints
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --locked --workspace
+
+      - name: Documentation
+        run: cargo doc --locked --no-deps -p origincloud-core -p origincloud-pvs
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+      - name: Packages
+        run: cargo package --locked --workspace --exclude origincloud-sdk-generator --exclude fake-server
+
+      - name: Scripts
+        run: shellcheck scripts/*.sh
