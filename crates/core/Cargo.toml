@@ -1,0 +1,33 @@
+[package]
+name = "origincloud-core"
+version = "0.1.0"
+description = "The client every service crate of the Origin Cloud SDK uses: credentials, endpoints, retries, errors, long-running operations and read-your-writes."
+keywords = ["origincloud", "cloud", "sdk", "api"]
+categories = ["api-bindings", "web-programming::http-client"]
+readme = "../../README.md"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["serde", "std"] }
+fastrand = "2"
+futures-core = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+pbjson = "0.9"
+pbjson-types = "0.9"
+percent-encoding = "2"
+prost = "0.14"
+reqwest = { version = "0.13", features = ["form"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["sync", "time"] }
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+fake-server = { path = "../../testing/fake-server" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
