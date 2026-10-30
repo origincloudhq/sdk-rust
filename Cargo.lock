@@ -1073,6 +1073,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "origincloud-pvs"
+version = "0.1.0"
+dependencies = [
+ "fake-server",
+ "origincloud-core",
+ "pbjson",
+ "prost",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "origincloud-sdk-generator"
 version = "0.0.0"
 dependencies = [
