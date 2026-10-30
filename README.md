@@ -87,7 +87,8 @@ async fn main() -> Result<(), origincloud_core::Error> {
   client fills in an empty request id, so a retried create never creates twice.
 - **Read-your-writes.** The client keeps the consistency token each write
   answers with and sends it with later calls, so a read right after a write, or
-  after waiting on an operation, always sees it.
+  after waiting on an operation, sees it. The token answered last is the one
+  kept: of concurrent writes, a read is sure to see the last answered.
 - **Pages.** Each list method has an `all_...` counterpart that streams every
   page.
 - **Errors.** A refused call returns `Error::Api`; branch on `Error::reason`,

@@ -1,12 +1,12 @@
-//! The SDK against the live API. These tests run only when
-//! `ORIGINCLOUD_LIVE_ZONE` names a zone to work in,
-//! `projects/{project}/zones/{zone}`, with credentials found the usual way
-//! (see `origincloud_core::default_credentials`). They create resources
-//! there and delete them again.
+//! The SDK against the live API. These tests are ignored unless asked for
+//! with `--ignored`, and then need `ORIGINCLOUD_LIVE_ZONE` to name a zone to
+//! work in, `projects/{project}/zones/{zone}`, with credentials found the
+//! usual way (see `origincloud_core::default_credentials`); without a zone
+//! they fail. They create resources there and delete them again.
 //!
 //! ```sh
 //! ORIGINCLOUD_LIVE_ZONE=projects/<project>/zones/<zone> \
-//!   cargo test -p origincloud-pvs --test live -- --nocapture
+//!   cargo test -p origincloud-pvs --test live -- --ignored --nocapture
 //! ```
 
 use std::collections::BTreeMap;
@@ -19,22 +19,21 @@ use origincloud_pvs::v1beta1::{
     UpdateVolumeRequest, Volume, VolumeClient, volume,
 };
 
-fn live_zone() -> Option<String> {
+fn live_zone() -> String {
     let zone = std::env::var("ORIGINCLOUD_LIVE_ZONE").unwrap_or_default();
-    if zone.is_empty() {
-        eprintln!("skipped: ORIGINCLOUD_LIVE_ZONE isn't set");
-        return None;
-    }
-    Some(zone)
+    assert!(
+        !zone.is_empty(),
+        "the live tests need ORIGINCLOUD_LIVE_ZONE=projects/<project>/zones/<zone>"
+    );
+    zone
 }
 
 /// A volume is created, read straight away, grown and deleted, waiting on
 /// each operation.
 #[tokio::test]
+#[ignore = "against the live API: run with --ignored and ORIGINCLOUD_LIVE_ZONE"]
 async fn volume_lifecycle() {
-    let Some(zone) = live_zone() else {
-        return;
-    };
+    let zone = live_zone();
     let client = Client::builder()
         .user_agent("origincloud-sdk-rust-livetest")
         .build()

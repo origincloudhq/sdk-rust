@@ -44,8 +44,11 @@
 //! The API answers reads from replicas that can be a moment behind a write
 //! that just succeeded. The client keeps the consistency token each
 //! mutation and each finished operation answers with, and sends it with
-//! every later call, so that a read through the same client always shows
-//! the client's own writes.
+//! every later call, so that a read through the same client shows the
+//! client's own writes. The token answered last replaces the one held: for
+//! writes made one after another, it covers them all; of writes made
+//! concurrently, it covers the one answered last (see
+//! [`Client::set_consistency_token`]).
 //!
 //! # Errors
 //!

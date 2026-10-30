@@ -6,6 +6,7 @@ keywords = ["origincloud", "cloud", "sdk", "volumes", "storage"]
 categories = ["api-bindings", "web-programming::http-client"]
 readme = "../../README.md"
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true

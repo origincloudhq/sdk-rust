@@ -1,7 +1,7 @@
 # Checks every pull request and every push to main: the generated code is
 # what the pinned API definitions generate (scripts/generate.sh --check),
-# the code is formatted and lint-free, the tests pass (the live tests skip
-# without a zone), the documentation builds, and the crates package.
+# the code is formatted and lint-free, the tests pass (the live tests are
+# ignored), the documentation builds, and the crates package.
 #
 # The regeneration pull request is opened with the workflow token, which
 # starts no pull_request run, so regenerate.yml dispatches this workflow on

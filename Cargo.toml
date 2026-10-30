@@ -4,6 +4,9 @@ members = ["crates/core", "crates/pvs", "generator", "testing/fake-server"]
 
 [workspace.package]
 edition = "2024"
+# The oldest Rust the published crates build with: what their dependencies
+# need (uuid), checked with `cargo +1.89 check -p origincloud-core -p origincloud-pvs`.
+rust-version = "1.89"
 license = "Apache-2.0"
 repository = "https://github.com/origincloudhq/sdk-rust"
 homepage = "https://origincloud.eu"

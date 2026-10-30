@@ -4,7 +4,7 @@ use std::fmt;
 use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, SystemTime};
 
 use chrono::{DateTime, Utc};
@@ -31,6 +31,9 @@ const EXPIRY_MARGIN: Duration = Duration::from_secs(30);
 
 /// The most of a token response that is read.
 const MAX_TOKEN_RESPONSE_BYTES: usize = 1 << 20;
+
+/// How long a token request may take.
+const TOKEN_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// What [`Credentials::token`] returns.
 pub type TokenFuture<'a> = Pin<Box<dyn Future<Output = Result<String, Error>> + Send + 'a>>;
@@ -131,7 +134,8 @@ impl ServiceAccount {
         self
     }
 
-    /// Sends the token requests with `http`.
+    /// Sends the token requests with `http`, instead of the client all
+    /// credentials share. Each request is bounded by 30 seconds either way.
     pub fn with_http_client(mut self, http: reqwest::Client) -> Self {
         self.http = Some(http);
         self
@@ -241,7 +245,8 @@ impl CliSession {
         self
     }
 
-    /// Sends the renewals with `http`.
+    /// Sends the renewals with `http`, instead of the client all
+    /// credentials share. Each renewal is bounded by 30 seconds either way.
     pub fn with_http_client(mut self, http: reqwest::Client) -> Self {
         self.http = Some(http);
         self
@@ -354,22 +359,33 @@ fn seconds(n: i64) -> Duration {
     Duration::from_secs(u64::try_from(n).unwrap_or_default())
 }
 
+/// The HTTP client token requests are sent with unless the credentials
+/// name one: one for the process, created by the first request.
+fn default_http_client() -> Result<&'static reqwest::Client, &'static str> {
+    static CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
+    CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .build()
+                .map_err(|e| e.to_string())
+        })
+        .as_ref()
+        .map_err(String::as_str)
+}
+
 async fn request_token(
     http: Option<&reqwest::Client>,
     url: &str,
     form: &[(&str, &str)],
 ) -> Result<Granted, Error> {
     let failed = |e: &dyn fmt::Display| Error::Credentials(format!("requesting a token: {e}"));
-    let default_client;
     let http = match http {
         Some(http) => http,
-        None => {
-            default_client = reqwest::Client::builder().build().map_err(|e| failed(&e))?;
-            &default_client
-        }
+        None => default_http_client().map_err(|e| failed(&e))?,
     };
     let mut response = http
         .post(url)
+        .timeout(TOKEN_REQUEST_TIMEOUT)
         .header(reqwest::header::ACCEPT, "application/json")
         .form(form)
         .send()

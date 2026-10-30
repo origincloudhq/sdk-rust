@@ -80,17 +80,23 @@ impl Client {
         }
     }
 
-    /// The consistency token the client holds: the one the last mutation or
-    /// finished operation answered with, or empty before any. Hand it to
+    /// The consistency token the client holds: the one the last answer
+    /// carrying one brought, or empty before any. Hand it to
     /// [`Client::set_consistency_token`] of a client in another process for
     /// its reads to show this client's writes.
     pub fn consistency_token(&self) -> String {
         self.inner.token.lock().expect("the token lock").clone()
     }
 
-    /// Replaces the consistency token the client sends with its calls. The
-    /// API merges a mutation's position into the token the mutation
-    /// presented, so a client keeps every write it made since.
+    /// Replaces the consistency token the client sends with its calls.
+    ///
+    /// The API merges a mutation's position into the token the mutation
+    /// presented, so writes made one after another each answer with a token
+    /// covering all of them. Writes made concurrently each present the same
+    /// earlier token, and the client keeps whichever token is answered last:
+    /// a read then sees that write, not necessarily the others, until it
+    /// presents a token covering them, such as one from waiting on their
+    /// operations.
     pub fn set_consistency_token(&self, token: impl Into<String>) {
         *self.inner.token.lock().expect("the token lock") = token.into();
     }

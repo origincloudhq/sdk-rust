@@ -62,9 +62,9 @@ scripts/generate.sh --check    # check the checked-in code is what the API gener
 scripts/update.sh              # move to the newest API, and generate
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
-cargo test                     # the live tests skip without a zone
+cargo test                     # the live tests are ignored
 ORIGINCLOUD_LIVE_ZONE=projects/<project>/zones/<zone> \
-  cargo test -p origincloud-pvs --test live -- --nocapture   # against the live API
+  cargo test -p origincloud-pvs --test live -- --ignored --nocapture   # against the live API
 ```
 
 CI also builds the documentation and checks the scripts with shellcheck.
