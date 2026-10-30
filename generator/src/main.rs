@@ -15,7 +15,8 @@
 //! `origincloud.longrunning.{version}` goes to the core crate, as
 //! `origincloud_core::longrunning::{version}`; every other
 //! `origincloud.{service}.{version}` to the crate `origincloud-{service}`,
-//! as `origincloud_{service}::{version}`.
+//! as `origincloud_{service}::{version}`. A service without a crate gets
+//! one scaffolded (see `scaffold`), with a notice on standard error.
 //!
 //! The output depends on nothing but the API checkout, the pinned
 //! dependencies and the versions `Cargo.lock` pins, so generating from an
@@ -25,6 +26,7 @@ mod clients;
 mod deps;
 mod docs;
 mod names;
+mod scaffold;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -82,8 +84,17 @@ fn main() -> Result<()> {
     let comments = docs::clean(&mut fds, &pool, &packages);
     let encoded = fds.encode_to_vec();
 
-    let targets = plan(&packages, repository)?;
+    let (targets, new_services) = plan(&packages, repository)?;
     let mut files: BTreeMap<PathBuf, String> = BTreeMap::new();
+    for (path, content) in scaffold::crates(repository, &new_services)? {
+        files.insert(path, content);
+    }
+    for service in &new_services {
+        eprintln!(
+            "notice: origincloud.{service} is a new service: its crate, crates/{service}, was scaffolded \
+             and added to the workspace; review its Cargo.toml and src/lib.rs"
+        );
+    }
     for target in &targets {
         let code = generate_package(target, &pool, &fds, &encoded, &comments)
             .with_context(|| target.package.clone())?;
@@ -169,9 +180,11 @@ impl FileResolver for MemoryResolver {
     }
 }
 
-/// Where each package's code goes.
-fn plan(packages: &BTreeSet<String>, repository: &Path) -> Result<Vec<Target>> {
+/// Where each package's code goes, and the services whose crate doesn't
+/// exist yet.
+fn plan(packages: &BTreeSet<String>, repository: &Path) -> Result<(Vec<Target>, Vec<String>)> {
     let mut targets = Vec::new();
+    let mut new_services = Vec::new();
     for package in packages {
         let parts: Vec<&str> = package.split('.').collect();
         let ["origincloud", service, version] = parts.as_slice() else {
@@ -186,11 +199,19 @@ fn plan(packages: &BTreeSet<String>, repository: &Path) -> Result<Vec<Target>> {
                 core: "crate",
             }
         } else {
-            let crate_dir = format!("crates/{service}");
             ensure!(
-                repository.join(&crate_dir).join("Cargo.toml").exists(),
-                "{package} is new: add its crate, {crate_dir} (see CONTRIBUTING.md)"
+                !service.is_empty()
+                    && service
+                        .bytes()
+                        .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit()),
+                "the service {service:?} of {package} can't name a crate"
             );
+            let crate_dir = format!("crates/{service}");
+            if !repository.join(&crate_dir).join("Cargo.toml").exists()
+                && !new_services.iter().any(|s| s == service)
+            {
+                new_services.push((*service).to_owned());
+            }
             Target {
                 package: package.clone(),
                 crate_dir,
@@ -201,7 +222,7 @@ fn plan(packages: &BTreeSet<String>, repository: &Path) -> Result<Vec<Target>> {
         };
         targets.push(target);
     }
-    Ok(targets)
+    Ok((targets, new_services))
 }
 
 /// The messages, their JSON mapping and the clients of one package.

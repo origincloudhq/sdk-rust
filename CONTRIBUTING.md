@@ -43,8 +43,10 @@ module `{version}` of the crate `origincloud-{service}` in `crates/{service}`;
 So a change to what a service offers starts in the API, which is why it is
 requested by opening an issue rather than by editing generated code; a change
 to how every client behaves is a change to the generator or the core crate. A
-new version of a service appears by itself; a new service needs its crate
-first: a `crates/<service>/Cargo.toml` and a `src/lib.rs` like the PVS crate's.
+new version of a service appears by itself. So does a new service: the
+generator scaffolds its crate, a `crates/<service>/Cargo.toml` and `src/lib.rs`
+from a template matching the PVS crate's, adds it to the workspace, and says
+so; review the scaffolded description and keywords before it is merged.
 
 The regeneration workflow (`.github/workflows/regenerate.yml`) moves the SDK
 to the newest API daily, and opens a pull request when that changes anything.

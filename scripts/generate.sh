@@ -6,6 +6,10 @@
 # messages, their JSON mapping and the clients of each proto package, in
 # crates/<service>/src/generated/ and crates/core/src/longrunning/generated/.
 #
+# A service the API gains gets its crate scaffolded: crates/<service>'s
+# Cargo.toml and src/lib.rs, from the generator's template, and a place
+# among the workspace's members (Cargo.toml, Cargo.lock).
+#
 #   scripts/generate.sh           # generate it again
 #   scripts/generate.sh --check   # check the checked-in code is current
 #
@@ -37,12 +41,27 @@ git -C "${tmp}/api" checkout --quiet FETCH_HEAD
 
 # The generated files, relative to the repository.
 generated() { (cd "$1" && find crates -path '*/generated/*' -type f | LC_ALL=C sort); }
+# The files scaffolding new crates, which the generator writes only for
+# a service without a crate.
+scaffolded() { (cd "$1" && find . -type f -not -path '*/generated/*' | sed 's|^\./||' | LC_ALL=C sort); }
 
 if [[ "${mode}" == write ]]; then
   generated "${ROOT}" | (cd "${ROOT}" && xargs -r rm -f)
-  (cd "${tmp}/gen" && find crates -type f -exec cp --parents {} "${ROOT}" \;)
+  (cd "${tmp}/gen" && find crates -path '*/generated/*' -type f -exec cp --parents {} "${ROOT}" \;)
+  new="$(scaffolded "${tmp}/gen")"
+  if [[ -n "${new}" ]]; then
+    (cd "${tmp}/gen" && xargs cp --parents -t "${ROOT}" <<< "${new}")
+    (cd "${ROOT}" && cargo update --quiet --workspace)
+    echo "scaffolded, to review:"
+    while read -r file; do echo "  ${file}"; done <<< "${new}"
+  fi
   echo "wrote $(generated "${ROOT}" | wc -l) files from origincloudhq/api@${revision:0:12}"
   exit 0
+fi
+
+if [[ -n "$(scaffolded "${tmp}/gen")" ]]; then
+  echo "FAILED: origincloudhq/api@${revision:0:12} has a service without a crate; run $0 to scaffold it"
+  exit 1
 fi
 
 failed=0
