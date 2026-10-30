@@ -1,8 +1,13 @@
 //! A read right after a write sees it, against a front door whose read
 //! model lags behind the writes.
+//!
+//! Nothing here depends on time: the fake read model stays behind every
+//! write until a read presents a token it hasn't reached. That read is
+//! answered UNAVAILABLE, retryable, as the API answers a read whose token
+//! its read model hasn't caught up with, and the read model then catches
+//! up, so that the retry finds what was written.
 
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 
 use fake_server::{FakeServer, Received, Response};
 use origincloud_core::{AccessToken, CONSISTENCY_TOKEN_HEADER, Client};
@@ -13,32 +18,35 @@ use serde_json::{Value, json};
 
 const ZONE: &str = "projects/p/zones/z";
 
-/// A front door whose read model trails each write by `lag`, as the API's
-/// does: a read presenting a token waits up to `bound` for the read model
-/// to reach it, then answers UNAVAILABLE; a read without one answers what
-/// the read model has, NOT_FOUND for a volume it hasn't seen yet.
+/// A front door whose read model lags behind its writes: a read without a
+/// token answers what the read model has, NOT_FOUND for a volume it hasn't
+/// seen yet; a read presenting a token the read model hasn't reached is
+/// answered UNAVAILABLE, retryable, and releases the read model to every
+/// write so far.
+#[derive(Default)]
 struct LaggingFrontDoor {
-    lag: Duration,
-    bound: Duration,
-    /// When each write, by position from 1, reaches the read model.
-    visible: Mutex<Vec<Instant>>,
+    state: Mutex<State>,
+}
+
+#[derive(Default)]
+struct State {
+    /// The writes accepted, by position from 1.
+    written: usize,
+    /// The position the read model has reached.
+    read_model: usize,
+    /// How often a read presented a token the read model hadn't reached.
+    behind: usize,
 }
 
 impl LaggingFrontDoor {
-    /// The position the read model has reached.
-    fn read_model(&self) -> usize {
-        let now = Instant::now();
-        self.visible
-            .lock()
-            .unwrap()
-            .iter()
-            .take_while(|t| **t <= now)
-            .count()
+    fn behind(&self) -> usize {
+        self.state.lock().unwrap().behind
     }
 
-    async fn answer(&self, r: Received) -> Response {
+    fn answer(&self, r: &Received) -> Response {
         let presented = position(r.header(CONSISTENCY_TOKEN_HEADER).unwrap_or_default());
         let volumes = format!("/v1beta1/{ZONE}/volumes");
+        let mut state = self.state.lock().unwrap();
         match (r.method.as_str(), r.path.as_str()) {
             ("POST", path) if path == volumes => {
                 let body: Value = serde_json::from_slice(&r.body).unwrap();
@@ -47,11 +55,8 @@ impl LaggingFrontDoor {
                     !r.query_values("requestId").is_empty(),
                     "no request id: {r:?}"
                 );
-                let written = {
-                    let mut visible = self.visible.lock().unwrap();
-                    visible.push(Instant::now() + self.lag);
-                    visible.len()
-                };
+                state.written += 1;
+                let written = state.written;
                 Response::json(json!({ "name": operation_name(written) }).to_string())
                     .with_header(CONSISTENCY_TOKEN_HEADER, token(presented.max(written)))
             }
@@ -72,19 +77,17 @@ impl LaggingFrontDoor {
             }
             ("GET", path) if path.starts_with(&format!("{volumes}/vol-")) => {
                 let wanted: usize = path.rsplit("vol-").next().unwrap().parse().unwrap();
-                let deadline = Instant::now() + self.bound;
-                while self.read_model() < presented {
-                    if Instant::now() > deadline {
-                        return Response::json(
-                            r#"{"error":{"code":503,"status":"UNAVAILABLE","message":"the read model hasn't reached the token yet","details":[
-                                {"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"SERVICE_UNAVAILABLE","domain":"origincloudapis.eu"},
-                                {"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"0.020s"}]}}"#,
-                        )
-                        .with_status(503);
-                    }
-                    tokio::time::sleep(Duration::from_millis(5)).await;
+                if state.read_model < presented {
+                    state.behind += 1;
+                    state.read_model = state.written;
+                    return Response::json(
+                        r#"{"error":{"code":503,"status":"UNAVAILABLE","message":"the read model hasn't reached the token yet","details":[
+                            {"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"SERVICE_UNAVAILABLE","domain":"origincloudapis.eu"},
+                            {"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"0.020s"}]}}"#,
+                    )
+                    .with_status(503);
                 }
-                if self.read_model() < wanted {
+                if state.read_model < wanted {
                     return Response::json(
                         r#"{"error":{"code":404,"status":"NOT_FOUND","message":"volume not found","details":[
                             {"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"NOT_FOUND","domain":"origincloudapis.eu"}]}}"#,
@@ -128,17 +131,13 @@ fn new_client(server: &FakeServer) -> VolumeClient {
 
 /// A get right after a create's operation is done finds the volume, every
 /// time, although the read model is behind the create.
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn a_get_after_a_create_is_done_finds_the_volume() {
-    let front_door = Arc::new(LaggingFrontDoor {
-        lag: Duration::from_millis(150),
-        bound: Duration::from_millis(50),
-        visible: Mutex::default(),
-    });
+    let front_door = Arc::new(LaggingFrontDoor::default());
     let handler = Arc::clone(&front_door);
     let server = FakeServer::start(move |r| {
-        let front_door = Arc::clone(&handler);
-        async move { front_door.answer(r).await }
+        let response = handler.answer(&r);
+        async move { response }
     })
     .await;
     let volumes = new_client(&server);
@@ -160,8 +159,8 @@ async fn a_get_after_a_create_is_done_finds_the_volume() {
             .unwrap_or_else(|e| panic!("wait {i}: {e}"));
         assert_eq!(created.state(), volume::State::Available);
 
-        // The control: a client that didn't write doesn't see it yet, so
-        // the read model really is behind.
+        // The control: a client that didn't write doesn't see it, so the
+        // read model really is behind.
         let err = new_client(&server)
             .get_volume(GetVolumeRequest {
                 name: created.name.clone(),
@@ -181,5 +180,10 @@ async fn a_get_after_a_create_is_done_finds_the_volume() {
             .await
             .unwrap_or_else(|e| panic!("get {i} after its create: {e}"));
         assert_eq!(got.name, created.name, "get {i}");
+        assert_eq!(
+            front_door.behind(),
+            i + 1,
+            "get {i} presented the create's token"
+        );
     }
 }
