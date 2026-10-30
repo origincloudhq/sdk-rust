@@ -1,5 +1,6 @@
 use std::fmt;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use url::Url;
 
@@ -11,6 +12,8 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const ENV_REGION: &str = "ORIGINCLOUD_REGION";
 const DEFAULT_MAX_ATTEMPTS: u32 = 5;
+/// The longest the API waits for an operation in one call.
+const DEFAULT_OPERATION_WAIT: Duration = Duration::from_secs(60);
 
 /// What the clients of every service share: credentials, endpoints, an
 /// HTTP client and the consistency token. Cloning it is cheap, and the
@@ -27,6 +30,10 @@ pub(crate) struct Inner {
     endpoint: Option<Url>,
     pub(crate) user_agent: String,
     pub(crate) max_attempts: u32,
+    /// The timeout of each attempt, when the builder set one.
+    pub(crate) timeout: Option<Duration>,
+    /// How long one call waiting on an operation asks the API to wait.
+    pub(crate) operation_wait: Duration,
     token: Mutex<String>,
 }
 
@@ -109,6 +116,8 @@ pub struct ClientBuilder {
     http: Option<reqwest::Client>,
     user_agent: Option<String>,
     max_attempts: Option<u32>,
+    timeout: Option<Duration>,
+    operation_wait: Option<Duration>,
 }
 
 impl ClientBuilder {
@@ -157,6 +166,30 @@ impl ClientBuilder {
         self
     }
 
+    /// Bounds each attempt of a call by `timeout`; an attempt that takes
+    /// longer fails as a transport error, which a safe call retries. By
+    /// default, only the HTTP client's own timeout, if any, bounds it.
+    ///
+    /// Waiting on an operation asks the API to wait less than this, so that
+    /// a wait call doesn't time out on the way; see
+    /// [`ClientBuilder::operation_wait`].
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = Some(timeout);
+        self
+    }
+
+    /// Sets how long one call of [`Operation::wait`](crate::Operation::wait)
+    /// asks the API to wait for the operation before answering with it as
+    /// it is, in whole seconds, at least one; the default, and the most the
+    /// API waits, is a minute. With a [`ClientBuilder::timeout`], a call
+    /// asks for a second less than it at most. A wait call that times out
+    /// all the same, such as under the HTTP client's own timeout, counts as
+    /// the operation not being done yet, and the next one is sent.
+    pub fn operation_wait(mut self, wait: Duration) -> Self {
+        self.operation_wait = Some(wait);
+        self
+    }
+
     /// The client. It fails when no credentials are found or an option is
     /// invalid.
     pub fn build(self) -> Result<Client, Error> {
@@ -165,6 +198,11 @@ impl ClientBuilder {
 
     /// [`ClientBuilder::build`] with the environment read through `env`.
     pub(crate) fn build_with(self, env: &dyn Fn(&str) -> Option<String>) -> Result<Client, Error> {
+        if self.timeout == Some(Duration::ZERO) {
+            return Err(Error::Config(
+                "the timeout must be longer than zero".to_owned(),
+            ));
+        }
         let max_attempts = self.max_attempts.unwrap_or(DEFAULT_MAX_ATTEMPTS);
         if max_attempts < 1 {
             return Err(Error::Config(format!(
@@ -215,6 +253,8 @@ impl ClientBuilder {
                 endpoint,
                 user_agent,
                 max_attempts,
+                timeout: self.timeout,
+                operation_wait: self.operation_wait.unwrap_or(DEFAULT_OPERATION_WAIT),
                 token: Mutex::default(),
             }),
         })
@@ -228,6 +268,8 @@ impl fmt::Debug for ClientBuilder {
             .field("region", &self.region)
             .field("endpoint", &self.endpoint)
             .field("max_attempts", &self.max_attempts)
+            .field("timeout", &self.timeout)
+            .field("operation_wait", &self.operation_wait)
             .finish_non_exhaustive()
     }
 }

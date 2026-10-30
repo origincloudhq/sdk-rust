@@ -34,6 +34,9 @@ pub struct Request {
     query: Query,
     body: Option<Vec<u8>>,
     idempotent: bool,
+    /// A timeout answers the call rather than fails an attempt: it is
+    /// returned at once, not retried.
+    pub(crate) timeout_answers: bool,
 }
 
 impl Request {
@@ -45,6 +48,7 @@ impl Request {
             query: Query::new(),
             body: None,
             idempotent: false,
+            timeout_answers: false,
         }
     }
 
@@ -86,6 +90,9 @@ impl Service {
                 }
                 Err(err) => err,
             };
+            if request.timeout_answers && is_timeout(&err) {
+                return Err(err);
+            }
             if !request.idempotent || attempt >= self.client.inner.max_attempts {
                 return Err(err);
             }
@@ -119,6 +126,9 @@ impl Service {
             .header(AUTHORIZATION, format!("Bearer {token}"))
             .header(ACCEPT, "application/json")
             .header(USER_AGENT, &inner.user_agent);
+        if let Some(timeout) = inner.timeout {
+            builder = builder.timeout(timeout);
+        }
         if let Some(body) = &request.body {
             builder = builder
                 .header(CONTENT_TYPE, "application/json")
@@ -153,6 +163,11 @@ impl Service {
         }
         Ok(answer)
     }
+}
+
+/// Whether `err` is an attempt that timed out.
+pub(crate) fn is_timeout(err: &Error) -> bool {
+    matches!(err, Error::Transport(e) if e.is_timeout())
 }
 
 /// Whether `err` may go away if the call is sent again, and how long to

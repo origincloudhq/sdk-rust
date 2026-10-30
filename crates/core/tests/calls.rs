@@ -372,3 +372,103 @@ async fn a_result_of_another_type_is_refused() {
         "{err}"
     );
 }
+
+fn done_volume() -> String {
+    let result = json!({"@type": "type.googleapis.com/x.Volume", "name": "projects/p/zones/z/volumes/vol-1"});
+    operation(true, Some(result)).to_string()
+}
+
+#[tokio::test]
+async fn a_wait_call_that_times_out_counts_as_not_done() {
+    let waits = Arc::new(AtomicU32::new(0));
+    let counted = Arc::clone(&waits);
+    let server = FakeServer::start(move |_| {
+        let n = counted.fetch_add(1, Ordering::SeqCst) + 1;
+        async move {
+            if n < 3 {
+                // Longer than the HTTP client waits.
+                tokio::time::sleep(Duration::from_secs(5)).await;
+            }
+            Response::json(done_volume())
+        }
+    })
+    .await;
+    // The HTTP client's own timeout, shorter than the minute the API is
+    // asked to wait, and no retries: a timeout must not use any up.
+    let http = reqwest::Client::builder()
+        .timeout(Duration::from_millis(300))
+        .build()
+        .unwrap();
+    let client = Client::builder()
+        .endpoint(server.url())
+        .credentials(AccessToken::new("t"))
+        .http_client(http)
+        .max_attempts(1)
+        .build()
+        .unwrap();
+    let mut op = running(&client.service("pvs", true));
+
+    let got = op.wait().await.unwrap();
+    assert_eq!(got["name"], "projects/p/zones/z/volumes/vol-1");
+    assert_eq!(waits.load(Ordering::SeqCst), 3);
+}
+
+#[tokio::test]
+async fn the_wait_per_call_is_configurable_and_kept_below_the_timeout() {
+    let bodies = Arc::new(Mutex::new(Vec::<String>::new()));
+    let log = Arc::clone(&bodies);
+    let server = FakeServer::start(move |r| {
+        log.lock().unwrap().push(r.text());
+        async { Response::json(done_volume()) }
+    })
+    .await;
+    let cases: [(Option<u64>, Option<u64>, &str); 5] = [
+        (None, None, "60s"),
+        (Some(10_000), None, "10s"),
+        (None, Some(5_000), "4s"),
+        (Some(10_000), Some(3_000), "2s"),
+        (None, Some(1_500), "1s"),
+    ];
+    for (wait, timeout, _) in cases {
+        let mut builder = Client::builder()
+            .endpoint(server.url())
+            .credentials(AccessToken::new("t"));
+        if let Some(ms) = wait {
+            builder = builder.operation_wait(Duration::from_millis(ms));
+        }
+        if let Some(ms) = timeout {
+            builder = builder.timeout(Duration::from_millis(ms));
+        }
+        let client = builder.build().unwrap();
+        running(&client.service("pvs", true)).wait().await.unwrap();
+    }
+    let want: Vec<String> = cases
+        .iter()
+        .map(|(_, _, w)| format!(r#"{{"timeout":"{w}"}}"#))
+        .collect();
+    assert_eq!(*bodies.lock().unwrap(), want);
+}
+
+#[tokio::test]
+async fn an_attempt_longer_than_the_timeout_fails_and_is_retried() {
+    let calls = Arc::new(AtomicU32::new(0));
+    let counted = Arc::clone(&calls);
+    let server = FakeServer::start(move |_| {
+        let n = counted.fetch_add(1, Ordering::SeqCst) + 1;
+        async move {
+            if n == 1 {
+                tokio::time::sleep(Duration::from_secs(5)).await;
+            }
+            Response::json("{}")
+        }
+    })
+    .await;
+    let client = Client::builder()
+        .endpoint(server.url())
+        .credentials(AccessToken::new("t"))
+        .timeout(Duration::from_millis(300))
+        .build()
+        .unwrap();
+    get(&client.service("pvs", true), "/x").await.unwrap();
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+}

@@ -1,15 +1,13 @@
 use std::fmt;
 use std::marker::PhantomData;
+use std::time::Duration;
 
 use serde::de::DeserializeOwned;
 
 use crate::error::ApiError;
 use crate::longrunning::OperationResult;
+use crate::transport::is_timeout;
 use crate::{Error, Method, Request, Service, longrunning, path_value};
-
-/// The longest the API waits for an operation in one call, in its JSON
-/// form.
-const WAIT_PER_CALL: &str = "60s";
 
 /// A mutation the API accepted and carries out after answering. Its
 /// result, a `T`, is the resource it acted on, or
@@ -59,23 +57,49 @@ impl<T: DeserializeOwned> Operation<T> {
     /// through the same [`Client`](crate::Client) show the operation's
     /// effect.
     ///
+    /// Each call asks the API to wait up to
+    /// [`ClientBuilder::operation_wait`](crate::ClientBuilder::operation_wait),
+    /// a minute by default, and less than the client's
+    /// [`timeout`](crate::ClientBuilder::timeout). A call that times out
+    /// all the same, such as under a shorter timeout of the HTTP client's
+    /// own, counts as the operation not being done yet: the next call is
+    /// sent, without using up the call's retries.
+    ///
     /// It waits as long as the operation takes; to bound that, wrap it in a
     /// timeout such as `tokio::time::timeout`, which stops waiting, not the
     /// operation.
     pub async fn wait(&mut self) -> Result<T, Error> {
+        let body = serde_json::json!({ "timeout": format!("{}s", self.wait_per_call().as_secs()) });
         while !self.operation.done {
             let path = path_value(
                 "operation name",
                 &self.operation.name,
                 "projects/*/zones/*/operations/*",
             )?;
-            let body = serde_json::json!({ "timeout": WAIT_PER_CALL });
-            let call = Request::new(Method::POST, format!("/v1beta1/{path}:wait"))
+            let mut call = Request::new(Method::POST, format!("/v1beta1/{path}:wait"))
                 .with_body(body.to_string().into_bytes())
                 .idempotent();
-            self.operation = self.service.call(call).await?;
+            call.timeout_answers = true;
+            match self.service.call(call).await {
+                Ok(operation) => self.operation = operation,
+                Err(err) if is_timeout(&err) => {}
+                Err(err) => return Err(err),
+            }
         }
         self.result()
+    }
+
+    /// How long one wait call asks the API to wait: the client's
+    /// `operation_wait`, kept a second, or half, below its timeout, in
+    /// whole seconds, at least one.
+    fn wait_per_call(&self) -> Duration {
+        let inner = &self.service.client.inner;
+        let mut wait = inner.operation_wait;
+        if let Some(timeout) = inner.timeout {
+            let margin = Duration::from_secs(1).min(timeout / 2);
+            wait = wait.min(timeout - margin);
+        }
+        Duration::from_secs(wait.as_secs().max(1))
     }
 
     /// The result of an operation that is done, or the [`Error::Api`] it
