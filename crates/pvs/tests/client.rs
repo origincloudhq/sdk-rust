@@ -275,7 +275,7 @@ fn the_clients_use_the_service_s_regional_host() {
         .unwrap();
     let volumes = VolumeClient::new(&client);
     assert_eq!(
-        volumes.service().base_url().as_str(),
+        volumes.service().base_url().unwrap().as_str(),
         "https://pvs.eu-central1.origincloudapis.eu/"
     );
 }

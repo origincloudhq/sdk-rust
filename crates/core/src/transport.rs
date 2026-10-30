@@ -99,10 +99,11 @@ impl Service {
 
     /// Makes one attempt, and answers with the body of a 200.
     async fn send(&self, request: &Request) -> Result<Vec<u8>, Error> {
-        let mut url = self.base.clone();
+        let base = self.base.as_ref().map_err(|e| Error::Config(e.clone()))?;
+        let mut url = base.clone();
         url.set_path(&format!(
             "{}{}",
-            self.base.path().trim_end_matches('/'),
+            base.path().trim_end_matches('/'),
             request.path
         ));
         if request.query.is_empty() {

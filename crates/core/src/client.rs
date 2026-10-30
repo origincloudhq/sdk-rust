@@ -47,9 +47,15 @@ impl Client {
     /// as `pvs`. A regional service answers at its region's front door when
     /// the client has a region; a global one always at its regionless host.
     /// The generated clients call it.
+    ///
+    /// A shortcode that isn't a host label, `[a-z0-9-]+`, makes every call
+    /// of the service fail with [`Error::Config`].
     pub fn service(&self, shortcode: &str, regional: bool) -> Service {
         let base = match &self.inner.endpoint {
-            Some(endpoint) => endpoint.clone(),
+            Some(endpoint) => Ok(endpoint.clone()),
+            None if !is_label(shortcode) => Err(format!(
+                "the service shortcode must be [a-z0-9-]+, got {shortcode:?}"
+            )),
             None => {
                 let region = &self.inner.region;
                 let host = if regional && !region.is_empty() {
@@ -57,7 +63,8 @@ impl Client {
                 } else {
                     format!("{shortcode}.origincloudapis.eu")
                 };
-                Url::parse(&format!("https://{host}")).expect("a valid host")
+                Url::parse(&format!("https://{host}"))
+                    .map_err(|e| format!("the service host {host:?} isn't valid: {e}"))
             }
         };
         Service {
@@ -115,14 +122,16 @@ impl ClientBuilder {
     /// Sends calls to a region's front door,
     /// `{service}.{region}.origincloudapis.eu`, for the services that have
     /// one. It overrides `ORIGINCLOUD_REGION`; an empty region uses the
-    /// regionless endpoint.
+    /// regionless endpoint. A region, from either, is `[a-z0-9-]+`, such as
+    /// `eu-central1`: [`ClientBuilder::build`] refuses any other.
     pub fn region(mut self, region: impl Into<String>) -> Self {
         self.region = Some(region.into());
         self
     }
 
     /// Sends the calls of every service to one base URL, such as a test
-    /// server's, instead of the service's own host.
+    /// server's, instead of the service's own host. [`ClientBuilder::build`]
+    /// refuses one that isn't an absolute URL with a host.
     pub fn endpoint(mut self, endpoint: impl Into<String>) -> Self {
         self.endpoint = Some(endpoint.into());
         self
@@ -170,6 +179,11 @@ impl ClientBuilder {
             Some(region) => region,
             None => env(ENV_REGION).unwrap_or_default(),
         };
+        if !region.is_empty() && !is_label(&region) {
+            return Err(Error::Config(format!(
+                "the region must be [a-z0-9-]+, such as eu-central1, got {region:?}"
+            )));
+        }
         let endpoint = match self.endpoint {
             Some(endpoint) => {
                 let parsed = Url::parse(endpoint.trim_end_matches('/'))
@@ -218,11 +232,20 @@ impl fmt::Debug for ClientBuilder {
     }
 }
 
+/// Whether `s` can be one label of a host name, as a service shortcode or
+/// a region is: `[a-z0-9-]+`.
+fn is_label(s: &str) -> bool {
+    !s.is_empty()
+        && s.bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+}
+
 /// The endpoint of one service, which its generated clients send calls to.
 #[derive(Clone, Debug)]
 pub struct Service {
     pub(crate) client: Client,
-    pub(crate) base: Url,
+    /// The base URL, or why there is none.
+    pub(crate) base: Result<Url, String>,
 }
 
 impl Service {
@@ -231,9 +254,10 @@ impl Service {
         &self.client
     }
 
-    /// The base URL calls are sent to, such as `https://pvs.origincloudapis.eu`.
-    pub fn base_url(&self) -> &Url {
-        &self.base
+    /// The base URL calls are sent to, such as `https://pvs.origincloudapis.eu`;
+    /// `None` when the service's shortcode can't name a host.
+    pub fn base_url(&self) -> Option<&Url> {
+        self.base.as_ref().ok()
     }
 }
 
@@ -250,6 +274,7 @@ mod tests {
         client
             .service("pvs", regional)
             .base_url()
+            .unwrap()
             .as_str()
             .trim_end_matches('/')
             .to_owned()
@@ -300,17 +325,68 @@ mod tests {
     }
 
     #[test]
+    fn a_region_that_isnt_a_host_label_is_refused() {
+        for region in [
+            "eu/central1",
+            "x@evil.com/",
+            "eu central1",
+            "eu-central1:443",
+            "EU-CENTRAL1",
+        ] {
+            let built = Client::builder()
+                .credentials(AccessToken::new("t"))
+                .region(region)
+                .build_with(&no_env);
+            let Err(Error::Config(message)) = built else {
+                panic!("region {region:?}: {built:?}");
+            };
+            assert!(message.contains(&format!("{region:?}")), "{message}");
+
+            let env = |name: &str| (name == ENV_REGION).then(|| region.to_owned());
+            let built = Client::builder()
+                .credentials(AccessToken::new("t"))
+                .build_with(&env);
+            assert!(
+                matches!(built, Err(Error::Config(_))),
+                "ORIGINCLOUD_REGION={region:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_shortcode_that_isnt_a_host_label_fails_its_calls_instead_of_panicking() {
+        let client = Client::builder()
+            .credentials(AccessToken::new("t"))
+            .build_with(&no_env)
+            .unwrap();
+        assert!(client.service("x@evil.com/", true).base_url().is_none());
+        assert!(client.service("pvs", true).base_url().is_some());
+    }
+
+    #[test]
     fn invalid_options_are_refused() {
         let built = Client::builder()
             .credentials(AccessToken::new("t"))
             .max_attempts(0)
             .build_with(&no_env);
         assert!(matches!(built, Err(Error::Config(_))));
-        let built = Client::builder()
-            .credentials(AccessToken::new("t"))
-            .endpoint("localhost")
-            .build_with(&no_env);
-        assert!(matches!(built, Err(Error::Config(_))));
+        for endpoint in [
+            "localhost",
+            "",
+            "http://",
+            "not a url",
+            "http://exa mple.com",
+            "mailto:x@y",
+        ] {
+            let built = Client::builder()
+                .credentials(AccessToken::new("t"))
+                .endpoint(endpoint)
+                .build_with(&no_env);
+            assert!(
+                matches!(built, Err(Error::Config(_))),
+                "endpoint {endpoint:?}"
+            );
+        }
     }
 
     #[test]
