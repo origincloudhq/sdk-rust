@@ -27,6 +27,7 @@ mod deps;
 mod docs;
 mod names;
 mod scaffold;
+mod support;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -235,6 +236,7 @@ fn generate_package(
 ) -> Result<String> {
     let core = target.core;
     let package = &target.package;
+    support::check_fields(pool, package)?;
     let sources: Vec<_> = fds
         .file
         .iter()
