@@ -22,6 +22,7 @@ hand, by an owner of the crates on crates.io.
    ```sh
    cargo publish --locked -p origincloud-core
    cargo publish --locked -p origincloud-pvs
+   cargo publish --locked -p origincloud-location
    ```
 
 4. Tag the commit:

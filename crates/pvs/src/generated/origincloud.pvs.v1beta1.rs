@@ -4375,7 +4375,9 @@ impl SnapshotClient {
         self.service.call(call).await
     }
     /// Lists the snapshots in a zone, oldest first. Deleted snapshots aren't
-    /// listed.
+    /// listed. For every zone's snapshots, list the zones whose `services` name
+    /// `pvs` with the location service (`location.origincloudapis.eu`), then
+    /// each zone's snapshots.
     pub async fn list_snapshots(
         &self,
         request: ListSnapshotsRequest,
@@ -4545,8 +4547,10 @@ impl SnapshotClient {
             ),
         )
     }
-    /// Unprotects a snapshot, so it can be deleted. Refused while an image is
-    /// built from it. The operation is done once it is `snapshot::ProtectionState::Unprotected`.
+    /// Unprotects a snapshot, so it can be deleted. Refused with
+    /// `FAILED_PRECONDITION` while an image is built from it or a volume not
+    /// `snapshot::State::Deleted` was created from it; delete those first. The operation is
+    /// done once it is `snapshot::ProtectionState::Unprotected`.
     ///
     /// It answers with an operation to wait on: [`Operation::wait`](origincloud_core::Operation::wait) returns the [`Snapshot`] once the change is done.
     pub async fn unprotect_snapshot(
@@ -4675,7 +4679,9 @@ impl VolumeClient {
         self.service.call(call).await
     }
     /// Lists the volumes in a zone, oldest first. Deleted volumes aren't
-    /// listed.
+    /// listed. For every zone's volumes, list the zones whose `services` name
+    /// `pvs` with the location service (`location.origincloudapis.eu`), then
+    /// each zone's volumes.
     pub async fn list_volumes(
         &self,
         request: ListVolumesRequest,
