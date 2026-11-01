@@ -1,0 +1,18 @@
+[package]
+name = "origincloud-location"
+version = "0.1.0"
+description = "The Origin Cloud LOCATION API."
+keywords = ["origincloud", "cloud", "sdk", "api"]
+categories = ["api-bindings", "web-programming::http-client"]
+readme = "../../README.md"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+origincloud-core = { version = "0.1.0", path = "../core" }
+pbjson = "0.9"
+prost = "0.14"
+serde = "1"
