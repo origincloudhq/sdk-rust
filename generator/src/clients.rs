@@ -245,7 +245,7 @@ fn generate_method(cx: &Generation<'_>, m: &MethodDescriptor, out: &mut String) 
         .input()
         .get_field_by_name("request_id")
         .filter(|f| f.kind() == Kind::String && !f.is_list());
-    let idempotent = verb == "GET" || request_id.is_some();
+    let idempotent = verb == "GET" || request_id.is_some() || declared_idempotent(m);
     let binding = if request_id.is_some() {
         "mut request"
     } else {
@@ -350,6 +350,17 @@ fn generate_method(cx: &Generation<'_>, m: &MethodDescriptor, out: &mut String) 
 
 /// Whether m is one of the methods reading operations themselves, which
 /// answer with an operation without starting one.
+/// Whether the API declares the method safe to repeat with
+/// `option idempotency_level`, as a read that isn't a GET (WaitOperation)
+/// does.
+fn declared_idempotent(m: &MethodDescriptor) -> bool {
+    use prost_types::method_options::IdempotencyLevel;
+    m.method_descriptor_proto()
+        .options
+        .as_ref()
+        .is_some_and(|o| o.idempotency_level() != IdempotencyLevel::IdempotencyUnknown)
+}
+
 fn is_operation_service(m: &MethodDescriptor) -> bool {
     m.parent_service().name() == "OperationService"
 }
@@ -486,5 +497,57 @@ fn field_access(fields: &[FieldDescriptor]) -> String {
             expr
         }
         [] => unreachable!("resolve_field returns at least one field"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use protox::file::{ChainFileResolver, GoogleFileResolver};
+
+    use super::*;
+    use crate::MemoryResolver;
+
+    const SCRATCH: &str = r#"
+        syntax = "proto3";
+        package origincloud.scratch.v1;
+        message Request { string name = 1; }
+        message Response {}
+        service Scratch {
+          rpc Wait(Request) returns (Response) { option idempotency_level = NO_SIDE_EFFECTS; }
+          rpc Set(Request) returns (Response) { option idempotency_level = IDEMPOTENT; }
+          rpc Change(Request) returns (Response);
+        }
+    "#;
+
+    #[test]
+    fn a_declared_idempotency_level_makes_a_method_repeatable() {
+        let mut resolver = ChainFileResolver::new();
+        resolver.add(MemoryResolver(BTreeMap::from([(
+            "scratch.proto".to_owned(),
+            SCRATCH.to_owned(),
+        )])));
+        resolver.add(GoogleFileResolver::new());
+        let mut compiler = protox::Compiler::with_file_resolver(resolver);
+        compiler
+            .open_files(["scratch.proto"])
+            .expect("the scratch proto compiles");
+        let pool = compiler.descriptor_pool();
+        let service = pool
+            .get_service_by_name("origincloud.scratch.v1.Scratch")
+            .expect("the service is in the pool");
+        let declared: Vec<(String, bool)> = service
+            .methods()
+            .map(|m| (m.name().to_owned(), declared_idempotent(&m)))
+            .collect();
+        assert_eq!(
+            declared,
+            [
+                ("Wait".to_owned(), true),
+                ("Set".to_owned(), true),
+                ("Change".to_owned(), false)
+            ]
+        );
     }
 }
