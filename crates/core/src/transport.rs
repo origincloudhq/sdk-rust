@@ -211,7 +211,9 @@ pub fn path_value(field: &str, value: &str, pattern: &str) -> Result<String, Err
     let want: Vec<&str> = pattern.split('/').collect();
     let valid = got.len() == want.len()
         && got.iter().zip(&want).all(|(g, w)| match *w {
-            "*" => !g.is_empty(),
+            // A dot segment would move the request to another path, which
+            // the server would act on instead.
+            "*" => !g.is_empty() && *g != "." && *g != "..",
             literal => *g == literal,
         });
     if !valid {
@@ -319,6 +321,9 @@ mod tests {
             "projects/p/zones//volumes/v",
             "projects/p/regions/z/volumes/v",
             "projects/p/zones/z/volumes/v/x",
+            "projects/p/zones/z/volumes/..",
+            "projects/p/zones/z/volumes/.",
+            "projects/../zones/z/volumes/v",
         ] {
             let err = path_value("name", bad, "projects/*/zones/*/volumes/*").unwrap_err();
             assert!(
