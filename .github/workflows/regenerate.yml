@@ -6,7 +6,10 @@
 #
 # Commits someone adds to that pull request, such as a new service's
 # package, are kept: a later run generates on top of them, with main merged
-# in, and never closes a pull request that has them.
+# in, and never closes a pull request that has them. Merging main resolves
+# conflicts in what scripts/update.sh writes again anyway (API_REVISION and crates/*/src/generated);
+# any other conflict fails the run until someone merges main into the
+# branch by hand.
 #
 # The pull request is opened with the workflow token, which starts no
 # pull_request run, so this dispatches CI on the branch; its result shows on
@@ -49,20 +52,52 @@ jobs:
           echo "PREVIOUS=$(cat API_REVISION)" >> "$GITHUB_ENV"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          bot="$(git config user.email)"
           base=main
           lease=""
-          if git fetch --quiet origin "${BRANCH}" 2>/dev/null; then
+          # Exit status 2: there is no such branch. Any other failure fails
+          # the run rather than passing for an absent branch.
+          found=0
+          git ls-remote --exit-code --heads origin "${BRANCH}" >/dev/null || found=$?
+          if [[ "${found}" -eq 0 ]]; then
+            git fetch --quiet origin "${BRANCH}"
             lease="$(git rev-parse FETCH_HEAD)"
-            open="$(gh pr list --head "${BRANCH}" --base main --state open --json number --jq '.[0].number // empty')"
-            added="$(git log --format=%ae origin/main..FETCH_HEAD | grep -cvxF "$(git config user.email)" || true)"
+            open="$(gh pr list --head "${BRANCH}" --base main --state open --json number,isCrossRepository --jq 'map(select(.isCrossRepository | not))[0].number // empty')"
+            # Committers too: an amended or rebased commit of the workflow's
+            # keeps it as the author.
+            added="$(git log --format='%ae%n%ce' origin/main..FETCH_HEAD | grep -cvxF "${bot}" || true)"
             if [[ -n "${open}" && "${added}" -gt 0 ]]; then
               git switch --quiet -C "${BRANCH}" FETCH_HEAD
-              git merge --quiet --no-edit origin/main
+              if ! git merge --quiet --no-edit origin/main; then
+                for path in $(git diff --name-only --diff-filter=U); do
+                  case "${path}" in
+              API_REVISION | crates/*/src/generated/*)
+                      if git checkout --quiet --ours -- "${path}" 2>/dev/null; then
+                        git add -- "${path}"
+                      else
+                        git rm --quiet -- "${path}"
+                      fi
+                      ;;
+                  esac
+                done
+                conflicts="$(git diff --name-only --diff-filter=U | paste -sd ' ' -)"
+                if [[ -n "${conflicts}" ]]; then
+                  echo "::error::merging main into ${BRANCH} conflicts in ${conflicts}: merge main into it by hand and push"
+                  exit 1
+                fi
+                git commit --quiet --no-edit
+              fi
               base=branch
             fi
+          elif [[ "${found}" -ne 2 ]]; then
+            echo "::error::could not read origin's branches"
+            exit 1
           fi
-          echo "BASE=${base}" >> "$GITHUB_ENV"
-          echo "LEASE=${lease}" >> "$GITHUB_ENV"
+          {
+            echo "BASE=${base}"
+            echo "LEASE=${lease}"
+            echo "FROM=$(cat API_REVISION)"
+          } >> "$GITHUB_ENV"
 
       # rustup installs the toolchain rust-toolchain.toml names.
       - name: Rust
@@ -77,11 +112,19 @@ jobs:
       - name: Pull request
         run: |
           set -euo pipefail
-          open="$(gh pr list --head "${BRANCH}" --base main --state open --json number --jq '.[0].number // empty')"
+          open="$(gh pr list --head "${BRANCH}" --base main --state open --json number,isCrossRepository --jq 'map(select(.isCrossRepository | not))[0].number // empty')"
           if [[ "${BASE}" == main && -z "$(git status --porcelain)" ]]; then
             echo "already current"
-            if [[ -n "${open}" ]]; then
-              gh pr close "${open}" --delete-branch --comment "main is current with the API."
+            # The branch goes only as the Base step found it, and its pull
+            # request closes with it; one pushed to meanwhile stays.
+            if [[ -n "${LEASE}" ]]; then
+              if git push --quiet --force-with-lease="${BRANCH}:${LEASE}" origin ":${BRANCH}"; then
+                if [[ -n "${open}" ]]; then
+                  gh pr comment "${open}" --body "main is current with the API."
+                fi
+              else
+                echo "::warning::${BRANCH} changed during the run; left as it is"
+              fi
             fi
             exit 0
           fi
@@ -91,7 +134,7 @@ jobs:
           if [[ -n "$(git status --porcelain)" ]]; then
             git add --all
             git commit --quiet -m "Regenerate from origincloudhq/api@${revision:0:12}" \
-              -m "API: https://github.com/origincloudhq/api/compare/${PREVIOUS}...${revision}"
+              -m "API: https://github.com/origincloudhq/api/compare/${FROM}...${revision}"
           fi
 
           # Unchanged since the last run: nothing to push or check again.
