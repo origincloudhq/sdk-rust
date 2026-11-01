@@ -481,7 +481,8 @@ impl OperationClient {
         self.service.call(call).await
     }
     /// Waits until an operation is done or `timeout` has passed, whichever
-    /// comes first, and returns it as it is then.
+    /// comes first, and returns it as it is then. It only reads, so a client
+    /// may repeat it after a transport error.
     pub async fn wait_operation(
         &self,
         request: WaitOperationRequest,
@@ -496,7 +497,8 @@ impl OperationClient {
                 crate::Method::POST,
                 format!("/v1beta1/{p0}:wait"),
             )
-            .with_body(body);
+            .with_body(body)
+            .idempotent();
         self.service.call(call).await
     }
 }
