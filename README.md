@@ -79,7 +79,9 @@ async fn main() -> Result<(), origincloud_core::Error> {
 
 - **Endpoints.** Every service answers at `{service}.origincloudapis.eu`,
   which serves every resource wherever it lives. `ClientBuilder::region`, or
-  `ORIGINCLOUD_REGION`, picks a region's front door instead.
+  `ORIGINCLOUD_REGION`, picks a region's front door instead,
+  `{service}.{region}.origincloudapis.eu`, for the services that have one;
+  a global service, such as location, keeps its regionless host.
 - **Operations.** A create, update or delete returns an `Operation`; its
   `wait` returns the resource once the change is complete, or the error the
   change failed with.
