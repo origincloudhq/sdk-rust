@@ -1,43 +1,77 @@
 # Releasing
 
 A release publishes every crate of the workspace to crates.io at one version,
-from a commit on `main` whose CI passed, and tags that commit. It is done by
-hand, by an owner of the crates on crates.io.
-
-1. Move the version: set `version` in `crates/*/Cargo.toml`, and the
-   `origincloud-core` dependency of each service crate, to the next version,
-   then run `cargo update --workspace`. Open a pull request with it and merge
-   it once CI passes.
-
-2. Check what will be published, on that commit:
-
-   ```sh
-   git switch --detach origin/main
-   cargo package --locked --workspace --exclude origincloud-sdk-generator --exclude fake-server
-   ```
-
-3. Publish the core crate first, then the service crates, which depend on it.
-   `cargo publish` needs a crates.io API token (`cargo login`) of an owner:
-
-   ```sh
-   cargo publish --locked -p origincloud-core
-   cargo publish --locked -p origincloud-pvs
-   cargo publish --locked -p origincloud-location
-   ```
-
-4. Tag the commit:
-
-   ```sh
-   git tag -a v0.2.0 -m v0.2.0 origin/main
-   git push origin v0.2.0
-   ```
-
-Then check that it resolves: `cargo info origincloud-pvs@0.2.0`.
-
-The first release of a new crate makes its publisher its only owner; add the
-organisation's crates.io team as an owner then (`cargo owner --add`).
+the `version` of `crates/*/Cargo.toml` and of the `origincloud-core` each
+service crate depends on, from a commit on `main` whose CI passed, and tags
+that commit `v<version>`.
 
 Versions follow semantic versioning. Before 1.0, a minor version may change
 the API incompatibly, as the preview APIs themselves may (a `v1beta1`
 module). A version is never replaced once released: crates.io keeps it, and
 a broken one is yanked (`cargo yank`), not deleted.
+
+## The automatic path
+
+1. **Regeneration.** When the API changes, `regenerate.yml` opens or refreshes
+   the pull request from the branch `regenerate`, and sets the next version in
+   it with `scripts/version.sh bump`: a minor version when `API_REVISION` moved,
+   a patch for a change of the generator alone.
+2. **Merge.** Once CI passes on that pull request's head commit,
+   `merge-regeneration.yml` merges it, if every commit in it is the
+   regeneration workflow's. A pull request someone added commits to waits for
+   review.
+3. **Release.** Once CI passes on `main`, `release.yml` publishes the version if
+   it has no tag yet (`scripts/version.sh unreleased`): the core crate first,
+   then the service crates, skipping any whose version is on crates.io
+   already, so that a release that failed half way finishes when it runs
+   again. Then it tags the commit, and dispatches origincloudhq/mcp's
+   regeneration.
+
+It publishes with crates.io's trusted publishing, from the environment
+`release`: no crates.io token is stored here. The merge and the dispatch use
+the regeneration App's token, whose ID is the variable `REGENERATE_APP_ID` and
+whose key is the secret `REGENERATE_APP_PRIVATE_KEY`; a merge with the workflow
+token would start no CI on `main`, and so no release. Without the App, step 1
+still opens the pull request, and the merge is done by hand.
+
+## A new crate
+
+Trusted publishing reaches only crates that exist, so a crate's first version
+is published by hand, by an owner of the organisation on crates.io; until then
+the release fails, naming the crate. For each new crate:
+
+1. Publish its first version from the commit on `main` that has it, with a
+   crates.io API token (`cargo login`):
+
+   ```sh
+   git switch --detach origin/main
+   cargo publish --locked -p origincloud-<service>
+   ```
+
+2. Add the organisation's crates.io team as an owner (`cargo owner --add`): the
+   first publish makes its publisher the only one.
+3. On crates.io, add this repository as the crate's trusted publisher: workflow
+   `release.yml`, environment `release`.
+4. Run `release.yml` again (re-run its last run), which publishes the other
+   crates and tags the commit.
+
+## By hand
+
+A change outside a regeneration is released by setting the version in the
+same pull request: `scripts/version.sh bump minor` or `scripts/version.sh bump
+patch`, then `cargo update --workspace`. `release.yml` publishes it once the
+pull request is merged and CI passes on `main`.
+
+Without the workflow, an owner publishes and tags from that commit:
+
+```sh
+git switch --detach origin/main
+cargo package --locked --workspace --exclude origincloud-sdk-generator --exclude fake-server
+cargo publish --locked -p origincloud-core
+cargo publish --locked -p origincloud-pvs
+cargo publish --locked -p origincloud-location
+git tag -a v0.2.0 -m v0.2.0 origin/main
+git push origin v0.2.0
+```
+
+Then check that it resolves: `cargo info origincloud-pvs@0.2.0`.

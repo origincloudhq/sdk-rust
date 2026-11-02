@@ -49,7 +49,12 @@ from a template matching the PVS crate's, adds it to the workspace, and says
 so; review the scaffolded description and keywords before it is merged.
 
 The regeneration workflow (`.github/workflows/regenerate.yml`) moves the SDK
-to the newest API daily, and opens a pull request when that changes anything.
+to the newest API when it changes, and daily, and opens a pull request when
+that changes anything, with the next version. Once its CI passes, it is
+merged and released without anyone's hands, unless someone added commits to
+it or it adds a service, which then wait for review: a new crate's
+description and keywords, and its first publish by hand
+([RELEASING.md](RELEASING.md#a-new-crate)).
 
 ## Checks
 
