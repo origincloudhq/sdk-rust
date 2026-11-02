@@ -12,7 +12,8 @@
 # run publishes; a run dispatched by hand releases main's head, or the
 # commit `sha` names, once CI passed on it.
 # Trusted publishing reaches only crates that exist, so a crate's first
-# version is published by hand; until it is, the release fails, naming it.
+# version is published by hand; until it is, the release publishes the
+# others and fails, naming it, without tagging.
 # A crate whose version is on crates.io already is skipped, so a release
 # that failed half way finishes when it runs again.
 #
@@ -134,11 +135,11 @@ jobs:
               exit 1
             fi
           done
-          if [[ "${#missing[@]}" -gt 0 ]]; then
-            echo "::error::not on crates.io yet: ${missing[*]}. A crate's first version is published by hand (RELEASING.md); then run this again."
-            exit 1
-          fi
-          echo "crates=$(echo "${crates}" | paste -sd ' ' -)" >> "$GITHUB_OUTPUT"
+          # The crates that exist are published all the same, the core crate
+          # among them, so that a new crate's first version, published by
+          # hand, finds the core version it depends on.
+          echo "crates=$(echo "${crates}" | grep -vxF -f <(printf '%s\n' "${missing[@]}" "") | paste -sd ' ' -)" >> "$GITHUB_OUTPUT"
+          echo "missing=${missing[*]}" >> "$GITHUB_OUTPUT"
 
       - name: crates.io token
         id: auth
@@ -162,6 +163,14 @@ jobs:
             fi
             cargo publish --locked -p "${crate}"
           done
+
+      - name: New crates
+        if: steps.crates.outputs.missing != ''
+        env:
+          MISSING: ${{ steps.crates.outputs.missing }}
+        run: |
+          echo "::error::not on crates.io yet: ${MISSING}. A crate's first version is published by hand (RELEASING.md); then run this again."
+          exit 1
 
       - name: Tag
         if: steps.version.outputs.release == 'true'
