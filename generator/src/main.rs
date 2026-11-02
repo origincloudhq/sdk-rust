@@ -16,7 +16,8 @@
 //! `origincloud_core::longrunning::{version}`; every other
 //! `origincloud.{service}.{version}` to the crate `origincloud-{service}`,
 //! as `origincloud_{service}::{version}`. A service without a crate gets
-//! one scaffolded (see `scaffold`), with a notice on standard error.
+//! one scaffolded (see `scaffold`), described by its definitions (see
+//! `describe`), with a notice on standard error.
 //!
 //! The output depends on nothing but the API checkout, the pinned
 //! dependencies and the versions `Cargo.lock` pins, so generating from an
@@ -24,6 +25,7 @@
 
 mod clients;
 mod deps;
+mod describe;
 mod docs;
 mod names;
 mod scaffold;
@@ -86,14 +88,20 @@ fn main() -> Result<()> {
     let encoded = fds.encode_to_vec();
 
     let (targets, new_services) = plan(&packages, repository)?;
+    let new_services: Vec<describe::Description> = new_services
+        .iter()
+        .map(|service| describe::describe(&pool, service))
+        .collect();
     let mut files: BTreeMap<PathBuf, String> = BTreeMap::new();
     for (path, content) in scaffold::crates(repository, &new_services)? {
         files.insert(path, content);
     }
     for service in &new_services {
         eprintln!(
-            "notice: origincloud.{service} is a new service: its crate, crates/{service}, was scaffolded \
-             and added to the workspace; review its Cargo.toml and src/lib.rs"
+            "notice: origincloud.{name} is a new service: its crate, crates/{name}, was scaffolded \
+             as {summary:?} and added to the workspace and README.md",
+            name = service.service,
+            summary = service.summary(),
         );
     }
     for target in &targets {

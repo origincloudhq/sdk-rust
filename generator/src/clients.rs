@@ -19,8 +19,9 @@ use prost_reflect::{
 use crate::docs::{self, Comments};
 use crate::names;
 
-/// The services that answer only at their regionless host.
-const GLOBAL_SERVICES: &[&str] = &["iam", "admin", "location"];
+/// The services that answer only at their regionless host: the API's
+/// global services.
+const GLOBAL_SERVICES: &[&str] = &["iam", "resourcemanager", "location"];
 
 const OPERATION: &str = "google.longrunning.Operation";
 const EMPTY: &str = "google.protobuf.Empty";
@@ -106,7 +107,7 @@ fn generate_service(cx: &Generation<'_>, s: &ServiceDescriptor, out: &mut String
     let host = default_host(cx.pool, s);
     if let Some(host) = host {
         let shortcode = host.split('.').next().unwrap_or_default();
-        let regional = !GLOBAL_SERVICES.contains(&shortcode);
+        let regional = regional(shortcode);
         out.push_str(&docs::line(&format!(
             "Returns a client of `{}` that sends its calls through `client`.",
             s.name()
@@ -143,6 +144,12 @@ fn generate_service(cx: &Generation<'_>, s: &ServiceDescriptor, out: &mut String
     Ok(())
 }
 
+/// Whether the service with this shortcode also answers at its region's
+/// front door: every one but the global services.
+fn regional(shortcode: &str) -> bool {
+    !GLOBAL_SERVICES.contains(&shortcode)
+}
+
 fn default_host(pool: &DescriptorPool, s: &ServiceDescriptor) -> Option<String> {
     let ext = pool.get_extension_by_name("google.api.default_host")?;
     let options = s.options();
@@ -171,7 +178,7 @@ pub fn operation_result(pool: &DescriptorPool, m: &MethodDescriptor) -> Option<M
     pool.get_message_by_name(&name)
 }
 
-fn message_extension(
+pub fn message_extension(
     pool: &DescriptorPool,
     options: &DynamicMessage,
     name: &str,
@@ -520,6 +527,16 @@ mod tests {
           rpc Change(Request) returns (Response);
         }
     "#;
+
+    #[test]
+    fn the_global_services_have_no_regional_host() {
+        for global in ["iam", "resourcemanager", "location"] {
+            assert!(!regional(global), "{global}");
+        }
+        for zonal in ["pvs", "compute", "network"] {
+            assert!(regional(zonal), "{zonal}");
+        }
+    }
 
     #[test]
     fn a_declared_idempotency_level_makes_a_method_repeatable() {
