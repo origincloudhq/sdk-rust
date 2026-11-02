@@ -7,6 +7,10 @@
 #
 # It publishes with crates.io's trusted publishing: the job's OIDC token,
 # exchanged for a short-lived crates.io token, so no token is stored here.
+# crates.io refuses a token of a workflow_run, so CI passing on main only
+# dispatches this workflow, for the commit it passed on, and the dispatched
+# run publishes; a run dispatched by hand releases main's head, or the
+# commit `sha` names, once CI passed on it.
 # Trusted publishing reaches only crates that exist, so a crate's first
 # version is published by hand; until it is, the release fails, naming it.
 # A crate whose version is on crates.io already is skipped, so a release
@@ -23,35 +27,75 @@ on:
     workflows: [CI]
     types: [completed]
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: The commit on main to release; main's head when empty.
+        required: false
 
 permissions:
-  contents: write
-  id-token: write
-
-concurrency:
-  group: release
-  cancel-in-progress: false
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  release:
+  # A run dispatched with the workflow token starts, unlike other events it
+  # causes.
+  dispatch:
     if: >-
+      github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: gh workflow run release.yml --repo "${GITHUB_REPOSITORY}" --ref main -f sha="${SHA}"
+
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    concurrency:
+      group: release
+      cancel-in-progress: false
     # The environment crates.io's trusted publisher names.
     environment: release
-    env:
-      HEAD: ${{ github.event.workflow_run.head_sha }}
     steps:
       - name: Checkout
         uses: 'actions/checkout@v4'
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: main
           fetch-depth: 0
+
+      # Only a commit on main that CI passed on is released.
+      - name: Commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          head="$(git rev-parse --verify "${SHA:-HEAD}^{commit}")"
+          if ! git merge-base --is-ancestor "${head}" HEAD; then
+            echo "::error::${head} isn't on main"
+            exit 1
+          fi
+          passed="$(gh run list --repo "${GITHUB_REPOSITORY}" --workflow ci.yml --commit "${head}" \
+            --event push --status success --json databaseId --jq length)"
+          if [[ "${passed}" == 0 ]]; then
+            echo "::error::CI hasn't passed on the push of ${head} to main"
+            exit 1
+          fi
+          git checkout --quiet "${head}"
+          echo "HEAD=${head}" >> "$GITHUB_ENV"
 
       - name: Version
         id: version

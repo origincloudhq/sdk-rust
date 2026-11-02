@@ -20,8 +20,9 @@ a broken one is yanked (`cargo yank`), not deleted.
    `merge-regeneration.yml` merges it, if every commit in it is the
    regeneration workflow's. A pull request someone added commits to waits for
    review.
-3. **Release.** Once CI passes on `main`, `release.yml` publishes the version if
-   it has no tag yet (`scripts/version.sh unreleased`): the core crate first,
+3. **Release.** Once CI passes on `main`, `release.yml` dispatches itself for
+   that commit, because crates.io's trusted publishing refuses a run started
+   by another workflow's, and publishes the version if it has no tag yet (`scripts/version.sh unreleased`): the core crate first,
    then the service crates, skipping any whose version is on crates.io
    already, so that a release that failed half way finishes when it runs
    again. Then it tags the commit, and dispatches origincloudhq/mcp's
