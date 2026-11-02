@@ -1052,7 +1052,7 @@ checksum = "7e036b411754132fd6b74e94b74e9a13c5cf606fa93d1885c35860d3060820b1"
 
 [[package]]
 name = "origincloud-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "fake-server",
@@ -1074,7 +1074,7 @@ dependencies = [
 
 [[package]]
 name = "origincloud-location"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "fake-server",
  "origincloud-core",
@@ -1086,7 +1086,7 @@ dependencies = [
 
 [[package]]
 name = "origincloud-pvs"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "fake-server",
  "origincloud-core",
