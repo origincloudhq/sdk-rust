@@ -18,6 +18,9 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 | [`origincloud-core`](crates/core) | The client every service crate uses, and `longrunning::v1beta1` for resuming an operation by name |
 | [`origincloud-pvs`](crates/pvs) | Persistent volumes: volumes, snapshots, storage classes (`origincloud_pvs::v1beta1`) |
 | [`origincloud-location`](crates/location) | Regions and zones, and the services each zone offers (`origincloud_location::v1beta1`) |
+| [`origincloud-compute`](crates/compute) | Instances, images, key pairs, volume attachments and the instance catalog (`origincloud_compute::v1beta1`) |
+| [`origincloud-network`](crates/network) | VPCs, subnets, routing, gateways, floating IPs, network interfaces, security groups, ACLs and DNS policies (`origincloud_network::v1beta1`) |
+| [`origincloud-resourcemanager`](crates/resourcemanager) | Organizations, projects and their quotas (`origincloud_resourcemanager::v1beta1`) |
 
 ## Example
 
