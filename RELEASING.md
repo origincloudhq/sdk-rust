@@ -39,10 +39,13 @@ still opens the pull request, and the merge is done by hand.
 
 Trusted publishing reaches only crates that exist, so a crate's first version
 is published by hand, by an owner of the organisation on crates.io; until then
-the release fails, naming the crate. For each new crate:
+the release publishes the crates that exist, the core crate among them, and
+fails, naming the new crate, without tagging. The existing crates accept only
+trusted publishing, so the core version a new crate depends on comes from that
+release. For each new crate:
 
-1. Publish its first version from the commit on `main` that has it, with a
-   crates.io API token (`cargo login`):
+1. Once the release has failed naming it, publish its first version from the
+   commit on `main` that has it, with a crates.io API token (`cargo login`):
 
    ```sh
    git switch --detach origin/main
