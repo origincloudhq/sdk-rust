@@ -279,11 +279,14 @@ fn first_sentence(comment: &str) -> String {
 }
 
 /// text with a lowercase first letter, unless the word it starts is an
-/// abbreviation: "The" is "the", but "VPCs" and "IAM" stay.
+/// abbreviation: "The" is "the" and "A" is "a", but "VPCs" and "IAM" stay.
 fn lower_first(text: &str) -> String {
     let mut chars = text.chars();
     match (chars.next(), chars.next()) {
-        (Some(first), Some(second)) if first.is_uppercase() && second.is_lowercase() => {
+        (Some(first), second)
+            if first.is_uppercase()
+                && second.is_none_or(|c| c.is_lowercase() || c.is_whitespace()) =>
+        {
             first.to_lowercase().chain(text.chars().skip(1)).collect()
         }
         _ => text.to_owned(),
@@ -473,6 +476,7 @@ message Quota {
         assert_eq!(parent_pattern("roles/{role}"), "");
         assert_eq!(lower_first("The"), "the");
         assert_eq!(lower_first("IAM roles"), "IAM roles");
+        assert_eq!(lower_first("A service"), "a service");
         assert_eq!(first_sentence("A. B.\n\nC."), "A");
         assert_eq!(first_sentence("Ends here."), "Ends here");
     }
