@@ -60,6 +60,33 @@ expect "tags order by version, not as text" 0.11.0 "$(v bump minor)"
 set_version 0.9.0
 expect "a version older than the newest tag isn't unreleased" released "$(released)"
 
+# Everything above runs without origin/main, as in a clone that hasn't
+# fetched it: bump counts from the newest tag alone. Below, origin/main
+# holds the version the last merged pull request set, as the regeneration
+# workflow's checkout has it.
+main() {
+  set_version "$1"
+  git -C "${tmp}" commit --quiet -am "main at $1"
+  git -C "${tmp}" update-ref refs/remotes/origin/main HEAD
+}
+
+main 0.11.0
+expect "main's version newer than the newest tag: a patch after main's" 0.11.1 "$(v bump patch)"
+expect "a minor after main's" 0.12.0 "$(v bump minor)"
+git -C "${tmp}" commit --quiet -am "the branch's bump"
+expect "a branch that bumped already isn't bumped again" 0.12.0 "$(v bump minor)"
+expect "nor by a patch" 0.12.0 "$(v bump patch)"
+
+main 0.11.0
+git -C "${tmp}" tag -a v0.11.0 -m v0.11.0
+expect "main at the newest tag: a minor after it" 0.12.0 "$(v bump minor)"
+set_version 0.11.0
+expect "a patch after it" 0.11.1 "$(v bump patch)"
+
+git -C "${tmp}" update-ref refs/remotes/origin/main HEAD~3
+set_version 0.11.0
+expect "main older than the newest tag: a patch after the tag" 0.11.1 "$(v bump patch)"
+
 if v bump major >/dev/null 2>&1; then
   echo "not ok - bump refuses a kind it doesn't know"
   failed=1
