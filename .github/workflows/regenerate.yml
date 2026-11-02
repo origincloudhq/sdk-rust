@@ -187,7 +187,7 @@ jobs:
 
           body="Generated from [origincloudhq/api@${revision:0:12}](https://github.com/origincloudhq/api/commit/${revision}) ([changes](https://github.com/origincloudhq/api/compare/${PREVIOUS}...${revision})) by scripts/update.sh.
 
-          A service new to the API gets its crate scaffolded (crates/<service>/Cargo.toml and src/lib.rs, from the generator's template, and a workspace member): review its description and keywords before merging.
+          A service new to the API gets its crate scaffolded (crates/<service>/Cargo.toml and src/lib.rs, from the generator's template, described by the API's definitions, a workspace member and a row in README.md): check its description, and publish its first version by hand once merged (RELEASING.md).
 
           If CI fails, the API uses something the generator (generator/) doesn't support yet; extend it on this branch."
           if [[ -n "${open}" ]]; then

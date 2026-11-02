@@ -7,8 +7,9 @@
 # crates/<service>/src/generated/ and crates/core/src/longrunning/generated/.
 #
 # A service the API gains gets its crate scaffolded: crates/<service>'s
-# Cargo.toml and src/lib.rs, from the generator's template, and a place
-# among the workspace's members (Cargo.toml, Cargo.lock).
+# Cargo.toml and src/lib.rs, from the generator's template with the
+# description the API's definitions give, a place among the workspace's
+# members (Cargo.toml, Cargo.lock), and a row in README.md's table.
 #
 #   scripts/generate.sh           # generate it again
 #   scripts/generate.sh --check   # check the checked-in code is current
@@ -52,7 +53,7 @@ if [[ "${mode}" == write ]]; then
   if [[ -n "${new}" ]]; then
     (cd "${tmp}/gen" && xargs cp --parents -t "${ROOT}" <<< "${new}")
     (cd "${ROOT}" && cargo update --quiet --workspace)
-    echo "scaffolded, to review:"
+    echo "scaffolded:"
     while read -r file; do echo "  ${file}"; done <<< "${new}"
   fi
   echo "wrote $(generated "${ROOT}" | wc -l) files from origincloudhq/api@${revision:0:12}"

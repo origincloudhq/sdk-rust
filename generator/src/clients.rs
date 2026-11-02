@@ -171,7 +171,7 @@ pub fn operation_result(pool: &DescriptorPool, m: &MethodDescriptor) -> Option<M
     pool.get_message_by_name(&name)
 }
 
-fn message_extension(
+pub fn message_extension(
     pool: &DescriptorPool,
     options: &DynamicMessage,
     name: &str,

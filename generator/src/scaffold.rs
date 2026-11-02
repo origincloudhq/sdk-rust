@@ -1,17 +1,21 @@
 //! A new service's crate: when the API gains a service that has no crate
 //! yet, its `Cargo.toml` and `src/lib.rs` are written from the template
-//! below, which matches the PVS crate's, and the crate is added to the
-//! workspace, so that generating it never stops for want of the crate.
+//! below, which matches the PVS crate's, with the description and keywords
+//! its definitions give (`describe`); the crate is added to the workspace,
+//! and to README.md's table of crates, so that generating it never stops
+//! for want of the crate, and the crate is ready to publish.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
+use crate::describe::Description;
+
 const MANIFEST: &str = r#"[package]
 name = "origincloud-{service}"
 version = "{version}"
-description = "The Origin Cloud {SERVICE} API."
-keywords = ["origincloud", "cloud", "sdk", "api"]
+description = {description}
+keywords = {keywords}
 categories = ["api-bindings", "web-programming::http-client"]
 readme = "../../README.md"
 edition.workspace = true
@@ -27,10 +31,11 @@ prost = "0.14"
 serde = "1"
 "#;
 
-const LIB: &str = r#"//! The Origin Cloud {SERVICE} API (`origincloud.{service}`).
+const LIB: &str = r#"//! {summary}
 //!
-//! The clients are generated from the API definitions; what they share,
-//! such as credentials, retries and errors, is in [`origincloud_core`].
+//! The clients are generated from the API definitions, `origincloud.{service}`;
+//! what they share, such as credentials, retries and errors, is in
+//! [`origincloud_core`].
 
 mod generated;
 
@@ -38,9 +43,10 @@ pub use generated::*;
 "#;
 
 /// The files that add the crates of `services` to the repository at
-/// `repository`: each crate's manifest and `src/lib.rs`, and the
-/// workspace manifest with the crates among its members.
-pub fn crates(repository: &Path, services: &[String]) -> Result<Vec<(PathBuf, String)>> {
+/// `repository`: each crate's manifest and `src/lib.rs`, the workspace
+/// manifest with the crates among its members, and README.md with their
+/// rows in its table of crates.
+pub fn crates(repository: &Path, services: &[Description]) -> Result<Vec<(PathBuf, String)>> {
     if services.is_empty() {
         return Ok(Vec::new());
     }
@@ -49,26 +55,114 @@ pub fn crates(repository: &Path, services: &[String]) -> Result<Vec<(PathBuf, St
     let version = package_version(&core).context("the core crate's manifest names no version")?;
     let workspace = std::fs::read_to_string(repository.join("Cargo.toml"))
         .context("reading the workspace manifest")?;
+    let readme =
+        std::fs::read_to_string(repository.join("README.md")).context("reading README.md")?;
 
     let mut files = Vec::new();
     let mut members = Vec::new();
-    for service in services {
-        let fill = |template: &str| {
-            template
-                .replace("{service}", service)
-                .replace("{SERVICE}", &service.to_uppercase())
-                .replace("{version}", version)
-        };
+    let mut rows = Vec::new();
+    for description in services {
+        let service = &description.service;
+        let keywords: Vec<String> = description
+            .keywords()
+            .iter()
+            .map(|k| toml_string(k))
+            .collect();
+        let values = [
+            ("description", toml_string(&description.summary())),
+            ("keywords", format!("[{}]", keywords.join(", "))),
+            ("summary", description.summary()),
+            ("service", service.clone()),
+            ("version", version.to_owned()),
+        ];
+        let fill = |template: &str| fill(template, &values);
         let dir = PathBuf::from("crates").join(service);
         files.push((dir.join("Cargo.toml"), fill(MANIFEST)));
         files.push((dir.join("src").join("lib.rs"), fill(LIB)));
         members.push(format!("crates/{service}"));
+        rows.push(description.readme_row());
     }
     files.push((
         PathBuf::from("Cargo.toml"),
         with_members(&workspace, &members)?,
     ));
+    files.push((PathBuf::from("README.md"), with_rows(&readme, &rows)?));
     Ok(files)
+}
+
+/// template with each `{name}` of values replaced, in one pass, so that a
+/// value holding braces, such as a description naming
+/// `projects/{project}`, stays as it is.
+fn fill(template: &str, values: &[(&str, String)]) -> String {
+    let mut out = String::with_capacity(template.len());
+    let mut rest = template;
+    while let Some(start) = rest.find('{') {
+        out.push_str(&rest[..start]);
+        rest = &rest[start..];
+        let value = rest.find('}').and_then(|end| {
+            values
+                .iter()
+                .find(|(name, _)| *name == &rest[1..end])
+                .map(|(_, value)| (end, value))
+        });
+        match value {
+            Some((end, value)) => {
+                out.push_str(value);
+                rest = &rest[end + 1..];
+            }
+            None => {
+                out.push('{');
+                rest = &rest[1..];
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// text as a TOML basic string.
+fn toml_string(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 2);
+    out.push('"');
+    for c in text.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            c if c.is_control() => out.push_str(&format!("\\u{:04X}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// README.md with `rows` added at the end of its table of crates, the one
+/// headed `| Crate | API |`; a row for a crate it has is left out.
+fn with_rows(readme: &str, rows: &[String]) -> Result<String> {
+    let lines: Vec<&str> = readme.split_inclusive('\n').collect();
+    let header = lines
+        .iter()
+        .position(|l| l.trim_end() == "| Crate | API |")
+        .context(
+            "README.md has no table of crates, headed `| Crate | API |`, to add the new crates to",
+        )?;
+    let end = lines[header..]
+        .iter()
+        .position(|l| !l.starts_with('|'))
+        .map_or(lines.len(), |n| header + n);
+    let mut out: String = lines[..end].concat();
+    if !out.ends_with('\n') {
+        out.push('\n');
+    }
+    for row in rows {
+        let name = row.split(" | ").next().unwrap_or(row);
+        if !lines[header..end].iter().any(|l| l.starts_with(name)) {
+            out.push_str(row);
+            out.push('\n');
+        }
+    }
+    out.push_str(&lines[end..].concat());
+    Ok(out)
 }
 
 /// The `version` of a manifest's `[package]`.
@@ -141,7 +235,7 @@ mod tests {
                 .map(str::to_owned)
                 .collect()
         };
-        let files = crates(repository(), &["pvs".to_owned()]).unwrap();
+        let files = crates(repository(), &[description("pvs")]).unwrap();
         assert_eq!(normalize(&files[0].1), normalize(&pvs));
         let lib = std::fs::read_to_string(repository().join("crates/pvs/src/lib.rs")).unwrap();
         assert!(lib.contains("mod generated;\n\npub use generated::*;\n"));
@@ -150,6 +244,57 @@ mod tests {
                 .1
                 .ends_with("mod generated;\n\npub use generated::*;\n")
         );
+    }
+
+    fn description(service: &str) -> Description {
+        Description {
+            service: service.to_owned(),
+            what: "instances and \"key pairs\" in projects/{project}".to_owned(),
+            versions: vec!["v1beta1".to_owned()],
+        }
+    }
+
+    /// The manifest and the documentation say what the definitions do,
+    /// and the crate gets its row in README.md. The service is one the
+    /// repository won't have, so that the test passes once it has more.
+    #[test]
+    fn a_new_crate_is_described() {
+        let files = crates(repository(), &[description("example")]).unwrap();
+        let paths: Vec<_> = files.iter().map(|(p, _)| p.to_str().unwrap()).collect();
+        assert_eq!(
+            paths,
+            [
+                "crates/example/Cargo.toml",
+                "crates/example/src/lib.rs",
+                "Cargo.toml",
+                "README.md"
+            ]
+        );
+        assert!(files[0].1.contains(
+            "description = \"The Origin Cloud example API: instances and \\\"key pairs\\\" in projects/{project}.\"\n\
+             keywords = [\"origincloud\", \"cloud\", \"sdk\", \"api\", \"example\"]\n"
+        ));
+        assert!(files[1].1.starts_with(
+            "//! The Origin Cloud example API: instances and \"key pairs\" in projects/{project}.\n//!\n"
+        ));
+        assert!(files[3].1.contains(
+            "| [`origincloud-example`](crates/example) | Instances and \"key pairs\" in projects/{project} (`origincloud_example::v1beta1`) |\n"
+        ));
+    }
+
+    #[test]
+    fn a_new_crate_s_row_ends_the_table_of_crates() {
+        let readme = "# SDK\n\n| Crate | API |\n|---|---|\n| [`origincloud-pvs`](crates/pvs) | Volumes |\n\n## Example\n";
+        let rows = [
+            "| [`origincloud-pvs`](crates/pvs) | Again |".to_owned(),
+            "| [`origincloud-compute`](crates/compute) | Instances |".to_owned(),
+        ];
+        assert_eq!(
+            with_rows(readme, &rows).unwrap(),
+            "# SDK\n\n| Crate | API |\n|---|---|\n| [`origincloud-pvs`](crates/pvs) | Volumes |\n\
+             | [`origincloud-compute`](crates/compute) | Instances |\n\n## Example\n"
+        );
+        assert!(with_rows("# SDK\n", &rows).is_err());
     }
 
     #[test]

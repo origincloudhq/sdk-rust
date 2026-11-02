@@ -45,16 +45,21 @@ requested by opening an issue rather than by editing generated code; a change
 to how every client behaves is a change to the generator or the core crate. A
 new version of a service appears by itself. So does a new service: the
 generator scaffolds its crate, a `crates/<service>/Cargo.toml` and `src/lib.rs`
-from a template matching the PVS crate's, adds it to the workspace, and says
-so; review the scaffolded description and keywords before it is merged.
+from a template matching the PVS crate's, adds it to the workspace and to
+README.md's table, and says so. The crate's description, its documentation's
+first line and its row say what the API's definitions do: the first sentence
+of the package's comment (on a file's `package` statement), or else of its
+one service's comment, or else the resources it serves, but those within
+another of its resources, such as "ACLs, DNS policies, … and VPCs". Its
+keywords are `origincloud`, `cloud`, `sdk`, `api` and the service. A better
+description starts in the API, with a package comment.
 
 The regeneration workflow (`.github/workflows/regenerate.yml`) moves the SDK
 to the newest API when it changes, and daily, and opens a pull request when
 that changes anything, with the next version. Once its CI passes, it is
 merged and released without anyone's hands, unless someone added commits to
-it or it adds a service, which then wait for review: a new crate's
-description and keywords, and its first publish by hand
-([RELEASING.md](RELEASING.md#a-new-crate)).
+it or it adds a service, which then wait for review: a new crate needs its
+first publish by hand ([RELEASING.md](RELEASING.md#a-new-crate)).
 
 ## Checks
 
