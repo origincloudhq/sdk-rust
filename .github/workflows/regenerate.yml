@@ -11,10 +11,24 @@
 # any other conflict fails the run until someone merges main into the
 # branch by hand.
 #
-# The pull request is opened with the workflow token, which starts no
-# pull_request run, so this dispatches CI on the branch; its result shows on
-# the pull request's commit. Opening it needs "Allow GitHub Actions to create
-# and approve pull requests" in the repository's Actions settings.
+# The pull request also sets the next version of every crate
+# (scripts/version.sh bump): a minor version when the API moved, a patch
+# otherwise. Once CI passes on it, merge-regeneration.yml merges a pull
+# request that holds only this workflow's commits, and release.yml publishes
+# the version (RELEASING.md).
+#
+# It runs when origincloudhq/api changes (mono's export dispatches it), and
+# daily as a fallback.
+#
+# With the regeneration App configured (the variable REGENERATE_APP_ID and
+# the secret REGENERATE_APP_PRIVATE_KEY), the branch is pushed and the pull
+# request opened with the App's token, so that CI runs on the pull request,
+# and its merge starts the release. Without it, the workflow token opens the
+# pull request, which starts no pull_request run, so this dispatches CI on
+# the branch; its result shows on the pull request's commit, and the pull
+# request is merged by hand. Opening it with the workflow token needs "Allow
+# GitHub Actions to create and approve pull requests" in the repository's
+# Actions settings.
 name: Regenerate
 
 on:
@@ -35,18 +49,28 @@ jobs:
   regenerate:
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ github.token }}
       BRANCH: regenerate
     steps:
+      - name: App token
+        id: app
+        if: vars.REGENERATE_APP_ID != ''
+        uses: 'actions/create-github-app-token@v2'
+        with:
+          app-id: ${{ vars.REGENERATE_APP_ID }}
+          private-key: ${{ secrets.REGENERATE_APP_PRIVATE_KEY }}
+
       - name: Checkout
         uses: 'actions/checkout@v4'
         with:
           ref: main
           fetch-depth: 0
+          token: ${{ steps.app.outputs.token || github.token }}
 
       # The open pull request's branch, when someone has added commits to
       # it, with main merged in; main otherwise.
       - name: Base
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
         run: |
           set -euo pipefail
           echo "PREVIOUS=$(cat API_REVISION)" >> "$GITHUB_ENV"
@@ -107,9 +131,24 @@ jobs:
         uses: 'Swatinem/rust-cache@v2'
 
       - name: Update
-        run: scripts/update.sh
+        run: |
+          set -euo pipefail
+          scripts/update.sh
+          # The next version, in the same pull request: minor when the API
+          # moved, patch for a change of the generator alone.
+          if [[ -n "$(git status --porcelain)" || "${BASE}" == branch ]]; then
+            if [[ "$(cat API_REVISION)" != "$(git show origin/main:API_REVISION)" ]]; then
+              scripts/version.sh bump minor
+            else
+              scripts/version.sh bump patch
+            fi
+            cargo update --quiet --workspace
+          fi
 
       - name: Pull request
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          WITH_APP: ${{ steps.app.outputs.token != '' }}
         run: |
           set -euo pipefail
           open="$(gh pr list --head "${BRANCH}" --base main --state open --json number,isCrossRepository --jq 'map(select(.isCrossRepository | not))[0].number // empty')"
@@ -157,4 +196,8 @@ jobs:
             gh pr create --base main --head "${BRANCH}" \
               --title "Regenerate from the latest API" --body "${body}"
           fi
-          gh workflow run ci.yml --ref "${BRANCH}"
+          # The App's push starts CI on the pull request; the workflow
+          # token's doesn't.
+          if [[ "${WITH_APP}" != true ]]; then
+            gh workflow run ci.yml --ref "${BRANCH}"
+          fi

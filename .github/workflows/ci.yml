@@ -59,4 +59,6 @@ jobs:
         run: cargo package --locked --workspace --exclude origincloud-sdk-generator --exclude fake-server
 
       - name: Scripts
-        run: shellcheck scripts/*.sh
+        run: |
+          shellcheck scripts/*.sh
+          scripts/version.test.sh

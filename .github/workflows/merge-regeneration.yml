@@ -1,0 +1,90 @@
+# Merges the regeneration pull request (regenerate.yml) once CI passed on
+# its head commit, when every commit in it is the regeneration workflow's:
+# the API change was reviewed where the API is defined, and CI checks the
+# generated code. A pull request someone added commits to, such as a
+# generator change a new method needs, waits for review and is merged by
+# hand, and so does one that adds a service, a directory under SERVICES that
+# main doesn't have: a new service needs work of someone's before it is
+# merged (CONTRIBUTING.md).
+#
+# It merges with the regeneration App's token (REGENERATE_APP_ID and
+# REGENERATE_APP_PRIVATE_KEY), because a merge with the workflow token would
+# start no CI on main, and so no release; without the App it does nothing.
+name: Merge regeneration
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [regenerate]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: merge-regeneration
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    # Only CI that passed on this repository's own branch: a fork's pull
+    # request from a branch of the same name doesn't count.
+    if: >-
+      vars.REGENERATE_APP_ID != '' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      # Where each service has a directory of its own: crates/<service>.
+      SERVICES: crates/
+    steps:
+      - name: App token
+        id: app
+        uses: 'actions/create-github-app-token@v2'
+        with:
+          app-id: ${{ vars.REGENERATE_APP_ID }}
+          private-key: ${{ secrets.REGENERATE_APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: 'actions/checkout@v4'
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Merge
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          HEAD: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          bot='41898282+github-actions[bot]@users.noreply.github.com'
+          pr="$(gh pr list --head regenerate --base main --state open \
+            --json number,headRefOid,isCrossRepository \
+            --jq "map(select((.isCrossRepository | not) and .headRefOid == \"${HEAD}\"))[0].number // empty")"
+          if [[ -z "${pr}" ]]; then
+            echo "no open regeneration pull request at ${HEAD:0:12}: a later push replaced it, or it is merged"
+            exit 0
+          fi
+          git fetch --quiet origin "${HEAD}"
+          # Committers too: an amended or rebased commit keeps the workflow
+          # as its author.
+          others="$(git log --format='%ae%n%ce' "origin/main..${HEAD}" | grep -cvxF "${bot}" || true)"
+          if [[ "${others}" -gt 0 ]]; then
+            echo "pull request #${pr} has commits of someone else's: it needs review"
+            exit 0
+          fi
+          new=()
+          while read -r path; do
+            service="${path#"${SERVICES}"}"
+            service="${service%%/*}"
+            if [[ "${path}" == "${SERVICES}"*/* ]] && ! git cat-file -e "origin/main:${SERVICES}${service}" 2>/dev/null; then
+              new+=("${service}")
+            fi
+          done < <(git diff --name-only --diff-filter=A "origin/main...${HEAD}")
+          if [[ "${#new[@]}" -gt 0 ]]; then
+            services="$(printf '%s\n' "${new[@]}" | sort -u | paste -sd ' ' -)"
+            echo "pull request #${pr} adds ${services}: it needs review"
+            gh pr comment "${pr}" --body "This regeneration adds a service (${services}), which needs work of someone's before it is merged (CONTRIBUTING.md), so it isn't merged on its own."
+            exit 0
+          fi
+          gh pr merge "${pr}" --merge --match-head-commit "${HEAD}"

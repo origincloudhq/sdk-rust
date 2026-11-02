@@ -1,0 +1,146 @@
+# Publishes the version every crate names (scripts/version.sh) to crates.io,
+# once CI passed on the push to main that set it and it has no tag yet
+# (scripts/version.sh unreleased), then tags that commit. The regeneration
+# pull request sets the version, so a merged regeneration is released; a
+# version set by hand in a pull request is released the same way
+# (RELEASING.md).
+#
+# It publishes with crates.io's trusted publishing: the job's OIDC token,
+# exchanged for a short-lived crates.io token, so no token is stored here.
+# Trusted publishing reaches only crates that exist, so a crate's first
+# version is published by hand; until it is, the release fails, naming it.
+# A crate whose version is on crates.io already is skipped, so a release
+# that failed half way finishes when it runs again.
+#
+# Once released, it dispatches origincloudhq/mcp's regeneration with the
+# regeneration App's token (REGENERATE_APP_ID and
+# REGENERATE_APP_PRIVATE_KEY); without the App, mcp's daily run picks the
+# SDK up.
+name: Release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    # The environment crates.io's trusted publisher names.
+    environment: release
+    env:
+      HEAD: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Checkout
+        uses: 'actions/checkout@v4'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Version
+        id: version
+        run: |
+          set -euo pipefail
+          version="$(scripts/version.sh current)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if scripts/version.sh unreleased; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "v${version} is released already, or older than the newest tag: nothing to release"
+          fi
+
+      # rustup installs the toolchain rust-toolchain.toml names.
+      - name: Rust
+        if: steps.version.outputs.release == 'true'
+        run: rustup toolchain install
+
+      # The published crates, the core crate first: the others depend on it.
+      - name: Crates
+        id: crates
+        if: steps.version.outputs.release == 'true'
+        run: |
+          set -euo pipefail
+          crates="$(cargo metadata --locked --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.publish != []) | .name' \
+            | sort | awk '$0 == "origincloud-core" { print; next } { rest = rest $0 "\n" } END { printf "%s", rest }')"
+          missing=()
+          for crate in ${crates}; do
+            status="$(curl -s -o /dev/null -w '%{http_code}' -A 'origincloudhq/sdk-rust release' \
+              "https://crates.io/api/v1/crates/${crate}")"
+            if [[ "${status}" == 404 ]]; then
+              missing+=("${crate}")
+            elif [[ "${status}" != 200 ]]; then
+              echo "::error::crates.io answered ${status} for ${crate}"
+              exit 1
+            fi
+          done
+          if [[ "${#missing[@]}" -gt 0 ]]; then
+            echo "::error::not on crates.io yet: ${missing[*]}. A crate's first version is published by hand (RELEASING.md); then run this again."
+            exit 1
+          fi
+          echo "crates=$(echo "${crates}" | paste -sd ' ' -)" >> "$GITHUB_OUTPUT"
+
+      - name: crates.io token
+        id: auth
+        if: steps.version.outputs.release == 'true'
+        uses: 'rust-lang/crates-io-auth-action@v1'
+
+      - name: Publish
+        if: steps.version.outputs.release == 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          CRATES: ${{ steps.crates.outputs.crates }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          for crate in ${CRATES}; do
+            status="$(curl -s -o /dev/null -w '%{http_code}' -A 'origincloudhq/sdk-rust release' \
+              "https://crates.io/api/v1/crates/${crate}/${VERSION}")"
+            if [[ "${status}" == 200 ]]; then
+              echo "${crate} ${VERSION} is on crates.io already"
+              continue
+            fi
+            cargo publish --locked -p "${crate}"
+          done
+
+      - name: Tag
+        if: steps.version.outputs.release == 'true'
+        env:
+          TAG: v${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "${TAG}" -m "${TAG}" "${HEAD}"
+          git push --quiet origin "${TAG}"
+
+      - name: App token
+        id: app
+        if: steps.version.outputs.release == 'true' && vars.REGENERATE_APP_ID != ''
+        uses: 'actions/create-github-app-token@v2'
+        with:
+          app-id: ${{ vars.REGENERATE_APP_ID }}
+          private-key: ${{ secrets.REGENERATE_APP_PRIVATE_KEY }}
+          repositories: mcp
+
+      - name: Downstream
+        if: steps.app.outputs.token != ''
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: gh workflow run regenerate.yml --repo origincloudhq/mcp --ref main
