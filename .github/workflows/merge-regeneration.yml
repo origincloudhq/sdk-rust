@@ -84,7 +84,11 @@ jobs:
           if [[ "${#new[@]}" -gt 0 ]]; then
             services="$(printf '%s\n' "${new[@]}" | sort -u | paste -sd ' ' -)"
             echo "pull request #${pr} adds ${services}: it needs review"
-            gh pr comment "${pr}" --body "This regeneration adds a service (${services}), which needs work of someone's before it is merged (CONTRIBUTING.md), so it isn't merged on its own."
+            # Once: the comment isn't repeated by later runs.
+            note="This regeneration adds a service (${services}), which needs work of someone's before it is merged (CONTRIBUTING.md), so it isn't merged on its own."
+            if ! gh pr view "${pr}" --json comments --jq '.comments[].body' | grep -qxF "${note}"; then
+              gh pr comment "${pr}" --body "${note}"
+            fi
             exit 0
           fi
           gh pr merge "${pr}" --merge --match-head-commit "${HEAD}"
