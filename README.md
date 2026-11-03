@@ -99,7 +99,8 @@ async fn main() -> Result<(), origincloud_core::Error> {
 - **Pages.** Each list method has an `all_...` counterpart that streams every
   page.
 - **Errors.** A refused call returns `Error::Api`; branch on `Error::reason`,
-  the platform's error code.
+  the platform's error code. `ApiError::metadata` says more about some reasons,
+  such as the name of the resource a `CONFLICT` is about.
 - **Runtime.** The clients are `async`, on [Tokio](https://tokio.rs), and send
   their calls with [reqwest](https://docs.rs/reqwest).
 

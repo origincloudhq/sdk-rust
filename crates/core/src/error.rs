@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::time::Duration;
 
@@ -82,6 +83,10 @@ pub struct ApiError {
     /// The platform's error code, such as `NOT_FOUND` or `CONFLICT`: what
     /// to branch on.
     pub reason: String,
+    /// More about the reason, by name, such as `serviceAccount`, the name
+    /// of the service account an earlier request with the same request id
+    /// created; empty when the API sends none.
+    pub metadata: HashMap<String, String>,
     /// What went wrong, for a person.
     pub message: String,
     /// Identifies the request to Origin Cloud's support.
@@ -178,7 +183,18 @@ impl ApiError {
     fn read_details(&mut self, details: &[Any], retry_info: bool) {
         for detail in details {
             match detail.type_name() {
-                "google.rpc.ErrorInfo" => self.reason = detail.string("reason").to_owned(),
+                "google.rpc.ErrorInfo" => {
+                    self.reason = detail.string("reason").to_owned();
+                    let metadata = detail
+                        .fields()
+                        .get("metadata")
+                        .and_then(serde_json::Value::as_object);
+                    self.metadata = metadata
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|(k, v)| Some((k.clone(), v.as_str()?.to_owned())))
+                        .collect();
+                }
                 "google.rpc.RequestInfo" => self.request_id = detail.string("requestId").to_owned(),
                 "google.rpc.RetryInfo" if retry_info => {
                     self.retryable = true;
@@ -287,10 +303,26 @@ mod tests {
                 description: "must be at least 1".to_owned()
             }]
         );
+        assert!(e.metadata.is_empty());
         assert!(!e.is_retryable());
         assert_eq!(
             e.to_string(),
             "origincloud: BAD_REQUEST: invalid input on field volume.sizeGib: must be at least 1 (request 4bf92f3577b34da6)"
+        );
+    }
+
+    #[test]
+    fn error_info_metadata_is_read() {
+        let body = r#"{"error":{"code":409,"status":"FAILED_PRECONDITION","message":"already created","details":[
+            {"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"CONFLICT","domain":"origincloudapis.eu","metadata":{"serviceAccount":"organizations/o/serviceAccounts/s","notText":1}}]}}"#;
+        let e = ApiError::from_response(409, body.as_bytes());
+        assert_eq!(e.reason, "CONFLICT");
+        assert_eq!(
+            e.metadata,
+            HashMap::from([(
+                "serviceAccount".to_owned(),
+                "organizations/o/serviceAccounts/s".to_owned()
+            )])
         );
     }
 
