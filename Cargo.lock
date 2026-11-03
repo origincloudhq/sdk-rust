@@ -1054,10 +1054,13 @@ checksum = "7e036b411754132fd6b74e94b74e9a13c5cf606fa93d1885c35860d3060820b1"
 name = "origincloud-compute"
 version = "0.6.0"
 dependencies = [
+ "fake-server",
  "origincloud-core",
  "pbjson",
  "prost",
  "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -1111,10 +1114,13 @@ dependencies = [
 name = "origincloud-network"
 version = "0.6.0"
 dependencies = [
+ "fake-server",
  "origincloud-core",
  "pbjson",
  "prost",
  "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -1134,10 +1140,13 @@ dependencies = [
 name = "origincloud-resourcemanager"
 version = "0.6.0"
 dependencies = [
+ "fake-server",
  "origincloud-core",
  "pbjson",
  "prost",
  "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
