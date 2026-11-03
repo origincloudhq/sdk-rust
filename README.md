@@ -21,6 +21,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 | [`origincloud-compute`](crates/compute) | Instances, images, key pairs, volume attachments and the instance catalog (`origincloud_compute::v1beta1`) |
 | [`origincloud-network`](crates/network) | VPCs, subnets, routing, gateways, floating IPs, network interfaces, security groups, ACLs and DNS policies (`origincloud_network::v1beta1`) |
 | [`origincloud-resourcemanager`](crates/resourcemanager) | Organizations, projects and their quotas (`origincloud_resourcemanager::v1beta1`) |
+| [`origincloud-iam`](crates/iam) | Users, service accounts, roles, role bindings, permissions and the audit log (`origincloud_iam::v1beta1`) |
 
 ## Example
 

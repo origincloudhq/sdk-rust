@@ -1,6 +1,6 @@
 [package]
 name = "origincloud-core"
-version = "0.3.0"
+version = "0.4.0"
 description = "The client every service crate of the Origin Cloud SDK uses: credentials, endpoints, retries, errors, long-running operations and read-your-writes."
 keywords = ["origincloud", "cloud", "sdk", "api"]
 categories = ["api-bindings", "web-programming::http-client"]
