@@ -941,8 +941,11 @@ pub struct CreateKeyPairRequest {
     /// one, and optionally its tags.
     #[prost(message, optional, tag = "2")]
     pub key_pair: ::core::option::Option<KeyPair>,
-    /// A UUID; a repeat with the same id returns the first request's key pair
-    /// instead of creating a second one.
+    /// A UUID; a repeat with the same id creates no second key pair. A repeat
+    /// importing a key returns the first request's key pair; a repeat
+    /// generating one is refused with `CONFLICT`, as the private key went to
+    /// the first request only, and the error's `ErrorInfo` metadata names the
+    /// key pair under `keyPair`.
     #[prost(string, tag = "3")]
     pub request_id: ::prost::alloc::string::String,
 }
@@ -9826,7 +9829,8 @@ impl KeyPairClient {
     /// `ssh-ed25519` key and returns its private half in `private_key`, in
     /// this response only. A repeat of a generating request with the same
     /// `request_id` can't return the private key again, and is refused with
-    /// `FAILED_PRECONDITION`: delete the key pair and create another.
+    /// `CONFLICT`, its `ErrorInfo` metadata naming the key pair under
+    /// `keyPair`: delete it and create another.
     pub async fn create_key_pair(
         &self,
         mut request: CreateKeyPairRequest,
