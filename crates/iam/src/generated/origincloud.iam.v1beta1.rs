@@ -469,9 +469,11 @@ pub struct CreateServiceAccountRequest {
     #[prost(message, optional, tag = "2")]
     pub service_account: ::core::option::Option<ServiceAccount>,
     /// A UUID. A repeat of the request with the same `request_id` within a
-    /// day returns the service account the first request created, as it is
-    /// now, instead of creating a second one. The repeat's response has no
-    /// `client_secret`: the secret is shown once.
+    /// day creates nothing and is refused with `CONFLICT`: the secret went to
+    /// the first request only. The error's `ErrorInfo` metadata names the
+    /// service account under `serviceAccount`; delete it and create a new one
+    /// to get a working secret. The same `request_id` with a different
+    /// request is refused with `CONFLICT` without that metadata.
     #[prost(string, tag = "3")]
     pub request_id: ::prost::alloc::string::String,
 }
