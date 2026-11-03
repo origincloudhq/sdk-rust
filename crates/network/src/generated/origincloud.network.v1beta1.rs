@@ -1848,10 +1848,11 @@ pub struct Subnet {
     pub vpc: ::prost::alloc::string::String,
     /// The route table that decides where the subnet's traffic goes, as the
     /// subnet's route table association (a `RouteTableAssociation`) sets it.
-    /// Empty while it has none: the subnet then has no route out of its VPC
-    /// and counts as a subnet whose route table has no default route. Internet
-    /// access is decided per VPC and address family, from the route tables of
-    /// all its subnets (a `Route` with that family's default destination).
+    /// A subnet reaches, and is reached from, the internet for an address
+    /// family only if its own route table has that family's default route (a
+    /// `Route` with that family's default destination). Empty while it has
+    /// none: a subnet with no route table has no route out of its VPC and isn't
+    /// reachable from the internet, even when the VPC has an internet gateway.
     #[prost(string, tag = "4")]
     pub route_table: ::prost::alloc::string::String,
     /// The ACL that filters traffic in and out of the subnet, as the subnet's
@@ -22023,11 +22024,9 @@ impl FloatingIpAssociationClient {
 ///
 /// Internet gateways: a VPC's way to and from the internet, for its
 /// instances' floating IPs and IPv6 addresses and for its NAT gateways. A VPC
-/// has at most one, and a subnet reaches it through a route that targets it.
-/// Internet access is decided per VPC and address family: while any route
-/// table the VPC's subnets use has a family's default route to the gateway,
-/// traffic of that family leaves the VPC and reaches its floating IPs and
-/// IPv6 addresses.
+/// has at most one, and a subnet reaches it through a route that targets it:
+/// a subnet reaches, and is reached from, the internet for an address family
+/// only if its own route table has that family's default route.
 #[derive(Clone, Debug)]
 pub struct InternetGatewayClient {
     service: ::origincloud_core::Service,
@@ -23000,12 +22999,10 @@ impl RouteTableClient {
 /// Calls `RouteTableAssociationService`.
 ///
 /// Route table associations: which route table a subnet uses. A subnet has at
-/// most one; with none it has no route out of its VPC and counts as a subnet
-/// whose route table has no default route. Internet access is decided per VPC
-/// and address family, so a subnet without a default route still reaches, and
-/// is reached from, the internet through a floating IP or an IPv6 address
-/// while another subnet of its VPC routes out; network ACL and security group
-/// rules are what keep its traffic in. An
+/// most one. A subnet reaches, and is reached from, the internet for an
+/// address family only if its own route table has that family's default
+/// route; a subnet with no route table has no route out of its VPC and isn't
+/// reachable from the internet (see the subnet's `route_table`). An
 /// association's id is the id of the route table it names, so a client that
 /// knows the subnet and the table names the association without listing. To
 /// move a subnet to another table, delete its association and create
@@ -23134,8 +23131,7 @@ impl RouteTableAssociationClient {
         )
     }
     /// Removes a subnet's route table association. The subnet then has no
-    /// route out of its VPC and counts as a subnet whose route table has no
-    /// default route. The
+    /// route out of its VPC and isn't reachable from the internet. The
     /// operation is done once the change is recorded; the network applies it
     /// within seconds.
     ///
