@@ -53,7 +53,9 @@
 //! # Errors
 //!
 //! A call the API refuses returns an [`Error::Api`]: branch on
-//! [`Error::reason`], the platform's error code.
+//! [`Error::reason`], the platform's error code. [`ApiError::metadata`]
+//! says more about some reasons, such as the name of the resource a
+//! `CONFLICT` is about.
 //!
 //! # Runtime
 //!

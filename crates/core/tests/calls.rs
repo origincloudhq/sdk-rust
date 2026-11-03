@@ -21,6 +21,10 @@ const BAD_REQUEST: &str = r#"{"error":{"code":400,"status":"INVALID_ARGUMENT","m
     {"@type":"type.googleapis.com/google.rpc.RequestInfo","requestId":"4bf92f3577b34da6"},
     {"@type":"type.googleapis.com/google.rpc.BadRequest","fieldViolations":[{"field":"volume.sizeGib","description":"must be at least 1"}]}]}}"#;
 
+const REPLAYED_CREATE: &str = r#"{"error":{"code":409,"status":"FAILED_PRECONDITION","message":"the service account organizations/o/serviceAccounts/s was created by an earlier request with this request_id; its client secret was returned only to that request. To get a working secret, delete that account and create a new one","details":[
+    {"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"CONFLICT","domain":"origincloudapis.eu","metadata":{"serviceAccount":"organizations/o/serviceAccounts/s"}},
+    {"@type":"type.googleapis.com/google.rpc.RequestInfo","requestId":"4bf92f3577b34da6"}]}}"#;
+
 const OPERATION_NAME: &str = "projects/p/zones/z/operations/op-1";
 
 /// A client sending every service's calls to `server`.
@@ -156,6 +160,37 @@ async fn an_error_that_isnt_retryable_is_returned_at_once() {
         err.to_string(),
         "origincloud: BAD_REQUEST: invalid input on field volume.sizeGib: must be at least 1 (request 4bf92f3577b34da6)"
     );
+}
+
+/// A conflict is the same answer however often the call is sent: it is
+/// returned at once, with what its ErrorInfo names.
+#[tokio::test]
+async fn a_conflict_is_returned_at_once_with_its_metadata() {
+    let calls = Arc::new(AtomicU32::new(0));
+    let counted = Arc::clone(&calls);
+    let server = FakeServer::start(move |_| {
+        counted.fetch_add(1, Ordering::SeqCst);
+        async { Response::json(REPLAYED_CREATE).with_status(409) }
+    })
+    .await;
+
+    let err = service(&server)
+        .call::<Value>(Request::new(Method::POST, "/x").idempotent())
+        .await
+        .unwrap_err();
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert!(!err.is_retryable());
+    assert_eq!(err.reason(), Some("CONFLICT"));
+    let api = err.api().expect("an API error");
+    assert_eq!(api.http_status, Some(409));
+    assert_eq!(api.status, "FAILED_PRECONDITION");
+    assert_eq!(api.request_id, "4bf92f3577b34da6");
+    assert!(api.message.starts_with("the service account organizations/o/serviceAccounts/s was created by an earlier request"), "{}", api.message);
+    assert_eq!(
+        api.metadata.get("serviceAccount").map(String::as_str),
+        Some("organizations/o/serviceAccounts/s")
+    );
+    assert_eq!(api.metadata.len(), 1);
 }
 
 #[tokio::test]
@@ -318,7 +353,7 @@ async fn a_failed_operation_returns_its_error() {
                 "error": {
                     "code": 13,
                     "message": "the storage couldn't be created",
-                    "details": [{"@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "INTERNAL_SERVER_ERROR", "domain": "origincloudapis.eu"}],
+                    "details": [{"@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "INTERNAL_SERVER_ERROR", "domain": "origincloudapis.eu", "metadata": {"zone": "z"}}],
                 },
             })
             .to_string(),
@@ -331,6 +366,7 @@ async fn a_failed_operation_returns_its_error() {
     let api = err.api().expect("an API error");
     assert_eq!(api.status, "INTERNAL");
     assert_eq!(api.reason, "INTERNAL_SERVER_ERROR");
+    assert_eq!(api.metadata.get("zone").map(String::as_str), Some("z"));
     assert_eq!(api.message, "the storage couldn't be created");
     assert_eq!(api.http_status, None);
 }

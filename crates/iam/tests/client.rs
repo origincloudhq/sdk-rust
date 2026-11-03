@@ -1,7 +1,10 @@
 //! The IAM clients call the global host, send each method as its HTTP
-//! binding says, and read a new service account's client secret.
+//! binding says, read a new service account's client secret, and refuse a
+//! create repeated after its secret was shown.
 
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use fake_server::{FakeServer, Received, Response};
 use origincloud_core::{AccessToken, Client};
@@ -121,6 +124,79 @@ async fn create_service_account_answers_with_its_client_secret() {
     let [request_id] = created.query_values("requestId").try_into().unwrap();
     assert!(is_uuid(&request_id), "{created:?}");
     assert_eq!(created.query_pairs().len(), 1, "{created:?}");
+}
+
+/// A create whose answer was lost is sent again with the same request id.
+/// The account exists by then, but its secret went to the lost answer, so
+/// the API refuses the repeat and names the account; the refusal is not
+/// sent again.
+#[tokio::test]
+async fn a_create_repeated_after_its_answer_was_lost_names_the_account() {
+    let calls = Arc::new(Mutex::new(Vec::<Received>::new()));
+    let log = Arc::clone(&calls);
+    let attempts = Arc::new(AtomicU32::new(0));
+    let counted = Arc::clone(&attempts);
+    let server = FakeServer::start(move |r| {
+        log.lock().unwrap().push(r);
+        let n = counted.fetch_add(1, Ordering::SeqCst) + 1;
+        async move {
+            if n == 1 {
+                // Created, but the answer doesn't arrive in time.
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                return Response::json(
+                    r#"{"name":"organizations/o/serviceAccounts/s","clientSecret":"lost"}"#,
+                );
+            }
+            Response::json(
+                r#"{"error":{"code":409,"status":"FAILED_PRECONDITION","message":"the service account organizations/o/serviceAccounts/s was created by an earlier request with this request_id; its client secret was returned only to that request. To get a working secret, delete that account and create a new one","details":[
+                    {"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"CONFLICT","domain":"origincloudapis.eu","metadata":{"serviceAccount":"organizations/o/serviceAccounts/s"}},
+                    {"@type":"type.googleapis.com/google.rpc.RequestInfo","requestId":"4bf92f3577b34da6"}]}}"#,
+            )
+            .with_status(409)
+        }
+    })
+    .await;
+    let client = Client::builder()
+        .endpoint(server.url())
+        .credentials(AccessToken::new("t"))
+        .timeout(Duration::from_millis(300))
+        .build()
+        .unwrap();
+
+    let err = ServiceAccountClient::new(&client)
+        .create_service_account(CreateServiceAccountRequest {
+            parent: "organizations/o".to_owned(),
+            service_account: Some(ServiceAccount {
+                display_name: "CI".to_owned(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        })
+        .await
+        .unwrap_err();
+
+    assert_eq!(err.reason(), Some("CONFLICT"));
+    assert!(!err.is_retryable());
+    let api = err.api().expect("an API error");
+    assert_eq!(api.http_status, Some(409));
+    assert_eq!(
+        api.metadata.get("serviceAccount").map(String::as_str),
+        Some("organizations/o/serviceAccounts/s")
+    );
+    assert!(
+        err.to_string()
+            .contains("organizations/o/serviceAccounts/s was created by an earlier request"),
+        "{err}"
+    );
+
+    let calls = calls.lock().unwrap();
+    let [first, repeat] = calls.as_slice() else {
+        panic!("{calls:?}");
+    };
+    let [first_id] = first.query_values("requestId").try_into().unwrap();
+    assert!(is_uuid(&first_id), "{first:?}");
+    assert_eq!(repeat.query_values("requestId"), [first_id]);
+    assert_eq!(json_of(repeat), json!({"displayName": "CI"}));
 }
 
 #[tokio::test]
