@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/compute", "crates/core", "crates/location", "crates/network", "crates/pvs", "crates/resourcemanager", "generator", "testing/fake-server"]
+members = ["crates/compute", "crates/core", "crates/iam", "crates/location", "crates/network", "crates/pvs", "crates/resourcemanager", "generator", "testing/fake-server"]
 
 [workspace.package]
 edition = "2024"
