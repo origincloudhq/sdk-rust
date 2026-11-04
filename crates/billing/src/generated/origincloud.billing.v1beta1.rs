@@ -146,9 +146,6 @@ pub struct ProjectBillingInfo {
     /// The billing info's resource name, `projects/{project}/billingInfo`.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The project, `projects/{project}`.
-    #[prost(string, tag = "2")]
-    pub project: ::prost::alloc::string::String,
     /// The billing account that pays for the project's usage, one of its
     /// organization's.
     #[prost(string, tag = "3")]
@@ -4469,9 +4466,6 @@ impl serde::Serialize for ProjectBillingInfo {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.project.is_empty() {
-            len += 1;
-        }
         if !self.billing_account.is_empty() {
             len += 1;
         }
@@ -4479,9 +4473,6 @@ impl serde::Serialize for ProjectBillingInfo {
             .serialize_struct("origincloud.billing.v1beta1.ProjectBillingInfo", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.project.is_empty() {
-            struct_ser.serialize_field("project", &self.project)?;
         }
         if !self.billing_account.is_empty() {
             struct_ser.serialize_field("billingAccount", &self.billing_account)?;
@@ -4495,16 +4486,10 @@ impl<'de> serde::Deserialize<'de> for ProjectBillingInfo {
     where
         D: serde::Deserializer<'de>,
     {
-        const FIELDS: &[&str] = &[
-            "name",
-            "project",
-            "billing_account",
-            "billingAccount",
-        ];
+        const FIELDS: &[&str] = &["name", "billing_account", "billingAccount"];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Project,
             BillingAccount,
             __SkipField__,
         }
@@ -4534,7 +4519,6 @@ impl<'de> serde::Deserialize<'de> for ProjectBillingInfo {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "project" => Ok(GeneratedField::Project),
                             "billingAccount" | "billing_account" => {
                                 Ok(GeneratedField::BillingAccount)
                             }
@@ -4563,7 +4547,6 @@ impl<'de> serde::Deserialize<'de> for ProjectBillingInfo {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut project__ = None;
                 let mut billing_account__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
@@ -4572,12 +4555,6 @@ impl<'de> serde::Deserialize<'de> for ProjectBillingInfo {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Project => {
-                            if project__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("project"));
-                            }
-                            project__ = Some(map_.next_value()?);
                         }
                         GeneratedField::BillingAccount => {
                             if billing_account__.is_some() {
@@ -4594,7 +4571,6 @@ impl<'de> serde::Deserialize<'de> for ProjectBillingInfo {
                 }
                 Ok(ProjectBillingInfo {
                     name: name__.unwrap_or_default(),
-                    project: project__.unwrap_or_default(),
                     billing_account: billing_account__.unwrap_or_default(),
                 })
             }
