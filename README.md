@@ -22,6 +22,9 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 | [`origincloud-network`](crates/network) | VPCs, subnets, routing, gateways, floating IPs, network interfaces, security groups, ACLs and DNS policies (`origincloud_network::v1beta1`) |
 | [`origincloud-resourcemanager`](crates/resourcemanager) | Organizations, projects and their quotas (`origincloud_resourcemanager::v1beta1`) |
 | [`origincloud-iam`](crates/iam) | Users, service accounts, roles, role bindings, permissions and the audit log (`origincloud_iam::v1beta1`) |
+| [`origincloud-billing`](crates/billing) | Billing accounts and the projects they pay for, payment methods, cost and usage, spend limits and the price list (`origincloud_billing::v1beta1`) |
+| [`origincloud-observability`](crates/observability) | The metrics the platform collects for a project's compute instances, volumes and network interfaces (`origincloud_observability::v1beta1`) |
+| [`origincloud-support`](crates/support) | Support cases, each a conversation between an organization and Origin Cloud support about a question or a problem (`origincloud_support::v1beta1`) |
 
 ## Example
 

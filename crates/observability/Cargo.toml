@@ -1,0 +1,22 @@
+[package]
+name = "origincloud-observability"
+version = "0.9.0"
+description = "The Origin Cloud observability API: the metrics the platform collects for a project's compute instances, volumes and network interfaces."
+keywords = ["origincloud", "cloud", "sdk", "api", "observability"]
+categories = ["api-bindings", "web-programming::http-client"]
+readme = "../../README.md"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+origincloud-core = { version = "0.9.0", path = "../core" }
+pbjson = "0.9"
+prost = "0.14"
+serde = "1"
+
+[dev-dependencies]
+fake-server = { path = "../../testing/fake-server" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
