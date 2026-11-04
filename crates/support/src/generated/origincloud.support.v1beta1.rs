@@ -12,10 +12,9 @@ pub struct Case {
     #[prost(string, tag = "2")]
     pub urn: ::prost::alloc::string::String,
     /// The project the case is about, `projects/{project}`, one of the
-    /// organization's. Unset means the case is about the organization as a
-    /// whole.
-    #[prost(string, optional, tag = "3")]
-    pub project: ::core::option::Option<::prost::alloc::string::String>,
+    /// organization's. Empty for a case about the organization as a whole.
+    #[prost(string, tag = "3")]
+    pub project: ::prost::alloc::string::String,
     /// A one-line summary. Not empty.
     #[prost(string, tag = "4")]
     pub subject: ::prost::alloc::string::String,
@@ -235,7 +234,7 @@ impl serde::Serialize for Case {
         if !self.urn.is_empty() {
             len += 1;
         }
-        if self.project.is_some() {
+        if !self.project.is_empty() {
             len += 1;
         }
         if !self.subject.is_empty() {
@@ -267,8 +266,8 @@ impl serde::Serialize for Case {
         if !self.urn.is_empty() {
             struct_ser.serialize_field("urn", &self.urn)?;
         }
-        if let Some(v) = self.project.as_ref() {
-            struct_ser.serialize_field("project", v)?;
+        if !self.project.is_empty() {
+            struct_ser.serialize_field("project", &self.project)?;
         }
         if !self.subject.is_empty() {
             struct_ser.serialize_field("subject", &self.subject)?;
@@ -422,7 +421,7 @@ impl<'de> serde::Deserialize<'de> for Case {
                             if project__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("project"));
                             }
-                            project__ = map_.next_value()?;
+                            project__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Subject => {
                             if subject__.is_some() {
@@ -478,7 +477,7 @@ impl<'de> serde::Deserialize<'de> for Case {
                 Ok(Case {
                     name: name__.unwrap_or_default(),
                     urn: urn__.unwrap_or_default(),
-                    project: project__,
+                    project: project__.unwrap_or_default(),
                     subject: subject__.unwrap_or_default(),
                     description: description__.unwrap_or_default(),
                     contact_email: contact_email__.unwrap_or_default(),

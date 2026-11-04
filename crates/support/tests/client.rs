@@ -67,7 +67,7 @@ async fn create_case_is_sent_with_a_request_id() {
                 subject: "Volume stuck".to_owned(),
                 description: "It stays ATTACHING.".to_owned(),
                 contact_email: "ada@example.com".to_owned(),
-                project: Some("projects/p".to_owned()),
+                project: "projects/p".to_owned(),
                 ..Default::default()
             }),
             ..Default::default()
@@ -162,7 +162,7 @@ async fn a_case_decodes_its_state() {
         .unwrap();
     assert_eq!(got.state(), case::State::InProgress);
     assert_eq!(got.subject, "Volume stuck");
-    assert_eq!(got.project, None);
+    assert_eq!(got.project, "");
     let (created, updated) = (got.create_time.unwrap(), got.update_time.unwrap());
     assert_eq!(created.seconds, 1_793_696_400);
     assert_eq!(updated.seconds - created.seconds, 90 * 60);
