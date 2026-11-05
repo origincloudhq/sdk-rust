@@ -643,7 +643,9 @@ pub struct FloatingIp {
     pub private_address: ::prost::alloc::string::String,
     /// Whether the platform assigned the address at launch, to an interface
     /// the launch created in a subnet with `auto_assign_public_ip`. Such an
-    /// address is released when its instance is terminated.
+    /// address is part of that interface: its association can't be removed
+    /// nor the address deleted, and it is released with the interface when
+    /// its instance is terminated.
     #[prost(bool, tag = "6")]
     pub auto_assigned: bool,
     /// When the floating IP was created.
@@ -1863,8 +1865,10 @@ pub struct Subnet {
     pub acl: ::prost::alloc::string::String,
     /// Whether a launch that creates its network interface in the subnet,
     /// as the GraphQL API's `launchInstance` does, gives that interface a
-    /// floating IP of its own, released when the instance is terminated.
-    /// `CreateInstance` takes existing interfaces, so an instance it launches
+    /// floating IP of its own, released when the instance is terminated. The
+    /// interface is created with its address or not at all: with none free in
+    /// the zone, or the public IP quota used up, the instance is `FAILED`
+    /// with the reason. `CreateInstance` takes existing interfaces, so an instance it launches
     /// gets none: create a floating IP and a floating IP association for its
     /// interface instead.
     #[prost(bool, tag = "6")]
@@ -21984,8 +21988,10 @@ impl FloatingIpAssociationClient {
         )
     }
     /// Removes a floating IP's association: the address reaches nothing, and
-    /// stays allocated. The operation is done once the change is recorded; the
-    /// network applies it within seconds.
+    /// stays allocated. Refused for an address the platform assigned at
+    /// launch (`auto_assigned`), which is released with its network interface.
+    /// The operation is done once the change is recorded; the network applies
+    /// it within seconds.
     ///
     /// It answers with an operation to wait on, which has no result: [`Operation::wait`](origincloud_core::Operation::wait) returns once the change is done.
     pub async fn delete_floating_ip_association(
