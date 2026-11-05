@@ -3657,9 +3657,11 @@ impl OrganizationClient {
         self.service.call(call).await
     }
     /// Deletes an organization. Refused as a `CONFLICT` while it
-    /// still has a project: delete its projects first. Its quota and every
-    /// role granted in it go with it. Its billing accounts stay, with their
-    /// spend limits, so the last period can still be invoiced.
+    /// still has a project, or a service account that isn't deleted, which
+    /// the error names: delete them first. Nothing is deleted then. Its quota,
+    /// its pending invitations and every role granted in it go with it. Its
+    /// billing accounts stay, with their spend limits, so the last period can
+    /// still be invoiced.
     pub async fn delete_organization(
         &self,
         request: DeleteOrganizationRequest,
