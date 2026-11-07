@@ -355,12 +355,13 @@ pub struct ServiceAccount {
     /// `serviceAccount:{service_account}`.
     #[prost(string, tag = "3")]
     pub member: ::prost::alloc::string::String,
-    /// The OAuth 2.0 client id it authenticates with.
+    /// The OAuth 2.0 client id it authenticates with; empty for a `service_account::Type::Workload`
+    /// service account.
     #[prost(string, tag = "4")]
     pub client_id: ::prost::alloc::string::String,
     /// The OAuth 2.0 client secret it authenticates with. Set only in the
-    /// response that created the service account, and empty everywhere else:
-    /// it can't be read again.
+    /// response that created an `service_account::Type::External` service account, and empty
+    /// everywhere else: it can't be read again.
     #[prost(string, tag = "5")]
     pub client_secret: ::prost::alloc::string::String,
     /// Where the service account is in its lifecycle.
@@ -376,9 +377,60 @@ pub struct ServiceAccount {
     /// When the service account was deleted; unset while it is active.
     #[prost(message, optional, tag = "9")]
     pub delete_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
+    /// How the service account authenticates; `service_account::Type::External` when the create
+    /// leaves it unset.
+    #[prost(enumeration = "service_account::Type", tag = "10")]
+    pub r#type: i32,
 }
 /// Nested message and enum types in `ServiceAccount`.
 pub mod service_account {
+    /// How the service account authenticates. Set when it is created; it
+    /// never changes.
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum Type {
+        /// Not set. A create that leaves it unset creates an `service_account::Type::External` service
+        /// account.
+        Unspecified = 0,
+        /// Authenticates with an OAuth 2.0 client id and secret, for software
+        /// outside Origin Cloud such as a CI pipeline.
+        External = 1,
+        /// Has no client id or secret and can't be given one: no credential of
+        /// its own authenticates as it, wherever it was copied to.
+        Workload = 2,
+    }
+    impl Type {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                Self::Unspecified => "TYPE_UNSPECIFIED",
+                Self::External => "EXTERNAL",
+                Self::Workload => "WORKLOAD",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "TYPE_UNSPECIFIED" => Some(Self::Unspecified),
+                "EXTERNAL" => Some(Self::External),
+                "WORKLOAD" => Some(Self::Workload),
+                _ => None,
+            }
+        }
+    }
     /// Where the service account is in its lifecycle.
     #[derive(
         Clone,
@@ -465,7 +517,7 @@ pub struct CreateServiceAccountRequest {
     /// `organizations/{organization}`.
     #[prost(string, tag = "1")]
     pub parent: ::prost::alloc::string::String,
-    /// The service account to create: its `display_name`.
+    /// The service account to create: its `display_name` and `type`.
     #[prost(message, optional, tag = "2")]
     pub service_account: ::core::option::Option<ServiceAccount>,
     /// A UUID. A repeat of the request with the same `request_id` within a
@@ -4033,6 +4085,9 @@ impl serde::Serialize for ServiceAccount {
         if self.delete_time.is_some() {
             len += 1;
         }
+        if self.r#type != 0 {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.iam.v1beta1.ServiceAccount", len)?;
         if !self.name.is_empty() {
@@ -4066,6 +4121,13 @@ impl serde::Serialize for ServiceAccount {
         if let Some(v) = self.delete_time.as_ref() {
             struct_ser.serialize_field("deleteTime", v)?;
         }
+        if self.r#type != 0 {
+            let v = service_account::Type::try_from(self.r#type)
+                .map_err(|_| serde::ser::Error::custom(
+                    format!("Invalid variant {}", self.r#type),
+                ))?;
+            struct_ser.serialize_field("type", &v)?;
+        }
         struct_ser.end()
     }
 }
@@ -4090,6 +4152,7 @@ impl<'de> serde::Deserialize<'de> for ServiceAccount {
             "createTime",
             "delete_time",
             "deleteTime",
+            "type",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -4102,6 +4165,7 @@ impl<'de> serde::Deserialize<'de> for ServiceAccount {
             Creator,
             CreateTime,
             DeleteTime,
+            Type,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -4146,6 +4210,7 @@ impl<'de> serde::Deserialize<'de> for ServiceAccount {
                             "deleteTime" | "delete_time" => {
                                 Ok(GeneratedField::DeleteTime)
                             }
+                            "type" => Ok(GeneratedField::Type),
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -4178,6 +4243,7 @@ impl<'de> serde::Deserialize<'de> for ServiceAccount {
                 let mut creator__ = None;
                 let mut create_time__ = None;
                 let mut delete_time__ = None;
+                let mut r#type__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Name => {
@@ -4240,6 +4306,14 @@ impl<'de> serde::Deserialize<'de> for ServiceAccount {
                             }
                             delete_time__ = map_.next_value()?;
                         }
+                        GeneratedField::Type => {
+                            if r#type__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("type"));
+                            }
+                            r#type__ = Some(
+                                map_.next_value::<service_account::Type>()? as i32,
+                            );
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -4255,6 +4329,7 @@ impl<'de> serde::Deserialize<'de> for ServiceAccount {
                     creator: creator__.unwrap_or_default(),
                     create_time: create_time__,
                     delete_time: delete_time__,
+                    r#type: r#type__.unwrap_or_default(),
                 })
             }
         }
@@ -4343,6 +4418,89 @@ impl<'de> serde::Deserialize<'de> for service_account::State {
                     "ACTIVE" => Ok(service_account::State::Active),
                     "DELETED" => Ok(service_account::State::Deleted),
                     _ => Ok(service_account::State::default()),
+                }
+            }
+        }
+        deserializer.deserialize_any(GeneratedVisitor)
+    }
+}
+impl serde::Serialize for service_account::Type {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let variant = match self {
+            Self::Unspecified => "TYPE_UNSPECIFIED",
+            Self::External => "EXTERNAL",
+            Self::Workload => "WORKLOAD",
+        };
+        serializer.serialize_str(variant)
+    }
+}
+impl<'de> serde::Deserialize<'de> for service_account::Type {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["TYPE_UNSPECIFIED", "EXTERNAL", "WORKLOAD"];
+        struct GeneratedVisitor;
+        impl serde::de::Visitor<'_> for GeneratedVisitor {
+            type Value = service_account::Type;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                write!(formatter, "expected one of: {:?}", & FIELDS)
+            }
+            fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                i32::try_from(v)
+                    .ok()
+                    .and_then(|x| {
+                        x
+                            .try_into()
+                            .ok()
+                            .or_else(|| Some(service_account::Type::default()))
+                    })
+                    .ok_or_else(|| {
+                        serde::de::Error::invalid_value(
+                            serde::de::Unexpected::Signed(v),
+                            &self,
+                        )
+                    })
+            }
+            fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                i32::try_from(v)
+                    .ok()
+                    .and_then(|x| {
+                        x
+                            .try_into()
+                            .ok()
+                            .or_else(|| Some(service_account::Type::default()))
+                    })
+                    .ok_or_else(|| {
+                        serde::de::Error::invalid_value(
+                            serde::de::Unexpected::Unsigned(v),
+                            &self,
+                        )
+                    })
+            }
+            fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match value {
+                    "TYPE_UNSPECIFIED" => Ok(service_account::Type::Unspecified),
+                    "EXTERNAL" => Ok(service_account::Type::External),
+                    "WORKLOAD" => Ok(service_account::Type::Workload),
+                    _ => Ok(service_account::Type::default()),
                 }
             }
         }
@@ -5242,9 +5400,9 @@ impl ServiceAccountClient {
             },
         )
     }
-    /// Creates a service account and its client secret. The response is the
-    /// only place the secret is ever shown: store it now. Needs
-    /// `iam.service_account.create` on the organization.
+    /// Creates a service account and, for an `service_account::Type::External` one, its client
+    /// secret. The response is the only place the secret is ever shown: store
+    /// it now. Needs `iam.service_account.create` on the organization.
     pub async fn create_service_account(
         &self,
         mut request: CreateServiceAccountRequest,
