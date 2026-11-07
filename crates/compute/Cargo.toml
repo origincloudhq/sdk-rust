@@ -1,6 +1,6 @@
 [package]
 name = "origincloud-compute"
-version = "0.13.0"
+version = "0.14.0"
 description = "The Origin Cloud compute API: instances, images, key pairs, volume attachments and the instance catalog."
 keywords = ["origincloud", "cloud", "sdk", "api", "compute"]
 categories = ["api-bindings", "web-programming::http-client"]
@@ -12,7 +12,7 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
-origincloud-core = { version = "0.13.0", path = "../core" }
+origincloud-core = { version = "0.14.0", path = "../core" }
 pbjson = "0.9"
 prost = "0.14"
 serde = "1"
