@@ -5264,7 +5264,7 @@ impl HostedZoneClient {
     /// Returns a client of `HostedZoneService` that sends its calls through `client`.
     pub fn new(client: &::origincloud_core::Client) -> Self {
         Self {
-            service: client.service("dns", true),
+            service: client.service("dns", false),
         }
     }
     /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
@@ -5464,7 +5464,7 @@ impl RecordSetClient {
     /// Returns a client of `RecordSetService` that sends its calls through `client`.
     pub fn new(client: &::origincloud_core::Client) -> Self {
         Self {
-            service: client.service("dns", true),
+            service: client.service("dns", false),
         }
     }
     /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
@@ -5669,7 +5669,7 @@ impl VpcAttachmentClient {
     /// Returns a client of `VpcAttachmentService` that sends its calls through `client`.
     pub fn new(client: &::origincloud_core::Client) -> Self {
         Self {
-            service: client.service("dns", true),
+            service: client.service("dns", false),
         }
     }
     /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
