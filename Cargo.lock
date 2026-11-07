@@ -1102,10 +1102,13 @@ dependencies = [
 name = "origincloud-dns"
 version = "0.14.0"
 dependencies = [
+ "fake-server",
  "origincloud-core",
  "pbjson",
  "prost",
  "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
