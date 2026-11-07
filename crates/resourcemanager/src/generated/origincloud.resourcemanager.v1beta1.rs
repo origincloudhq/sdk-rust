@@ -26,6 +26,12 @@ pub struct OrganizationQuota {
     /// The most floating IPs.
     #[prost(int64, tag = "6")]
     pub max_public_ips: i64,
+    /// The most DNS hosted zones, including those not yet verified.
+    #[prost(int64, tag = "8")]
+    pub max_hosted_zones: i64,
+    /// The most DNS record sets, summed over every hosted zone.
+    #[prost(int64, tag = "9")]
+    pub max_record_sets: i64,
     /// How much of each limit the organization's projects use together.
     #[prost(message, optional, tag = "7")]
     pub usage: ::core::option::Option<QuotaUsage>,
@@ -58,6 +64,14 @@ pub struct ProjectQuota {
     /// The most floating IPs; unset means no budget.
     #[prost(int64, optional, tag = "6")]
     pub max_public_ips: ::core::option::Option<i64>,
+    /// The most DNS hosted zones, including those not yet verified; unset
+    /// means no budget.
+    #[prost(int64, optional, tag = "8")]
+    pub max_hosted_zones: ::core::option::Option<i64>,
+    /// The most DNS record sets, summed over the project's hosted zones; unset
+    /// means no budget.
+    #[prost(int64, optional, tag = "9")]
+    pub max_record_sets: ::core::option::Option<i64>,
     /// How much of each budget the project uses.
     #[prost(message, optional, tag = "7")]
     pub usage: ::core::option::Option<QuotaUsage>,
@@ -82,6 +96,14 @@ pub struct QuotaUsage {
     /// Floating IPs.
     #[prost(int64, tag = "5")]
     pub public_ips: i64,
+    /// DNS hosted zones, including those not yet verified; unset while they
+    /// can't be counted, the other figures answered all the same.
+    #[prost(int64, optional, tag = "6")]
+    pub hosted_zones: ::core::option::Option<i64>,
+    /// DNS record sets; unset while they can't be counted, the other figures
+    /// answered all the same.
+    #[prost(int64, optional, tag = "7")]
+    pub record_sets: ::core::option::Option<i64>,
 }
 /// An organization: the account its projects, members and billing belong to.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -2173,6 +2195,12 @@ impl serde::Serialize for OrganizationQuota {
         if self.max_public_ips != 0 {
             len += 1;
         }
+        if self.max_hosted_zones != 0 {
+            len += 1;
+        }
+        if self.max_record_sets != 0 {
+            len += 1;
+        }
         if self.usage.is_some() {
             len += 1;
         }
@@ -2229,6 +2257,24 @@ impl serde::Serialize for OrganizationQuota {
                     ToString::to_string(&self.max_public_ips).as_str(),
                 )?;
         }
+        if self.max_hosted_zones != 0 {
+            #[allow(clippy::needless_borrow)]
+            #[allow(clippy::needless_borrows_for_generic_args)]
+            struct_ser
+                .serialize_field(
+                    "maxHostedZones",
+                    ToString::to_string(&self.max_hosted_zones).as_str(),
+                )?;
+        }
+        if self.max_record_sets != 0 {
+            #[allow(clippy::needless_borrow)]
+            #[allow(clippy::needless_borrows_for_generic_args)]
+            struct_ser
+                .serialize_field(
+                    "maxRecordSets",
+                    ToString::to_string(&self.max_record_sets).as_str(),
+                )?;
+        }
         if let Some(v) = self.usage.as_ref() {
             struct_ser.serialize_field("usage", v)?;
         }
@@ -2253,6 +2299,10 @@ impl<'de> serde::Deserialize<'de> for OrganizationQuota {
             "maxVpcs",
             "max_public_ips",
             "maxPublicIps",
+            "max_hosted_zones",
+            "maxHostedZones",
+            "max_record_sets",
+            "maxRecordSets",
             "usage",
         ];
         #[allow(clippy::enum_variant_names)]
@@ -2263,6 +2313,8 @@ impl<'de> serde::Deserialize<'de> for OrganizationQuota {
             MaxVolumeGib,
             MaxVpcs,
             MaxPublicIps,
+            MaxHostedZones,
+            MaxRecordSets,
             Usage,
             __SkipField__,
         }
@@ -2303,6 +2355,12 @@ impl<'de> serde::Deserialize<'de> for OrganizationQuota {
                             "maxPublicIps" | "max_public_ips" => {
                                 Ok(GeneratedField::MaxPublicIps)
                             }
+                            "maxHostedZones" | "max_hosted_zones" => {
+                                Ok(GeneratedField::MaxHostedZones)
+                            }
+                            "maxRecordSets" | "max_record_sets" => {
+                                Ok(GeneratedField::MaxRecordSets)
+                            }
                             "usage" => Ok(GeneratedField::Usage),
                             _ => Ok(GeneratedField::__SkipField__),
                         }
@@ -2336,6 +2394,8 @@ impl<'de> serde::Deserialize<'de> for OrganizationQuota {
                 let mut max_volume_gib__ = None;
                 let mut max_vpcs__ = None;
                 let mut max_public_ips__ = None;
+                let mut max_hosted_zones__ = None;
+                let mut max_record_sets__ = None;
                 let mut usage__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
@@ -2401,6 +2461,30 @@ impl<'de> serde::Deserialize<'de> for OrganizationQuota {
                                     .0,
                             );
                         }
+                        GeneratedField::MaxHostedZones => {
+                            if max_hosted_zones__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("maxHostedZones"),
+                                );
+                            }
+                            max_hosted_zones__ = Some(
+                                map_
+                                    .next_value::<::pbjson::private::NumberDeserialize<_>>()?
+                                    .0,
+                            );
+                        }
+                        GeneratedField::MaxRecordSets => {
+                            if max_record_sets__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("maxRecordSets"),
+                                );
+                            }
+                            max_record_sets__ = Some(
+                                map_
+                                    .next_value::<::pbjson::private::NumberDeserialize<_>>()?
+                                    .0,
+                            );
+                        }
                         GeneratedField::Usage => {
                             if usage__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("usage"));
@@ -2419,6 +2503,8 @@ impl<'de> serde::Deserialize<'de> for OrganizationQuota {
                     max_volume_gib: max_volume_gib__.unwrap_or_default(),
                     max_vpcs: max_vpcs__.unwrap_or_default(),
                     max_public_ips: max_public_ips__.unwrap_or_default(),
+                    max_hosted_zones: max_hosted_zones__.unwrap_or_default(),
+                    max_record_sets: max_record_sets__.unwrap_or_default(),
                     usage: usage__,
                 })
             }
@@ -2658,6 +2744,12 @@ impl serde::Serialize for ProjectQuota {
         if self.max_public_ips.is_some() {
             len += 1;
         }
+        if self.max_hosted_zones.is_some() {
+            len += 1;
+        }
+        if self.max_record_sets.is_some() {
+            len += 1;
+        }
         if self.usage.is_some() {
             len += 1;
         }
@@ -2694,6 +2786,18 @@ impl serde::Serialize for ProjectQuota {
             struct_ser
                 .serialize_field("maxPublicIps", ToString::to_string(&v).as_str())?;
         }
+        if let Some(v) = self.max_hosted_zones.as_ref() {
+            #[allow(clippy::needless_borrow)]
+            #[allow(clippy::needless_borrows_for_generic_args)]
+            struct_ser
+                .serialize_field("maxHostedZones", ToString::to_string(&v).as_str())?;
+        }
+        if let Some(v) = self.max_record_sets.as_ref() {
+            #[allow(clippy::needless_borrow)]
+            #[allow(clippy::needless_borrows_for_generic_args)]
+            struct_ser
+                .serialize_field("maxRecordSets", ToString::to_string(&v).as_str())?;
+        }
         if let Some(v) = self.usage.as_ref() {
             struct_ser.serialize_field("usage", v)?;
         }
@@ -2718,6 +2822,10 @@ impl<'de> serde::Deserialize<'de> for ProjectQuota {
             "maxVpcs",
             "max_public_ips",
             "maxPublicIps",
+            "max_hosted_zones",
+            "maxHostedZones",
+            "max_record_sets",
+            "maxRecordSets",
             "usage",
         ];
         #[allow(clippy::enum_variant_names)]
@@ -2728,6 +2836,8 @@ impl<'de> serde::Deserialize<'de> for ProjectQuota {
             MaxVolumeGib,
             MaxVpcs,
             MaxPublicIps,
+            MaxHostedZones,
+            MaxRecordSets,
             Usage,
             __SkipField__,
         }
@@ -2768,6 +2878,12 @@ impl<'de> serde::Deserialize<'de> for ProjectQuota {
                             "maxPublicIps" | "max_public_ips" => {
                                 Ok(GeneratedField::MaxPublicIps)
                             }
+                            "maxHostedZones" | "max_hosted_zones" => {
+                                Ok(GeneratedField::MaxHostedZones)
+                            }
+                            "maxRecordSets" | "max_record_sets" => {
+                                Ok(GeneratedField::MaxRecordSets)
+                            }
                             "usage" => Ok(GeneratedField::Usage),
                             _ => Ok(GeneratedField::__SkipField__),
                         }
@@ -2799,6 +2915,8 @@ impl<'de> serde::Deserialize<'de> for ProjectQuota {
                 let mut max_volume_gib__ = None;
                 let mut max_vpcs__ = None;
                 let mut max_public_ips__ = None;
+                let mut max_hosted_zones__ = None;
+                let mut max_record_sets__ = None;
                 let mut usage__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
@@ -2874,6 +2992,34 @@ impl<'de> serde::Deserialize<'de> for ProjectQuota {
                                 >()?
                                 .map(|x| x.0);
                         }
+                        GeneratedField::MaxHostedZones => {
+                            if max_hosted_zones__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("maxHostedZones"),
+                                );
+                            }
+                            max_hosted_zones__ = map_
+                                .next_value::<
+                                    ::std::option::Option<
+                                        ::pbjson::private::NumberDeserialize<_>,
+                                    >,
+                                >()?
+                                .map(|x| x.0);
+                        }
+                        GeneratedField::MaxRecordSets => {
+                            if max_record_sets__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("maxRecordSets"),
+                                );
+                            }
+                            max_record_sets__ = map_
+                                .next_value::<
+                                    ::std::option::Option<
+                                        ::pbjson::private::NumberDeserialize<_>,
+                                    >,
+                                >()?
+                                .map(|x| x.0);
+                        }
                         GeneratedField::Usage => {
                             if usage__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("usage"));
@@ -2892,6 +3038,8 @@ impl<'de> serde::Deserialize<'de> for ProjectQuota {
                     max_volume_gib: max_volume_gib__,
                     max_vpcs: max_vpcs__,
                     max_public_ips: max_public_ips__,
+                    max_hosted_zones: max_hosted_zones__,
+                    max_record_sets: max_record_sets__,
                     usage: usage__,
                 })
             }
@@ -2925,6 +3073,12 @@ impl serde::Serialize for QuotaUsage {
             len += 1;
         }
         if self.public_ips != 0 {
+            len += 1;
+        }
+        if self.hosted_zones.is_some() {
+            len += 1;
+        }
+        if self.record_sets.is_some() {
             len += 1;
         }
         let mut struct_ser = serializer
@@ -2968,6 +3122,16 @@ impl serde::Serialize for QuotaUsage {
                     ToString::to_string(&self.public_ips).as_str(),
                 )?;
         }
+        if let Some(v) = self.hosted_zones.as_ref() {
+            #[allow(clippy::needless_borrow)]
+            #[allow(clippy::needless_borrows_for_generic_args)]
+            struct_ser.serialize_field("hostedZones", ToString::to_string(&v).as_str())?;
+        }
+        if let Some(v) = self.record_sets.as_ref() {
+            #[allow(clippy::needless_borrow)]
+            #[allow(clippy::needless_borrows_for_generic_args)]
+            struct_ser.serialize_field("recordSets", ToString::to_string(&v).as_str())?;
+        }
         struct_ser.end()
     }
 }
@@ -2985,6 +3149,10 @@ impl<'de> serde::Deserialize<'de> for QuotaUsage {
             "vpcs",
             "public_ips",
             "publicIps",
+            "hosted_zones",
+            "hostedZones",
+            "record_sets",
+            "recordSets",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -2993,6 +3161,8 @@ impl<'de> serde::Deserialize<'de> for QuotaUsage {
             VolumeGib,
             Vpcs,
             PublicIps,
+            HostedZones,
+            RecordSets,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -3025,6 +3195,12 @@ impl<'de> serde::Deserialize<'de> for QuotaUsage {
                             "volumeGib" | "volume_gib" => Ok(GeneratedField::VolumeGib),
                             "vpcs" => Ok(GeneratedField::Vpcs),
                             "publicIps" | "public_ips" => Ok(GeneratedField::PublicIps),
+                            "hostedZones" | "hosted_zones" => {
+                                Ok(GeneratedField::HostedZones)
+                            }
+                            "recordSets" | "record_sets" => {
+                                Ok(GeneratedField::RecordSets)
+                            }
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -3054,6 +3230,8 @@ impl<'de> serde::Deserialize<'de> for QuotaUsage {
                 let mut volume_gib__ = None;
                 let mut vpcs__ = None;
                 let mut public_ips__ = None;
+                let mut hosted_zones__ = None;
+                let mut record_sets__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Instances => {
@@ -3106,6 +3284,32 @@ impl<'de> serde::Deserialize<'de> for QuotaUsage {
                                     .0,
                             );
                         }
+                        GeneratedField::HostedZones => {
+                            if hosted_zones__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("hostedZones"),
+                                );
+                            }
+                            hosted_zones__ = map_
+                                .next_value::<
+                                    ::std::option::Option<
+                                        ::pbjson::private::NumberDeserialize<_>,
+                                    >,
+                                >()?
+                                .map(|x| x.0);
+                        }
+                        GeneratedField::RecordSets => {
+                            if record_sets__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("recordSets"));
+                            }
+                            record_sets__ = map_
+                                .next_value::<
+                                    ::std::option::Option<
+                                        ::pbjson::private::NumberDeserialize<_>,
+                                    >,
+                                >()?
+                                .map(|x| x.0);
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -3117,6 +3321,8 @@ impl<'de> serde::Deserialize<'de> for QuotaUsage {
                     volume_gib: volume_gib__.unwrap_or_default(),
                     vpcs: vpcs__.unwrap_or_default(),
                     public_ips: public_ips__.unwrap_or_default(),
+                    hosted_zones: hosted_zones__,
+                    record_sets: record_sets__,
                 })
             }
         }
