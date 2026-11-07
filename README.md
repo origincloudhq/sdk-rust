@@ -25,6 +25,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 | [`origincloud-billing`](crates/billing) | Billing accounts and the projects they pay for, payment methods, cost and usage, spend limits and the price list (`origincloud_billing::v1beta1`) |
 | [`origincloud-observability`](crates/observability) | The metrics the platform collects for a project's compute instances, volumes and network interfaces (`origincloud_observability::v1beta1`) |
 | [`origincloud-support`](crates/support) | Support cases, each a conversation between an organization and Origin Cloud support about a question or a problem (`origincloud_support::v1beta1`) |
+| [`origincloud-dns`](crates/dns) | Hosted zones, their record sets, and private zones' VPC attachments (`origincloud_dns::v1beta1`) |
 
 ## Example
 

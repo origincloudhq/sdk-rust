@@ -21,7 +21,14 @@ use crate::names;
 
 /// The services that answer only at their regionless host: the API's
 /// global services.
-const GLOBAL_SERVICES: &[&str] = &["iam", "resourcemanager", "location", "billing", "support"];
+const GLOBAL_SERVICES: &[&str] = &[
+    "iam",
+    "resourcemanager",
+    "location",
+    "billing",
+    "support",
+    "dns",
+];
 
 const OPERATION: &str = "google.longrunning.Operation";
 const EMPTY: &str = "google.protobuf.Empty";
@@ -530,7 +537,14 @@ mod tests {
 
     #[test]
     fn the_global_services_have_no_regional_host() {
-        for global in ["iam", "resourcemanager", "location", "billing", "support"] {
+        for global in [
+            "iam",
+            "resourcemanager",
+            "location",
+            "billing",
+            "support",
+            "dns",
+        ] {
             assert!(!regional(global), "{global}");
         }
         for zonal in ["pvs", "compute", "network", "observability"] {
