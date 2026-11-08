@@ -437,6 +437,13 @@ pub struct Instance {
     /// `network_interfaces`; an interface not attached yet has none.
     #[prost(message, repeated, tag = "16")]
     pub interface_addresses: ::prost::alloc::vec::Vec<InterfaceAddresses>,
+    /// The service account the instance runs as,
+    /// `organizations/{organization}/serviceAccounts/{service_account}`: a
+    /// `WORKLOAD` service account of the instance's organization that isn't
+    /// deleted. Launching with one needs `iam.service_account.act_as` on the
+    /// organization as well. Empty for an instance that runs as none.
+    #[prost(string, tag = "17")]
+    pub service_account: ::prost::alloc::string::String,
 }
 /// Nested message and enum types in `Instance`.
 pub mod instance {
@@ -4618,6 +4625,9 @@ impl serde::Serialize for Instance {
         if !self.interface_addresses.is_empty() {
             len += 1;
         }
+        if !self.service_account.is_empty() {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.compute.v1beta1.Instance", len)?;
         if !self.name.is_empty() {
@@ -4672,6 +4682,9 @@ impl serde::Serialize for Instance {
         if !self.interface_addresses.is_empty() {
             struct_ser.serialize_field("interfaceAddresses", &self.interface_addresses)?;
         }
+        if !self.service_account.is_empty() {
+            struct_ser.serialize_field("serviceAccount", &self.service_account)?;
+        }
         struct_ser.end()
     }
 }
@@ -4707,6 +4720,8 @@ impl<'de> serde::Deserialize<'de> for Instance {
             "tags",
             "interface_addresses",
             "interfaceAddresses",
+            "service_account",
+            "serviceAccount",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -4726,6 +4741,7 @@ impl<'de> serde::Deserialize<'de> for Instance {
             Creator,
             Tags,
             InterfaceAddresses,
+            ServiceAccount,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -4783,6 +4799,9 @@ impl<'de> serde::Deserialize<'de> for Instance {
                             "interfaceAddresses" | "interface_addresses" => {
                                 Ok(GeneratedField::InterfaceAddresses)
                             }
+                            "serviceAccount" | "service_account" => {
+                                Ok(GeneratedField::ServiceAccount)
+                            }
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -4819,6 +4838,7 @@ impl<'de> serde::Deserialize<'de> for Instance {
                 let mut creator__ = None;
                 let mut tags__ = None;
                 let mut interface_addresses__ = None;
+                let mut service_account__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Name => {
@@ -4929,6 +4949,14 @@ impl<'de> serde::Deserialize<'de> for Instance {
                             }
                             interface_addresses__ = Some(map_.next_value()?);
                         }
+                        GeneratedField::ServiceAccount => {
+                            if service_account__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("serviceAccount"),
+                                );
+                            }
+                            service_account__ = Some(map_.next_value()?);
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -4951,6 +4979,7 @@ impl<'de> serde::Deserialize<'de> for Instance {
                     creator: creator__.unwrap_or_default(),
                     tags: tags__.unwrap_or_default(),
                     interface_addresses: interface_addresses__.unwrap_or_default(),
+                    service_account: service_account__.unwrap_or_default(),
                 })
             }
         }
