@@ -1,6 +1,6 @@
 [package]
 name = "origincloud-observability"
-version = "0.16.0"
+version = "0.17.0"
 description = "The Origin Cloud observability API: the metrics the platform collects for a project's compute instances, volumes and network interfaces."
 keywords = ["origincloud", "cloud", "sdk", "api", "observability"]
 categories = ["api-bindings", "web-programming::http-client"]
@@ -12,7 +12,7 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
-origincloud-core = { version = "0.16.0", path = "../core" }
+origincloud-core = { version = "0.17.0", path = "../core" }
 pbjson = "0.9"
 prost = "0.14"
 serde = "1"
