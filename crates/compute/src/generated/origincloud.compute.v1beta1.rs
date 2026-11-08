@@ -440,8 +440,10 @@ pub struct Instance {
     /// The service account the instance runs as,
     /// `organizations/{organization}/serviceAccounts/{service_account}`: a
     /// `WORKLOAD` service account of the instance's organization that isn't
-    /// deleted. Launching with one needs `iam.service_account.act_as` on the
-    /// organization as well. Empty for an instance that runs as none.
+    /// deleted. Launching with one, or updating the instance to one, needs
+    /// `iam.service_account.act_as` on the organization as well; an update
+    /// that leaves it empty removes it, and a terminated instance's can't
+    /// change. Empty for an instance that runs as none.
     #[prost(string, tag = "17")]
     pub service_account: ::prost::alloc::string::String,
 }
@@ -835,7 +837,9 @@ pub struct UpdateInstanceRequest {
     /// The instance, by its name, with the fields to change.
     #[prost(message, optional, tag = "1")]
     pub instance: ::core::option::Option<Instance>,
-    /// The fields to change: `instance_type`, `tags`, or both. `*` is both.
+    /// The fields to change: any of `instance_type`, `tags` and
+    /// `service_account`. `*` is all three, so an empty `service_account`
+    /// under it removes the instance's.
     #[prost(message, optional, tag = "2")]
     pub update_mask: ::core::option::Option<::origincloud_core::protobuf::FieldMask>,
     /// A UUID; a repeat with the same id returns the first request's
@@ -9616,7 +9620,8 @@ impl InstanceClient {
             ),
         )
     }
-    /// Changes an instance's type or tags. A new `instance_type` needs the
+    /// Changes an instance's type, tags or service account. A new
+    /// `instance_type` needs the
     /// instance `instance::State::Stopped`, and is refused with `FAILED_PRECONDITION`
     /// otherwise; it takes effect at the next start. A larger type is checked
     /// against the same vCPU quota a launch is. The operation is done once the
