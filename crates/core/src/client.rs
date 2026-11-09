@@ -439,8 +439,10 @@ mod tests {
 
     #[test]
     fn no_credentials_at_all() {
-        let env = |name: &str| {
-            (name == "XDG_DATA_HOME").then(|| "/nonexistent/origincloud-sdk-test".to_owned())
+        let env = |name: &str| match name {
+            "XDG_DATA_HOME" => Some("/nonexistent/origincloud-sdk-test".to_owned()),
+            "ORIGINCLOUD_METADATA_DISABLED" => Some("true".to_owned()),
+            _ => None,
         };
         assert!(matches!(
             Client::builder().build_with(&env),

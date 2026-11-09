@@ -17,9 +17,10 @@ pub enum Error {
     /// The call got no answer: the connection failed or broke off.
     #[error("origincloud: {0}")]
     Transport(#[source] reqwest::Error),
-    /// Neither the environment nor a CLI session holds credentials.
+    /// Neither the environment nor a CLI session holds credentials, and
+    /// no instance metadata service answered.
     #[error(
-        "origincloud: no credentials: set ORIGINCLOUD_CLIENT_ID and ORIGINCLOUD_CLIENT_SECRET, set ORIGINCLOUD_ACCESS_TOKEN, or log in with `origin id login`"
+        "origincloud: no credentials: set ORIGINCLOUD_CLIENT_ID and ORIGINCLOUD_CLIENT_SECRET, set ORIGINCLOUD_ACCESS_TOKEN, log in with `origin id login`, or run on an instance that runs as a service account"
     )]
     NoCredentials,
     /// The credentials couldn't supply an access token.
