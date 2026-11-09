@@ -418,7 +418,9 @@ impl InstanceMetadata {
     }
 
     /// A new session. Off an instance, there is no metadata service to
-    /// answer, or it knows no instance at the address: no credentials.
+    /// answer, or another one: another cloud's, at the same address, which
+    /// refuses the request as one it doesn't know. Either way, no
+    /// credentials.
     async fn open_session(&self) -> Result<String, Error> {
         let request = self
             .http()?
@@ -433,11 +435,11 @@ impl InstanceMetadata {
             .map_err(|_| Error::NoCredentials)?;
         match status.as_u16() {
             200 => Ok(String::from_utf8_lossy(&body).trim().to_owned()),
-            404 => Err(Error::NoCredentials),
             403 => Err(refused_through_a_proxy()),
-            status => Err(Error::Credentials(format!(
-                "the metadata service refused a session (HTTP {status})"
-            ))),
+            503 => Err(Error::Credentials(
+                "the metadata service refused a session (HTTP 503)".to_owned(),
+            )),
+            _ => Err(Error::NoCredentials),
         }
     }
 

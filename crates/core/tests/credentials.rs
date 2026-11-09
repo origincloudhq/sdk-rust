@@ -285,3 +285,16 @@ async fn without_a_metadata_service_there_are_no_credentials_and_quickly() {
         started.elapsed()
     );
 }
+
+#[tokio::test]
+async fn another_cloud_s_metadata_service_means_no_credentials() {
+    // Azure's refuses the session request with 411, AWS's with 400, and
+    // Google's with 405 or 404.
+    for status in [400, 404, 405, 411] {
+        let server =
+            FakeServer::start(move |_| async move { Response::json("").with_status(status) }).await;
+        let credentials = InstanceMetadata::new().with_endpoint(server.url());
+        let err = credentials.token().await.unwrap_err();
+        assert!(matches!(err, Error::NoCredentials), "{status}: {err}");
+    }
+}
