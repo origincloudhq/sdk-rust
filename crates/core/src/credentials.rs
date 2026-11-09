@@ -22,6 +22,7 @@ const ENV_ACCESS_TOKEN: &str = "ORIGINCLOUD_ACCESS_TOKEN";
 const ENV_CLIENT_ID: &str = "ORIGINCLOUD_CLIENT_ID";
 const ENV_CLIENT_SECRET: &str = "ORIGINCLOUD_CLIENT_SECRET";
 const ENV_METADATA_DISABLED: &str = "ORIGINCLOUD_METADATA_DISABLED";
+const ENV_METADATA_ENDPOINT: &str = "ORIGINCLOUD_METADATA_ENDPOINT";
 
 /// The instance metadata service, which software on an instance reaches
 /// at this link-local address.
@@ -32,12 +33,22 @@ const METADATA_SESSION_TTL: Duration = Duration::from_secs(6 * 60 * 60);
 const METADATA_SESSION_TTL_HEADER: &str = "x-origincloud-metadata-token-ttl-seconds";
 const METADATA_SESSION_HEADER: &str = "x-origincloud-metadata-token";
 
-/// How long reaching the metadata service may take: off an instance, the
-/// chain's last step fails within it.
+/// How long reaching the metadata service may take, and opening a session
+/// in all: off an instance, the chain's last step fails within them.
 const METADATA_CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
+const METADATA_SESSION_TIMEOUT: Duration = Duration::from_secs(2);
 
-/// How long a metadata-service request may take.
+/// How long a credential request may take.
 const METADATA_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// How long before its expiry the metadata service's credential, which
+/// lives five minutes, is replaced.
+const METADATA_EXPIRY_MARGIN: Duration = Duration::from_secs(60);
+
+/// The waits before a request the metadata service answered with `503`
+/// (it can't sign right now) is sent again.
+const METADATA_RETRY_DELAYS: [Duration; 2] =
+    [Duration::from_millis(100), Duration::from_millis(200)];
 
 /// The OAuth client the CLI logs in as, which its refresh token belongs to.
 const CLI_CLIENT_ID: &str = "origin-cli";
@@ -72,8 +83,9 @@ pub trait Credentials: Send + Sync + fmt::Debug {
 /// 4. The instance's metadata service, on an instance that runs as a
 ///    service account ([`InstanceMetadata`]). Nothing is requested until a
 ///    token is; off an instance, that fails with [`Error::NoCredentials`]
-///    within about a second. `ORIGINCLOUD_METADATA_DISABLED=true` leaves
-///    this step out.
+///    within about two seconds. `ORIGINCLOUD_METADATA_DISABLED=true` leaves
+///    this step out; `ORIGINCLOUD_METADATA_ENDPOINT` asks another address
+///    than [`METADATA_ENDPOINT`].
 ///
 /// It fails with [`Error::NoCredentials`] when the metadata service is
 /// left out and there are no others.
@@ -106,7 +118,11 @@ pub(crate) fn from_environment(
     if var(ENV_METADATA_DISABLED).is_some_and(|v| v.eq_ignore_ascii_case("true")) {
         return Err(Error::NoCredentials);
     }
-    Ok(Arc::new(InstanceMetadata::new()))
+    let metadata = InstanceMetadata::new();
+    Ok(Arc::new(match var(ENV_METADATA_ENDPOINT) {
+        Some(endpoint) => metadata.with_endpoint(endpoint),
+        None => metadata,
+    }))
 }
 
 /// An access token, sent as it is. It is not renewed: a service account's
@@ -336,9 +352,10 @@ impl Credentials for CliSession {
 
 /// The credential of the service account the instance runs as, from the
 /// instance's metadata service: a session is opened for six hours, and each
-/// access token, which lives five minutes, requested with it as the last
-/// one expires. The requests never go through a proxy, which the metadata
-/// service refuses.
+/// access token, which lives five minutes, requested with it a minute
+/// before the last one expires. The requests never go through a proxy,
+/// which the metadata service refuses, and one it can't answer right now
+/// (`503`) is sent again twice.
 pub struct InstanceMetadata {
     endpoint: String,
     http: Option<reqwest::Client>,
@@ -376,7 +393,8 @@ impl InstanceMetadata {
 
     /// Sends the requests with `http`, as it is configured, instead of a
     /// client without a proxy that gives up connecting after a second.
-    /// Each request is bounded by five seconds either way.
+    /// Opening a session is bounded by two seconds either way, and
+    /// requesting a credential by five.
     pub fn with_http_client(mut self, http: reqwest::Client) -> Self {
         self.http = Some(http);
         self
@@ -402,18 +420,15 @@ impl InstanceMetadata {
     /// A new session. Off an instance, there is no metadata service to
     /// answer, or it knows no instance at the address: no credentials.
     async fn open_session(&self) -> Result<String, Error> {
-        let response = self
+        let request = self
             .http()?
             .put(format!("{}/latest/api/token", self.endpoint))
-            .timeout(METADATA_REQUEST_TIMEOUT)
+            .timeout(METADATA_SESSION_TIMEOUT)
             .header(
                 METADATA_SESSION_TTL_HEADER,
                 METADATA_SESSION_TTL.as_secs().to_string(),
-            )
-            .send()
-            .await
-            .map_err(|_| Error::NoCredentials)?;
-        let (status, body) = read_bounded(response)
+            );
+        let (status, body) = send_retrying(request)
             .await
             .map_err(|_| Error::NoCredentials)?;
         match status.as_u16() {
@@ -430,7 +445,7 @@ impl InstanceMetadata {
     async fn request_credential(&self, session: &str) -> Result<Option<Issued>, Error> {
         let failed =
             |e: reqwest::Error| Error::Credentials(format!("reaching the metadata service: {e}"));
-        let response = self
+        let request = self
             .http()?
             .get(format!(
                 "{}/latest/meta-data/service-account/token",
@@ -438,11 +453,8 @@ impl InstanceMetadata {
             ))
             .timeout(METADATA_REQUEST_TIMEOUT)
             .header(METADATA_SESSION_HEADER, session)
-            .header(reqwest::header::ACCEPT, "application/json")
-            .send()
-            .await
-            .map_err(failed)?;
-        let (status, body) = read_bounded(response).await.map_err(failed)?;
+            .header(reqwest::header::ACCEPT, "application/json");
+        let (status, body) = send_retrying(request).await.map_err(failed)?;
         match status.as_u16() {
             200 => {}
             401 => return Ok(None),
@@ -463,6 +475,26 @@ impl InstanceMetadata {
             _ => Err(Error::Credentials(
                 "the metadata service's answer is not a credential".to_owned(),
             )),
+        }
+    }
+}
+
+/// Sends `request`, and again after each of [`METADATA_RETRY_DELAYS`] while
+/// the metadata service answers `503`.
+async fn send_retrying(
+    request: reqwest::RequestBuilder,
+) -> Result<(reqwest::StatusCode, Vec<u8>), reqwest::Error> {
+    let mut delays = METADATA_RETRY_DELAYS.iter();
+    loop {
+        let attempt = request
+            .try_clone()
+            .expect("a metadata-service request has no streamed body");
+        let answer = read_bounded(attempt.send().await?).await?;
+        match delays.next() {
+            Some(delay) if answer.0 == reqwest::StatusCode::SERVICE_UNAVAILABLE => {
+                tokio::time::sleep(*delay).await;
+            }
+            _ => return Ok(answer),
         }
     }
 }
@@ -491,7 +523,7 @@ impl Credentials for InstanceMetadata {
     fn token(&self) -> TokenFuture<'_> {
         Box::pin(async move {
             let mut state = self.state.lock().await;
-            if let Some(token) = state.cached.valid() {
+            if let Some(token) = state.cached.valid_for(METADATA_EXPIRY_MARGIN) {
                 return Ok(token);
             }
             // A session refused as no longer valid is opened again, once.
@@ -549,9 +581,13 @@ struct Cached {
 
 impl Cached {
     fn valid(&self) -> Option<String> {
+        self.valid_for(EXPIRY_MARGIN)
+    }
+
+    /// The token, unless it expires within `margin`.
+    fn valid_for(&self, margin: Duration) -> Option<String> {
         let expiry = self.expiry?;
-        (!self.token.is_empty() && SystemTime::now() + EXPIRY_MARGIN < expiry)
-            .then(|| self.token.clone())
+        (!self.token.is_empty() && SystemTime::now() + margin < expiry).then(|| self.token.clone())
     }
 }
 
@@ -732,6 +768,20 @@ mod tests {
             from_environment(&env(&[("XDG_DATA_HOME", dir.to_str().unwrap())])).unwrap();
         assert!(
             format!("{credentials:?}").starts_with("InstanceMetadata"),
+            "{credentials:?}"
+        );
+    }
+
+    #[test]
+    fn the_metadata_service_s_address_can_be_named() {
+        let dir = data_home();
+        let credentials = from_environment(&env(&[
+            ("XDG_DATA_HOME", dir.to_str().unwrap()),
+            (ENV_METADATA_ENDPOINT, "http://127.0.0.1:8080/"),
+        ]))
+        .unwrap();
+        assert!(
+            format!("{credentials:?}").contains(r#"endpoint: "http://127.0.0.1:8080""#),
             "{credentials:?}"
         );
     }

@@ -141,21 +141,27 @@ fn a_missing_cli_session_is_none() {
 
 /// A metadata service granting sessions numbered from 1 and credentials
 /// numbered from 1 that live five minutes, refusing the sessions in
-/// `expired`, and answering a credential request with `credential_status`
-/// when it isn't 200.
+/// `expired`, and answering the first credential requests with
+/// `credential_statuses` while they last.
 struct MetadataService {
     server: FakeServer,
     sessions: Arc<AtomicU32>,
     issued: Arc<AtomicU32>,
+    requests: Arc<AtomicU32>,
 }
 
 async fn metadata_service(
     expired: &'static [&'static str],
-    credential_status: u16,
+    credential_statuses: &'static [u16],
 ) -> MetadataService {
     let sessions = Arc::new(AtomicU32::new(0));
     let issued = Arc::new(AtomicU32::new(0));
-    let (opened, granted) = (Arc::clone(&sessions), Arc::clone(&issued));
+    let requests = Arc::new(AtomicU32::new(0));
+    let (opened, granted, asked) = (
+        Arc::clone(&sessions),
+        Arc::clone(&issued),
+        Arc::clone(&requests),
+    );
     let server = FakeServer::start(move |r| {
         let answer = match (r.method.as_str(), r.path.as_str()) {
             ("PUT", "/latest/api/token") => {
@@ -172,10 +178,12 @@ async fn metadata_service(
             }
             ("GET", "/latest/meta-data/service-account/token") => {
                 let session = r.header("x-origincloud-metadata-token").unwrap_or_default();
+                let n = asked.fetch_add(1, Ordering::SeqCst) as usize;
+                let status = credential_statuses.get(n).copied().unwrap_or(200);
                 if session.is_empty() || expired.contains(&session) {
                     Response::json("").with_status(401)
-                } else if credential_status != 200 {
-                    Response::json("").with_status(credential_status)
+                } else if status != 200 {
+                    Response::json("").with_status(status)
                 } else {
                     let n = granted.fetch_add(1, Ordering::SeqCst) + 1;
                     let expires_at: chrono::DateTime<chrono::Utc> =
@@ -199,12 +207,13 @@ async fn metadata_service(
         server,
         sessions,
         issued,
+        requests,
     }
 }
 
 #[tokio::test]
 async fn the_metadata_service_s_credential_is_reused_until_it_is_about_to_expire() {
-    let service = metadata_service(&[], 200).await;
+    let service = metadata_service(&[], &[]).await;
     let credentials = InstanceMetadata::new().with_endpoint(service.server.url());
     for _ in 0..3 {
         assert_eq!(credentials.token().await.unwrap(), "session-1/token-1");
@@ -215,7 +224,7 @@ async fn the_metadata_service_s_credential_is_reused_until_it_is_about_to_expire
 
 #[tokio::test]
 async fn a_session_the_metadata_service_no_longer_accepts_is_opened_again() {
-    let service = metadata_service(&["session-1"], 200).await;
+    let service = metadata_service(&["session-1"], &[]).await;
     let credentials = InstanceMetadata::new().with_endpoint(service.server.url());
     assert_eq!(credentials.token().await.unwrap(), "session-2/token-1");
     assert_eq!(service.sessions.load(Ordering::SeqCst), 2);
@@ -223,7 +232,7 @@ async fn a_session_the_metadata_service_no_longer_accepts_is_opened_again() {
 
 #[tokio::test]
 async fn a_session_refused_twice_is_an_error() {
-    let service = metadata_service(&["session-1", "session-2"], 200).await;
+    let service = metadata_service(&["session-1", "session-2"], &[]).await;
     let credentials = InstanceMetadata::new().with_endpoint(service.server.url());
     let err = credentials.token().await.unwrap_err();
     assert!(err.to_string().contains("HTTP 401"), "{err}");
@@ -232,7 +241,7 @@ async fn a_session_refused_twice_is_an_error() {
 
 #[tokio::test]
 async fn an_instance_without_a_service_account_has_no_credential() {
-    let service = metadata_service(&[], 404).await;
+    let service = metadata_service(&[], &[404]).await;
     let credentials = InstanceMetadata::new().with_endpoint(service.server.url());
     let err = credentials.token().await.unwrap_err();
     assert!(
@@ -242,11 +251,20 @@ async fn an_instance_without_a_service_account_has_no_credential() {
 }
 
 #[tokio::test]
-async fn a_metadata_service_that_cant_sign_is_an_error() {
-    let service = metadata_service(&[], 503).await;
+async fn a_metadata_service_that_cant_sign_right_now_is_asked_again() {
+    let service = metadata_service(&[], &[503, 503]).await;
+    let credentials = InstanceMetadata::new().with_endpoint(service.server.url());
+    assert_eq!(credentials.token().await.unwrap(), "session-1/token-1");
+    assert_eq!(service.requests.load(Ordering::SeqCst), 3);
+}
+
+#[tokio::test]
+async fn a_metadata_service_that_cant_sign_three_times_is_an_error() {
+    let service = metadata_service(&[], &[503, 503, 503]).await;
     let credentials = InstanceMetadata::new().with_endpoint(service.server.url());
     let err = credentials.token().await.unwrap_err();
     assert!(err.to_string().contains("HTTP 503"), "{err}");
+    assert_eq!(service.requests.load(Ordering::SeqCst), 3);
 }
 
 #[tokio::test]
