@@ -23,6 +23,9 @@
 //!    account's credential, exchanged for access tokens as they expire.
 //! 3. The session the `origin` CLI stored at its last login
 //!    (`origin id login`).
+//! 4. On an instance that runs as a service account, its credential from
+//!    the instance's metadata service. `ORIGINCLOUD_METADATA_DISABLED=true`
+//!    leaves this step out.
 //!
 //! # Endpoints
 //!
@@ -75,7 +78,9 @@ pub mod rpc;
 mod transport;
 
 pub use client::{Client, ClientBuilder, Service, VERSION};
-pub use credentials::{AccessToken, CliSession, Credentials, ServiceAccount, default_credentials};
+pub use credentials::{
+    AccessToken, CliSession, Credentials, InstanceMetadata, ServiceAccount, default_credentials,
+};
 pub use error::{ApiError, Error, FieldViolation};
 pub use operation::Operation;
 pub use pages::Pages;

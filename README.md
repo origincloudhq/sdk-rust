@@ -80,6 +80,11 @@ async fn main() -> Result<(), origincloud_core::Error> {
    credential, exchanged for access tokens as they expire. This is what
    automation should use.
 3. The session the `origin` CLI stored at its last login (`origin id login`).
+4. On an instance that runs as a service account, its credential from the
+   instance's metadata service: nothing to configure, and no secret on the
+   instance. Off an instance, this step fails within about two seconds;
+   `ORIGINCLOUD_METADATA_DISABLED=true` leaves it out, and
+   `ORIGINCLOUD_METADATA_ENDPOINT` points it at another address.
 
 `Client::builder().credentials(...)` sets them explicitly instead.
 
