@@ -1,6 +1,6 @@
 [package]
 name = "origincloud-network"
-version = "0.19.1"
+version = "0.20.0"
 description = "The Origin Cloud network API: VPCs, subnets, routing, gateways, floating IPs, network interfaces, security groups, ACLs and DNS policies."
 keywords = ["origincloud", "cloud", "sdk", "api", "network"]
 categories = ["api-bindings", "web-programming::http-client"]
@@ -12,7 +12,7 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
-origincloud-core = { version = "0.19.1", path = "../core" }
+origincloud-core = { version = "0.20.0", path = "../core" }
 pbjson = "0.9"
 prost = "0.14"
 serde = "1"
