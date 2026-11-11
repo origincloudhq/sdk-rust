@@ -31,6 +31,11 @@ const GLOBAL_SERVICES: &[&str] = &[
     "sts",
 ];
 
+/// The services that authenticate no caller: their calls are sent without
+/// the client's credentials, so that they work with none. The security
+/// token service's request carries its own proof, the token it exchanges.
+const UNAUTHENTICATED_SERVICES: &[&str] = &["sts"];
+
 const OPERATION: &str = "google.longrunning.Operation";
 const EMPTY: &str = "google.protobuf.Empty";
 
@@ -156,6 +161,14 @@ fn generate_service(cx: &Generation<'_>, s: &ServiceDescriptor, out: &mut String
 /// front door: every one but the global services.
 fn regional(shortcode: &str) -> bool {
     !GLOBAL_SERVICES.contains(&shortcode)
+}
+
+/// Whether the service's calls are sent with the client's credentials:
+/// every one's but the unauthenticated services'.
+fn authenticated(pool: &DescriptorPool, s: &ServiceDescriptor) -> bool {
+    default_host(pool, s).is_none_or(|host| {
+        !UNAUTHENTICATED_SERVICES.contains(&host.split('.').next().unwrap_or_default())
+    })
 }
 
 fn default_host(pool: &DescriptorPool, s: &ServiceDescriptor) -> Option<String> {
@@ -346,6 +359,9 @@ fn generate_method(cx: &Generation<'_>, m: &MethodDescriptor, out: &mut String) 
     }
     if idempotent {
         call.push_str(".idempotent()");
+    }
+    if !authenticated(cx.pool, m.parent_service()) {
+        call.push_str(".unauthenticated()");
     }
     writeln!(out, "let call = {call};")?;
     match &result {

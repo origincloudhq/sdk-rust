@@ -416,7 +416,8 @@ impl SecurityTokenClient {
                 ::origincloud_core::Method::POST,
                 ::std::string::String::from("/v1beta1:assumeServiceAccount"),
             )
-            .with_body(body);
+            .with_body(body)
+            .unauthenticated();
         self.service.call(call).await
     }
 }

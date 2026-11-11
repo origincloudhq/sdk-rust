@@ -34,6 +34,7 @@ pub struct Request {
     query: Query,
     body: Option<Vec<u8>>,
     idempotent: bool,
+    authenticated: bool,
     /// A timeout answers the call rather than fails an attempt: it is
     /// returned at once, not retried.
     pub(crate) timeout_answers: bool,
@@ -48,6 +49,7 @@ impl Request {
             query: Query::new(),
             body: None,
             idempotent: false,
+            authenticated: true,
             timeout_answers: false,
         }
     }
@@ -69,6 +71,14 @@ impl Request {
     /// retried.
     pub fn idempotent(mut self) -> Self {
         self.idempotent = true;
+        self
+    }
+
+    /// Sends the call without the client's credentials, to a method that
+    /// authenticates no caller, such as the security token service's: it
+    /// then works with none.
+    pub fn unauthenticated(mut self) -> Self {
+        self.authenticated = false;
         self
     }
 }
@@ -119,11 +129,12 @@ impl Service {
             url.query_pairs_mut().clear().extend_pairs(&request.query);
         }
         let inner = &self.client.inner;
-        let token = inner.credentials.token().await?;
-        let mut builder = inner
-            .http
-            .request(request.method.clone(), url)
-            .header(AUTHORIZATION, format!("Bearer {token}"))
+        let mut builder = inner.http.request(request.method.clone(), url);
+        if request.authenticated {
+            let token = inner.credentials.token().await?;
+            builder = builder.header(AUTHORIZATION, format!("Bearer {token}"));
+        }
+        builder = builder
             .header(ACCEPT, "application/json")
             .header(USER_AGENT, &inner.user_agent);
         if let Some(timeout) = inner.timeout {
