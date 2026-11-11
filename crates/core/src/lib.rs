@@ -23,8 +23,9 @@
 //!    account's credential, exchanged for access tokens as they expire.
 //! 3. A CI job's OIDC token, exchanged at the security token service for a
 //!    `WORKLOAD` service account's access tokens ([`Federated`]): from the
-//!    file `ORIGINCLOUD_OIDC_TOKEN_FILE` names, or in a GitHub Actions job
-//!    granted `permissions: id-token: write`. `ORIGINCLOUD_OIDC_DISABLED=true`
+//!    file `ORIGINCLOUD_OIDC_TOKEN_FILE` names, from `ORIGINCLOUD_OIDC_TOKEN`,
+//!    which holds the token itself, or in a GitHub Actions job granted
+//!    `permissions: id-token: write`. `ORIGINCLOUD_OIDC_DISABLED=true`
 //!    leaves this step out.
 //! 4. The session the `origin` CLI stored at its last login
 //!    (`origin id login`).

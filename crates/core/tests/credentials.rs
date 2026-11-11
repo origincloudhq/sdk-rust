@@ -538,6 +538,100 @@ async fn a_missing_or_empty_token_file_is_an_error() {
     std::fs::remove_file(&empty).unwrap();
 }
 
+/// An unsigned JWT with the claims `claims`, as a CI job's token would be
+/// but for its signature, which only the STS checks.
+fn jwt(claims: &serde_json::Value) -> String {
+    use base64::Engine as _;
+    let encode = |part: String| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(part);
+    format!(
+        "{}.{}.",
+        encode(r#"{"alg":"none","typ":"JWT"}"#.to_owned()),
+        encode(claims.to_string())
+    )
+}
+
+fn unix_seconds(t: SystemTime) -> u64 {
+    t.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()
+}
+
+#[tokio::test]
+async fn a_given_token_is_exchanged() {
+    let sts = federation(200, &[], 900).await;
+    let token = jwt(&serde_json::json!({
+        "sub": "project_path:group/project:ref_type:branch:ref:main",
+        "exp": unix_seconds(SystemTime::now() + Duration::from_secs(300)),
+    }));
+    let credentials = Federated::from_token(token.clone()).with_endpoint(sts.server.url());
+    for _ in 0..3 {
+        assert_eq!(credentials.token().await.unwrap(), "access-1");
+    }
+    assert_eq!(sts.subject_tokens(), [token]);
+    assert_eq!(
+        sts.form("subject_token_type"),
+        "urn:ietf:params:oauth:token-type:jwt"
+    );
+    assert_eq!(sts.job_tokens.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn each_renewal_exchanges_a_given_token_again() {
+    // A token expiring within the minute's margin is replaced at once.
+    let sts = federation(200, &[], 30).await;
+    let token = jwt(&serde_json::json!({
+        "exp": unix_seconds(SystemTime::now() + Duration::from_secs(300)),
+    }));
+    let credentials = Federated::from_token(token.clone()).with_endpoint(sts.server.url());
+    assert_eq!(credentials.token().await.unwrap(), "access-1");
+    assert_eq!(credentials.token().await.unwrap(), "access-2");
+    assert_eq!(credentials.token().await.unwrap(), "access-3");
+    assert_eq!(sts.subject_tokens(), [token.clone(), token.clone(), token]);
+}
+
+#[tokio::test]
+async fn an_expired_given_token_is_not_exchanged() {
+    let sts = federation(200, &[], 900).await;
+    let token = jwt(&serde_json::json!({ "exp": 1577836800 }));
+    let err = Federated::from_token(token.clone())
+        .with_endpoint(sts.server.url())
+        .token()
+        .await
+        .unwrap_err();
+    assert!(matches!(err, Error::Credentials(_)), "{err:?}");
+    let message = err.to_string();
+    assert!(
+        message.contains("the CI job's OIDC token expired at 2020-01-01T00:00:00Z"),
+        "{message}"
+    );
+    assert!(message.contains("can't be renewed"), "{message}");
+    assert!(message.contains("ORIGINCLOUD_OIDC_TOKEN_FILE"), "{message}");
+    // Given through the API, not the variable, which isn't named.
+    assert!(!message.contains("in ORIGINCLOUD_OIDC_TOKEN"), "{message}");
+    let claims = token.split('.').nth(1).unwrap();
+    assert!(!message.contains(claims), "{message}");
+    assert_eq!(sts.exchanges.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn a_given_token_whose_claims_cant_be_read_is_left_to_the_sts() {
+    let sts = federation(200, &[], 900).await;
+    for token in ["opaque-token", "a.not-base64!.c", "e30.bm90IGpzb24."] {
+        let credentials = Federated::from_token(token).with_endpoint(sts.server.url());
+        assert!(credentials.token().await.is_ok(), "{token}");
+    }
+    assert_eq!(
+        sts.subject_tokens(),
+        ["opaque-token", "a.not-base64!.c", "e30.bm90IGpzb24."]
+    );
+}
+
+#[test]
+fn a_given_token_is_not_shown() {
+    let credentials = Federated::from_token("given-job-token");
+    let debug = format!("{credentials:?}");
+    assert!(!debug.contains("given-job-token"), "{debug}");
+    assert!(debug.contains(r#"source: "token""#), "{debug}");
+}
+
 const UNAVAILABLE: (u16, &str) = (503, r#"{"error":"temporarily_unavailable"}"#);
 
 #[tokio::test]

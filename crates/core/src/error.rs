@@ -20,7 +20,7 @@ pub enum Error {
     /// Neither the environment nor a CLI session holds credentials, and
     /// no instance metadata service answered.
     #[error(
-        "origincloud: no credentials: set ORIGINCLOUD_CLIENT_ID and ORIGINCLOUD_CLIENT_SECRET, set ORIGINCLOUD_ACCESS_TOKEN, grant a GitHub Actions job `permissions: id-token: write` or set ORIGINCLOUD_OIDC_TOKEN_FILE to exchange its OIDC token, log in with `origin id login`, or run on an instance that runs as a service account"
+        "origincloud: no credentials: set ORIGINCLOUD_CLIENT_ID and ORIGINCLOUD_CLIENT_SECRET, set ORIGINCLOUD_ACCESS_TOKEN, grant a GitHub Actions job `permissions: id-token: write` or set ORIGINCLOUD_OIDC_TOKEN or ORIGINCLOUD_OIDC_TOKEN_FILE to exchange its OIDC token, log in with `origin id login`, or run on an instance that runs as a service account"
     )]
     NoCredentials,
     /// The credentials couldn't supply an access token.
