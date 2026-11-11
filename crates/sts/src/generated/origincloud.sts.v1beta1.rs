@@ -389,7 +389,7 @@ impl SecurityTokenClient {
     /// Returns a client of `SecurityTokenService` that sends its calls through `client`.
     pub fn new(client: &::origincloud_core::Client) -> Self {
         Self {
-            service: client.service("sts", true),
+            service: client.service("sts", false),
         }
     }
     /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
