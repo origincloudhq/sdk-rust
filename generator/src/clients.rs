@@ -28,6 +28,7 @@ const GLOBAL_SERVICES: &[&str] = &[
     "billing",
     "support",
     "dns",
+    "sts",
 ];
 
 const OPERATION: &str = "google.longrunning.Operation";
@@ -544,6 +545,7 @@ mod tests {
             "billing",
             "support",
             "dns",
+            "sts",
         ] {
             assert!(!regional(global), "{global}");
         }
