@@ -78,9 +78,21 @@ async fn main() -> Result<(), origincloud_core::Error> {
 1. `ORIGINCLOUD_ACCESS_TOKEN`: an access token, sent as it is.
 2. `ORIGINCLOUD_CLIENT_ID` and `ORIGINCLOUD_CLIENT_SECRET`: a service account's
    credential, exchanged for access tokens as they expire. This is what
-   automation should use.
-3. The session the `origin` CLI stored at its last login (`origin id login`).
-4. On an instance that runs as a service account, its credential from the
+   automation should use where it can't present an OIDC token.
+3. A CI job's OIDC token, exchanged at the security token service for the
+   access token of the `WORKLOAD` service account whose federated credential
+   trusts the job: no secret to store. In a GitHub Actions job granted
+   `permissions: id-token: write` there is nothing to configure; elsewhere,
+   `ORIGINCLOUD_OIDC_TOKEN_FILE` names a file holding the token (any CI
+   provider's, or a Kubernetes projected token), read again at every
+   exchange. The token is exchanged again a minute before the access token
+   expires, with a fresh job token. Once found, this step's errors are
+   returned rather than passed over; `ORIGINCLOUD_OIDC_DISABLED=true` leaves
+   it out, `ORIGINCLOUD_STS_ENDPOINT` points it at another STS (default
+   `https://sts.origincloudapis.eu`) and `ORIGINCLOUD_OIDC_AUDIENCE` requests
+   GitHub's token for another audience (the same default).
+4. The session the `origin` CLI stored at its last login (`origin id login`).
+5. On an instance that runs as a service account, its credential from the
    instance's metadata service: nothing to configure, and no secret on the
    instance. Off an instance, this step fails within about two seconds;
    `ORIGINCLOUD_METADATA_DISABLED=true` leaves it out, and

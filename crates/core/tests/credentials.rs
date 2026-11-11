@@ -1,12 +1,14 @@
-//! Credentials that exchange a secret or a refresh token for access
-//! tokens, against a local token endpoint.
+//! Credentials that exchange a secret, a refresh token or a CI job's
+//! token for access tokens, against local token endpoints.
 
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
 use fake_server::{FakeServer, Response};
-use origincloud_core::{CliSession, Credentials, Error, InstanceMetadata, ServiceAccount};
+use origincloud_core::{
+    CliSession, Credentials, Error, Federated, InstanceMetadata, ServiceAccount,
+};
 
 /// A token endpoint answering with access tokens numbered from 1 that
 /// expire after `expires_in` seconds, recording the last form it got.
@@ -297,4 +299,323 @@ async fn another_cloud_s_metadata_service_means_no_credentials() {
         let err = credentials.token().await.unwrap_err();
         assert!(matches!(err, Error::NoCredentials), "{status}: {err}");
     }
+}
+
+/// GitHub's job token endpoint, at `/idtoken`, and the STS, at
+/// `/v1/token`, on one server. GitHub answers with job tokens numbered from
+/// 1, or `github_status` when it isn't 200; the STS answers its first
+/// exchanges with `sts_answers` while they last, and then with access
+/// tokens numbered from 1 that expire after `expires_in` seconds.
+struct Federation {
+    server: FakeServer,
+    job_tokens: Arc<AtomicU32>,
+    exchanges: Arc<AtomicU32>,
+    github: Arc<Mutex<Vec<fake_server::Received>>>,
+    subject_tokens: Arc<Mutex<Vec<String>>>,
+    form: Arc<Mutex<Vec<(String, String)>>>,
+}
+
+async fn federation(
+    github_status: u16,
+    sts_answers: &'static [(u16, &'static str)],
+    expires_in: u64,
+) -> Federation {
+    let job_tokens = Arc::new(AtomicU32::new(0));
+    let exchanges = Arc::new(AtomicU32::new(0));
+    let github = Arc::new(Mutex::new(Vec::new()));
+    let subject_tokens = Arc::new(Mutex::new(Vec::new()));
+    let form = Arc::new(Mutex::new(Vec::new()));
+    let (fetched, exchanged, requests, subjects, last) = (
+        Arc::clone(&job_tokens),
+        Arc::clone(&exchanges),
+        Arc::clone(&github),
+        Arc::clone(&subject_tokens),
+        Arc::clone(&form),
+    );
+    let server = FakeServer::start(move |r| {
+        let answer = match (r.method.as_str(), r.path.as_str()) {
+            ("GET", "/idtoken") => {
+                requests.lock().unwrap().push(r);
+                if github_status == 200 {
+                    let n = fetched.fetch_add(1, Ordering::SeqCst) + 1;
+                    Response::json(format!(r#"{{"count":1,"value":"job-{n}"}}"#))
+                } else {
+                    Response::json(
+                        r#"{"message":"Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable"}"#,
+                    )
+                    .with_status(github_status)
+                }
+            }
+            ("POST", "/v1/token") => {
+                assert_eq!(
+                    r.header("content-type"),
+                    Some("application/x-www-form-urlencoded")
+                );
+                let received = fake_server::Received {
+                    query: r.text(),
+                    ..r
+                }
+                .query_pairs();
+                let subject = received
+                    .iter()
+                    .find(|(k, _)| k == "subject_token")
+                    .map(|(_, v)| v.clone())
+                    .unwrap_or_default();
+                subjects.lock().unwrap().push(subject);
+                *last.lock().unwrap() = received;
+                let n = exchanged.fetch_add(1, Ordering::SeqCst) as usize;
+                match sts_answers.get(n) {
+                    Some((status, body)) => Response::json(*body).with_status(*status),
+                    None => Response::json(
+                        serde_json::json!({
+                            "access_token": format!("access-{}", n + 1 - sts_answers.len()),
+                            "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
+                            "token_type": "Bearer",
+                            "expires_in": expires_in,
+                        })
+                        .to_string(),
+                    ),
+                }
+            }
+            _ => Response::json("").with_status(404),
+        };
+        async move {
+            // Slow enough for concurrent callers to wait on one refresh.
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            answer
+        }
+    })
+    .await;
+    Federation {
+        server,
+        job_tokens,
+        exchanges,
+        github,
+        subject_tokens,
+        form,
+    }
+}
+
+impl Federation {
+    /// Credentials of a GitHub Actions job whose request URL carries a
+    /// query, as GitHub's does.
+    fn github_actions(&self) -> Federated {
+        Federated::github_actions(
+            format!("{}/idtoken?api-version=2.0", self.server.url()),
+            "request-token",
+        )
+        .with_endpoint(format!("{}/", self.server.url()))
+    }
+
+    fn form(&self, name: &str) -> String {
+        let form = self.form.lock().unwrap();
+        form.iter()
+            .find(|(k, _)| k == name)
+            .map(|(_, v)| v.clone())
+            .unwrap_or_default()
+    }
+
+    fn subject_tokens(&self) -> Vec<String> {
+        self.subject_tokens.lock().unwrap().clone()
+    }
+}
+
+/// Asserts `err` holds none of the tokens the tests hand out.
+fn assert_no_token(err: &Error) {
+    let message = err.to_string();
+    for token in ["request-token", "job-", "file-token", "access-"] {
+        assert!(!message.contains(token), "{token} in {message}");
+    }
+}
+
+fn token_file(contents: &str) -> std::path::PathBuf {
+    let path = std::env::temp_dir().join(format!("origincloud-sdk-oidc-{}", uuid::Uuid::new_v4()));
+    std::fs::write(&path, contents).unwrap();
+    path
+}
+
+#[tokio::test]
+async fn a_github_actions_job_s_token_is_exchanged_and_reused() {
+    let sts = federation(200, &[], 900).await;
+    let credentials = sts.github_actions();
+    for _ in 0..3 {
+        assert_eq!(credentials.token().await.unwrap(), "access-1");
+    }
+    assert_eq!(sts.job_tokens.load(Ordering::SeqCst), 1);
+    assert_eq!(sts.exchanges.load(Ordering::SeqCst), 1);
+
+    let github = sts.github.lock().unwrap()[0].clone();
+    assert_eq!(github.header("authorization"), Some("bearer request-token"));
+    assert_eq!(
+        github.query,
+        "api-version=2.0&audience=https%3A%2F%2Fsts.origincloudapis.eu"
+    );
+
+    assert_eq!(
+        sts.form("grant_type"),
+        "urn:ietf:params:oauth:grant-type:token-exchange"
+    );
+    assert_eq!(sts.form("subject_token"), "job-1");
+    assert_eq!(
+        sts.form("subject_token_type"),
+        "urn:ietf:params:oauth:token-type:jwt"
+    );
+}
+
+#[tokio::test]
+async fn a_request_url_without_a_query_gets_one_for_the_audience() {
+    let sts = federation(200, &[], 900).await;
+    let credentials = Federated::github_actions(format!("{}/idtoken", sts.server.url()), "t")
+        .with_endpoint(sts.server.url())
+        .with_audience("https://sts.example/a b");
+    assert_eq!(credentials.token().await.unwrap(), "access-1");
+    let github = sts.github.lock().unwrap()[0].clone();
+    assert_eq!(github.query_values("audience"), ["https://sts.example/a b"]);
+    assert!(github.query.starts_with("audience="), "{}", github.query);
+}
+
+#[tokio::test]
+async fn each_renewal_exchanges_a_fresh_job_token() {
+    // A token expiring within the minute's margin is replaced at once.
+    let sts = federation(200, &[], 30).await;
+    let credentials = sts.github_actions();
+    assert_eq!(credentials.token().await.unwrap(), "access-1");
+    assert_eq!(credentials.token().await.unwrap(), "access-2");
+    assert_eq!(sts.subject_tokens(), ["job-1", "job-2"]);
+}
+
+#[tokio::test]
+async fn concurrent_callers_share_one_exchange() {
+    let sts = federation(200, &[], 900).await;
+    let credentials = sts.github_actions();
+    let (a, b, c) = tokio::join!(
+        credentials.token(),
+        credentials.token(),
+        credentials.token()
+    );
+    for token in [a, b, c] {
+        assert_eq!(token.unwrap(), "access-1");
+    }
+    assert_eq!(sts.job_tokens.load(Ordering::SeqCst), 1);
+    assert_eq!(sts.exchanges.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn a_token_file_is_read_again_at_every_exchange() {
+    let sts = federation(200, &[], 30).await;
+    let path = token_file("file-token-1\n");
+    let credentials = Federated::from_file(&path).with_endpoint(sts.server.url());
+    assert_eq!(credentials.token().await.unwrap(), "access-1");
+    std::fs::write(&path, "file-token-2").unwrap();
+    assert_eq!(credentials.token().await.unwrap(), "access-2");
+    assert_eq!(sts.subject_tokens(), ["file-token-1", "file-token-2"]);
+    assert_eq!(sts.job_tokens.load(Ordering::SeqCst), 0);
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[tokio::test]
+async fn a_missing_or_empty_token_file_is_an_error() {
+    let sts = federation(200, &[], 900).await;
+    let missing = std::env::temp_dir().join("origincloud-sdk-no-such-oidc-token");
+    let err = Federated::from_file(&missing)
+        .with_endpoint(sts.server.url())
+        .token()
+        .await
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("reading the OIDC token file"),
+        "{err}"
+    );
+
+    let empty = token_file(" \n");
+    let err = Federated::from_file(&empty)
+        .with_endpoint(sts.server.url())
+        .token()
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("is empty"), "{err}");
+    assert_eq!(sts.exchanges.load(Ordering::SeqCst), 0);
+    std::fs::remove_file(&empty).unwrap();
+}
+
+const UNAVAILABLE: (u16, &str) = (503, r#"{"error":"temporarily_unavailable"}"#);
+
+#[tokio::test]
+async fn an_sts_that_cant_check_the_token_right_now_is_asked_again() {
+    let sts = federation(200, &[UNAVAILABLE, UNAVAILABLE], 900).await;
+    let credentials = sts.github_actions();
+    let started = std::time::Instant::now();
+    assert_eq!(credentials.token().await.unwrap(), "access-1");
+    assert!(
+        started.elapsed() >= Duration::from_millis(600),
+        "{:?}",
+        started.elapsed()
+    );
+    assert_eq!(sts.exchanges.load(Ordering::SeqCst), 3);
+    assert_eq!(sts.subject_tokens(), ["job-1", "job-1", "job-1"]);
+}
+
+#[tokio::test]
+async fn an_sts_that_cant_check_the_token_three_times_is_an_error() {
+    let sts = federation(200, &[UNAVAILABLE, UNAVAILABLE, UNAVAILABLE], 900).await;
+    let err = sts.github_actions().token().await.unwrap_err();
+    assert!(err.to_string().contains("HTTP 503"), "{err}");
+    assert_eq!(sts.exchanges.load(Ordering::SeqCst), 3);
+    assert_no_token(&err);
+}
+
+#[tokio::test]
+async fn a_job_token_the_sts_refuses_says_what_to_check() {
+    let sts = federation(200, &[(400, r#"{"error":"invalid_grant"}"#)], 900).await;
+    let err = sts.github_actions().token().await.unwrap_err();
+    let message = err.to_string();
+    assert!(message.contains("refused the CI job's token"), "{message}");
+    assert!(
+        message.contains("issuer, audience and conditions against the token's claims"),
+        "{message}"
+    );
+    assert_eq!(sts.exchanges.load(Ordering::SeqCst), 1);
+    assert_no_token(&err);
+}
+
+#[tokio::test]
+async fn a_malformed_exchange_says_why() {
+    let sts = federation(
+        200,
+        &[(
+            400,
+            r#"{"error":"invalid_request","error_description":"subject_token_type must be a JWT"}"#,
+        )],
+        900,
+    )
+    .await;
+    let err = sts.github_actions().token().await.unwrap_err();
+    assert!(
+        err.to_string().contains("subject_token_type must be a JWT"),
+        "{err}"
+    );
+    assert!(err.to_string().contains("HTTP 400"), "{err}");
+    assert_no_token(&err);
+}
+
+#[tokio::test]
+async fn a_failed_github_token_request_names_the_permission() {
+    let sts = federation(403, &[], 900).await;
+    let err = sts.github_actions().token().await.unwrap_err();
+    let message = err.to_string();
+    assert!(
+        message.contains("permissions: id-token: write"),
+        "{message}"
+    );
+    assert!(message.contains("HTTP 403"), "{message}");
+    assert_eq!(sts.exchanges.load(Ordering::SeqCst), 0);
+    assert_no_token(&err);
+}
+
+#[test]
+fn federated_credentials_show_no_token() {
+    let credentials = Federated::github_actions("https://github.invalid/idtoken", "request-token");
+    let debug = format!("{credentials:?}");
+    assert!(!debug.contains("request-token"), "{debug}");
+    assert!(debug.contains("https://sts.origincloudapis.eu"), "{debug}");
 }
