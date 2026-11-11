@@ -509,8 +509,8 @@ pub struct ServiceAccount {
     #[prost(string, tag = "4")]
     pub client_id: ::prost::alloc::string::String,
     /// The OAuth 2.0 client secret it authenticates with. Set only in the
-    /// response that created an `service_account::Type::External` service account, and empty
-    /// everywhere else: it can't be read again.
+    /// response that created an `service_account::Type::External` service account or rotated its
+    /// secret, and empty everywhere else: it can't be read again.
     #[prost(string, tag = "5")]
     pub client_secret: ::prost::alloc::string::String,
     /// Where the service account is in its lifecycle.
@@ -530,6 +530,14 @@ pub struct ServiceAccount {
     /// leaves it unset.
     #[prost(enumeration = "service_account::Type", tag = "10")]
     pub r#type: i32,
+    /// When the client secret expires. From then on the secret is refused, so
+    /// no new access token is issued with it, until RotateServiceAccountSecret
+    /// issues a new one. Unset when the service account has no secret that
+    /// expires, such as a `service_account::Type::Workload` one.
+    #[prost(message, optional, tag = "11")]
+    pub secret_expire_time: ::core::option::Option<
+        ::origincloud_core::protobuf::Timestamp,
+    >,
 }
 /// Nested message and enum types in `ServiceAccount`.
 pub mod service_account {
@@ -596,7 +604,8 @@ pub mod service_account {
     pub enum State {
         /// Not set.
         Unspecified = 0,
-        /// Its credential is accepted.
+        /// Not deleted. An `service_account::Type::External` service account's client secret is
+        /// accepted until `secret_expire_time`.
         Active = 1,
         /// Deleted: its credential is refused, and it holds no role binding.
         Deleted = 2,
@@ -677,6 +686,12 @@ pub struct CreateServiceAccountRequest {
     /// request is refused with `CONFLICT` without that metadata.
     #[prost(string, tag = "3")]
     pub request_id: ::prost::alloc::string::String,
+    /// How long an `service_account::Type::External` service account's client secret is accepted,
+    /// from its creation: more than zero and at most 365 days. 90 days when
+    /// left out. A `service_account::Type::Workload` service account has no secret, and a create of
+    /// one that sets it is refused.
+    #[prost(message, optional, tag = "4")]
+    pub secret_lifetime: ::core::option::Option<::origincloud_core::protobuf::Duration>,
 }
 /// The request for DeleteServiceAccount.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -684,6 +699,24 @@ pub struct DeleteServiceAccountRequest {
     /// The service account to delete.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
+}
+/// The request for RotateServiceAccountSecret.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct RotateServiceAccountSecretRequest {
+    /// The `service_account::Type::External` service account whose secret to replace.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    /// How long the new secret is accepted, from now: more than zero and at
+    /// most 365 days. 90 days when left out.
+    #[prost(message, optional, tag = "2")]
+    pub secret_lifetime: ::core::option::Option<::origincloud_core::protobuf::Duration>,
+    /// A UUID. A repeat of the request with the same `request_id` within a
+    /// day issues no secret and is refused with `CONFLICT`: the secret went
+    /// to the first request only. Rotate again with a new `request_id` to get
+    /// a working secret. The same `request_id` with a different request is
+    /// refused with `CONFLICT` too.
+    #[prost(string, tag = "3")]
+    pub request_id: ::prost::alloc::string::String,
 }
 /// A person who signs in to the platform.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -1358,6 +1391,9 @@ impl serde::Serialize for CreateServiceAccountRequest {
         if !self.request_id.is_empty() {
             len += 1;
         }
+        if self.secret_lifetime.is_some() {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct(
                 "origincloud.iam.v1beta1.CreateServiceAccountRequest",
@@ -1371,6 +1407,9 @@ impl serde::Serialize for CreateServiceAccountRequest {
         }
         if !self.request_id.is_empty() {
             struct_ser.serialize_field("requestId", &self.request_id)?;
+        }
+        if let Some(v) = self.secret_lifetime.as_ref() {
+            struct_ser.serialize_field("secretLifetime", v)?;
         }
         struct_ser.end()
     }
@@ -1387,12 +1426,15 @@ impl<'de> serde::Deserialize<'de> for CreateServiceAccountRequest {
             "serviceAccount",
             "request_id",
             "requestId",
+            "secret_lifetime",
+            "secretLifetime",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Parent,
             ServiceAccount,
             RequestId,
+            SecretLifetime,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -1425,6 +1467,9 @@ impl<'de> serde::Deserialize<'de> for CreateServiceAccountRequest {
                                 Ok(GeneratedField::ServiceAccount)
                             }
                             "requestId" | "request_id" => Ok(GeneratedField::RequestId),
+                            "secretLifetime" | "secret_lifetime" => {
+                                Ok(GeneratedField::SecretLifetime)
+                            }
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -1454,6 +1499,7 @@ impl<'de> serde::Deserialize<'de> for CreateServiceAccountRequest {
                 let mut parent__ = None;
                 let mut service_account__ = None;
                 let mut request_id__ = None;
+                let mut secret_lifetime__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Parent => {
@@ -1476,6 +1522,14 @@ impl<'de> serde::Deserialize<'de> for CreateServiceAccountRequest {
                             }
                             request_id__ = Some(map_.next_value()?);
                         }
+                        GeneratedField::SecretLifetime => {
+                            if secret_lifetime__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("secretLifetime"),
+                                );
+                            }
+                            secret_lifetime__ = map_.next_value()?;
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -1485,6 +1539,7 @@ impl<'de> serde::Deserialize<'de> for CreateServiceAccountRequest {
                     parent: parent__.unwrap_or_default(),
                     service_account: service_account__,
                     request_id: request_id__.unwrap_or_default(),
+                    secret_lifetime: secret_lifetime__,
                 })
             }
         }
@@ -5247,6 +5302,161 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
             )
     }
 }
+impl serde::Serialize for RotateServiceAccountSecretRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        if self.secret_lifetime.is_some() {
+            len += 1;
+        }
+        if !self.request_id.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.iam.v1beta1.RotateServiceAccountSecretRequest",
+                len,
+            )?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        if let Some(v) = self.secret_lifetime.as_ref() {
+            struct_ser.serialize_field("secretLifetime", v)?;
+        }
+        if !self.request_id.is_empty() {
+            struct_ser.serialize_field("requestId", &self.request_id)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for RotateServiceAccountSecretRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "name",
+            "secret_lifetime",
+            "secretLifetime",
+            "request_id",
+            "requestId",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            SecretLifetime,
+            RequestId,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            "secretLifetime" | "secret_lifetime" => {
+                                Ok(GeneratedField::SecretLifetime)
+                            }
+                            "requestId" | "request_id" => Ok(GeneratedField::RequestId),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = RotateServiceAccountSecretRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.iam.v1beta1.RotateServiceAccountSecretRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<RotateServiceAccountSecretRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                let mut secret_lifetime__ = None;
+                let mut request_id__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::SecretLifetime => {
+                            if secret_lifetime__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("secretLifetime"),
+                                );
+                            }
+                            secret_lifetime__ = map_.next_value()?;
+                        }
+                        GeneratedField::RequestId => {
+                            if request_id__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("requestId"));
+                            }
+                            request_id__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(RotateServiceAccountSecretRequest {
+                    name: name__.unwrap_or_default(),
+                    secret_lifetime: secret_lifetime__,
+                    request_id: request_id__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.iam.v1beta1.RotateServiceAccountSecretRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
 impl serde::Serialize for ServiceAccount {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -5283,6 +5493,9 @@ impl serde::Serialize for ServiceAccount {
             len += 1;
         }
         if self.r#type != 0 {
+            len += 1;
+        }
+        if self.secret_expire_time.is_some() {
             len += 1;
         }
         let mut struct_ser = serializer
@@ -5325,6 +5538,9 @@ impl serde::Serialize for ServiceAccount {
                 ))?;
             struct_ser.serialize_field("type", &v)?;
         }
+        if let Some(v) = self.secret_expire_time.as_ref() {
+            struct_ser.serialize_field("secretExpireTime", v)?;
+        }
         struct_ser.end()
     }
 }
@@ -5350,6 +5566,8 @@ impl<'de> serde::Deserialize<'de> for ServiceAccount {
             "delete_time",
             "deleteTime",
             "type",
+            "secret_expire_time",
+            "secretExpireTime",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -5363,6 +5581,7 @@ impl<'de> serde::Deserialize<'de> for ServiceAccount {
             CreateTime,
             DeleteTime,
             Type,
+            SecretExpireTime,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -5408,6 +5627,9 @@ impl<'de> serde::Deserialize<'de> for ServiceAccount {
                                 Ok(GeneratedField::DeleteTime)
                             }
                             "type" => Ok(GeneratedField::Type),
+                            "secretExpireTime" | "secret_expire_time" => {
+                                Ok(GeneratedField::SecretExpireTime)
+                            }
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -5441,6 +5663,7 @@ impl<'de> serde::Deserialize<'de> for ServiceAccount {
                 let mut create_time__ = None;
                 let mut delete_time__ = None;
                 let mut r#type__ = None;
+                let mut secret_expire_time__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Name => {
@@ -5511,6 +5734,14 @@ impl<'de> serde::Deserialize<'de> for ServiceAccount {
                                 map_.next_value::<service_account::Type>()? as i32,
                             );
                         }
+                        GeneratedField::SecretExpireTime => {
+                            if secret_expire_time__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("secretExpireTime"),
+                                );
+                            }
+                            secret_expire_time__ = map_.next_value()?;
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -5527,6 +5758,7 @@ impl<'de> serde::Deserialize<'de> for ServiceAccount {
                     create_time: create_time__,
                     delete_time: delete_time__,
                     r#type: r#type__.unwrap_or_default(),
+                    secret_expire_time: secret_expire_time__,
                 })
             }
         }
@@ -6674,7 +6906,9 @@ impl RoleBindingClient {
 /// Service accounts: an organization's credentials for software, which
 /// authenticate with the OAuth 2.0 client credentials grant and never log
 /// in interactively. A new service account holds no role: grant it one with
-/// a role binding on its `member`.
+/// a role binding on its `member`. An `service_account::Type::External` service account's client
+/// secret expires (`secret_expire_time`): rotate it before then with
+/// RotateServiceAccountSecret.
 #[derive(Clone, Debug)]
 pub struct ServiceAccountClient {
     service: ::origincloud_core::Service,
@@ -6752,8 +6986,9 @@ impl ServiceAccountClient {
         )
     }
     /// Creates a service account and, for an `service_account::Type::External` one, its client
-    /// secret. The response is the only place the secret is ever shown: store
-    /// it now. Needs `iam.service_account.create` on the organization.
+    /// secret, which expires after `secret_lifetime`. The response is the
+    /// only place the secret is ever shown: store it now. Needs
+    /// `iam.service_account.create` on the organization.
     pub async fn create_service_account(
         &self,
         mut request: CreateServiceAccountRequest,
@@ -6779,6 +7014,34 @@ impl ServiceAccountClient {
             )
             .with_body(body)
             .with_query(query)
+            .idempotent();
+        self.service.call(call).await
+    }
+    /// Issues a new client secret for an `service_account::Type::External` service account and
+    /// returns the service account with it in `client_secret`, the only place
+    /// it is ever shown. The previous secret is refused from then on, and the
+    /// new one is accepted at once, also when the previous one had expired.
+    /// It expires after `secret_lifetime`. An access token issued before
+    /// stays valid until it expires, within minutes. Needs
+    /// `iam.service_account.create` on the organization.
+    pub async fn rotate_service_account_secret(
+        &self,
+        mut request: RotateServiceAccountSecretRequest,
+    ) -> ::core::result::Result<ServiceAccount, ::origincloud_core::Error> {
+        if request.request_id.is_empty() {
+            request.request_id = ::origincloud_core::new_request_id();
+        }
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &request.name,
+            "organizations/*/serviceAccounts/*",
+        )?;
+        let body = ::origincloud_core::json_body(&request)?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::POST,
+                format!("/v1beta1/{p0}:rotateSecret"),
+            )
+            .with_body(body)
             .idempotent();
         self.service.call(call).await
     }
