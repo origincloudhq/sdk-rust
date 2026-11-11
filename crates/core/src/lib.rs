@@ -21,9 +21,14 @@
 //! 1. `ORIGINCLOUD_ACCESS_TOKEN`: an access token, sent as it is.
 //! 2. `ORIGINCLOUD_CLIENT_ID` and `ORIGINCLOUD_CLIENT_SECRET`: a service
 //!    account's credential, exchanged for access tokens as they expire.
-//! 3. The session the `origin` CLI stored at its last login
+//! 3. A CI job's OIDC token, exchanged at the security token service for a
+//!    `WORKLOAD` service account's access tokens ([`Federated`]): from the
+//!    file `ORIGINCLOUD_OIDC_TOKEN_FILE` names, or in a GitHub Actions job
+//!    granted `permissions: id-token: write`. `ORIGINCLOUD_OIDC_DISABLED=true`
+//!    leaves this step out.
+//! 4. The session the `origin` CLI stored at its last login
 //!    (`origin id login`).
-//! 4. On an instance that runs as a service account, its credential from
+//! 5. On an instance that runs as a service account, its credential from
 //!    the instance's metadata service. `ORIGINCLOUD_METADATA_DISABLED=true`
 //!    leaves this step out.
 //!
@@ -79,7 +84,8 @@ mod transport;
 
 pub use client::{Client, ClientBuilder, Service, VERSION};
 pub use credentials::{
-    AccessToken, CliSession, Credentials, InstanceMetadata, ServiceAccount, default_credentials,
+    AccessToken, CliSession, Credentials, Federated, InstanceMetadata, ServiceAccount,
+    default_credentials,
 };
 pub use error::{ApiError, Error, FieldViolation};
 pub use operation::Operation;

@@ -1,6 +1,6 @@
 [package]
 name = "origincloud-iam"
-version = "0.20.0"
+version = "0.21.0"
 description = "The Origin Cloud IAM API: users, service accounts, roles, role bindings, permissions and the audit log."
 keywords = ["origincloud", "cloud", "sdk", "api", "iam"]
 categories = ["api-bindings", "web-programming::http-client"]
@@ -12,7 +12,7 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
-origincloud-core = { version = "0.20.0", path = "../core" }
+origincloud-core = { version = "0.21.0", path = "../core" }
 pbjson = "0.9"
 prost = "0.14"
 serde = "1"

@@ -23,6 +23,29 @@ const ENV_CLIENT_ID: &str = "ORIGINCLOUD_CLIENT_ID";
 const ENV_CLIENT_SECRET: &str = "ORIGINCLOUD_CLIENT_SECRET";
 const ENV_METADATA_DISABLED: &str = "ORIGINCLOUD_METADATA_DISABLED";
 const ENV_METADATA_ENDPOINT: &str = "ORIGINCLOUD_METADATA_ENDPOINT";
+const ENV_OIDC_DISABLED: &str = "ORIGINCLOUD_OIDC_DISABLED";
+const ENV_OIDC_TOKEN_FILE: &str = "ORIGINCLOUD_OIDC_TOKEN_FILE";
+const ENV_OIDC_AUDIENCE: &str = "ORIGINCLOUD_OIDC_AUDIENCE";
+const ENV_STS_ENDPOINT: &str = "ORIGINCLOUD_STS_ENDPOINT";
+const ENV_GITHUB_REQUEST_URL: &str = "ACTIONS_ID_TOKEN_REQUEST_URL";
+const ENV_GITHUB_REQUEST_TOKEN: &str = "ACTIONS_ID_TOKEN_REQUEST_TOKEN";
+
+/// The security token service, where a CI job's OIDC token is exchanged
+/// for an access token.
+pub const STS_ENDPOINT: &str = "https://sts.origincloudapis.eu";
+
+/// The audience a GitHub Actions job's OIDC token is requested for.
+pub const OIDC_AUDIENCE: &str = "https://sts.origincloudapis.eu";
+
+/// How long before its expiry an exchanged access token is replaced.
+const FEDERATED_EXPIRY_MARGIN: Duration = Duration::from_secs(60);
+
+/// The waits before an exchange the STS answered with `503` (it can't
+/// check the token right now) is sent again.
+const STS_RETRY_DELAYS: [Duration; 2] = [Duration::from_millis(200), Duration::from_millis(400)];
+
+const TOKEN_EXCHANGE_GRANT: &str = "urn:ietf:params:oauth:grant-type:token-exchange";
+const JWT_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:jwt";
 
 /// The instance metadata service, which software on an instance reaches
 /// at this link-local address.
@@ -78,9 +101,17 @@ pub trait Credentials: Send + Sync + fmt::Debug {
 /// 2. `ORIGINCLOUD_CLIENT_ID` and `ORIGINCLOUD_CLIENT_SECRET`: a service
 ///    account's credential, exchanged for access tokens as they expire.
 ///    Only one of the two set is an error.
-/// 3. The session the `origin` CLI stored at its last login
+/// 3. A CI job's OIDC token, exchanged at the security token service
+///    ([`Federated`]): from the file `ORIGINCLOUD_OIDC_TOKEN_FILE` names,
+///    or else from GitHub Actions, in a job granted
+///    `permissions: id-token: write`. Once found, its errors are returned,
+///    not passed over. `ORIGINCLOUD_OIDC_DISABLED=true` leaves this step
+///    out; `ORIGINCLOUD_STS_ENDPOINT` asks another address than
+///    [`STS_ENDPOINT`], and `ORIGINCLOUD_OIDC_AUDIENCE` requests GitHub's
+///    token for another audience than [`OIDC_AUDIENCE`].
+/// 4. The session the `origin` CLI stored at its last login
 ///    (`origin id login`).
-/// 4. The instance's metadata service, on an instance that runs as a
+/// 5. The instance's metadata service, on an instance that runs as a
 ///    service account ([`InstanceMetadata`]). Nothing is requested until a
 ///    token is; off an instance, that fails with [`Error::NoCredentials`]
 ///    within about two seconds. `ORIGINCLOUD_METADATA_DISABLED=true` leaves
@@ -110,6 +141,9 @@ pub(crate) fn from_environment(
             )));
         }
     }
+    if let Some(federated) = federated_from(&var) {
+        return Ok(Arc::new(federated));
+    }
     if let Some(path) = cli_session_path(env)
         && let Some(session) = CliSession::load_from(path)?
     {
@@ -123,6 +157,30 @@ pub(crate) fn from_environment(
         Some(endpoint) => metadata.with_endpoint(endpoint),
         None => metadata,
     }))
+}
+
+/// The federated step of the chain, when the environment holds a CI job's
+/// OIDC token: a token file before GitHub Actions.
+fn federated_from(var: &dyn Fn(&str) -> Option<String>) -> Option<Federated> {
+    if var(ENV_OIDC_DISABLED).is_some_and(|v| v.eq_ignore_ascii_case("true")) {
+        return None;
+    }
+    let mut federated = match (
+        var(ENV_OIDC_TOKEN_FILE),
+        var(ENV_GITHUB_REQUEST_URL),
+        var(ENV_GITHUB_REQUEST_TOKEN),
+    ) {
+        (Some(path), _, _) => Federated::from_file(path),
+        (None, Some(url), Some(token)) => Federated::github_actions(url, token),
+        _ => return None,
+    };
+    if let Some(endpoint) = var(ENV_STS_ENDPOINT) {
+        federated = federated.with_endpoint(endpoint);
+    }
+    if let Some(audience) = var(ENV_OIDC_AUDIENCE) {
+        federated = federated.with_audience(audience);
+    }
+    Some(federated)
 }
 
 /// An access token, sent as it is. It is not renewed: a service account's
@@ -430,7 +488,7 @@ impl InstanceMetadata {
                 METADATA_SESSION_TTL_HEADER,
                 METADATA_SESSION_TTL.as_secs().to_string(),
             );
-        let (status, body) = send_retrying(request)
+        let (status, body) = send_retrying(request, &METADATA_RETRY_DELAYS)
             .await
             .map_err(|_| Error::NoCredentials)?;
         match status.as_u16() {
@@ -456,7 +514,9 @@ impl InstanceMetadata {
             .timeout(METADATA_REQUEST_TIMEOUT)
             .header(METADATA_SESSION_HEADER, session)
             .header(reqwest::header::ACCEPT, "application/json");
-        let (status, body) = send_retrying(request).await.map_err(failed)?;
+        let (status, body) = send_retrying(request, &METADATA_RETRY_DELAYS)
+            .await
+            .map_err(failed)?;
         match status.as_u16() {
             200 => {}
             401 => return Ok(None),
@@ -481,16 +541,17 @@ impl InstanceMetadata {
     }
 }
 
-/// Sends `request`, and again after each of [`METADATA_RETRY_DELAYS`] while
-/// the metadata service answers `503`.
+/// Sends `request`, and again after each of `delays` while it is answered
+/// with `503`.
 async fn send_retrying(
     request: reqwest::RequestBuilder,
+    delays: &[Duration],
 ) -> Result<(reqwest::StatusCode, Vec<u8>), reqwest::Error> {
-    let mut delays = METADATA_RETRY_DELAYS.iter();
+    let mut delays = delays.iter();
     loop {
         let attempt = request
             .try_clone()
-            .expect("a metadata-service request has no streamed body");
+            .expect("a credential request has no streamed body");
         let answer = read_bounded(attempt.send().await?).await?;
         match delays.next() {
             Some(delay) if answer.0 == reqwest::StatusCode::SERVICE_UNAVAILABLE => {
@@ -555,6 +616,234 @@ impl Credentials for InstanceMetadata {
             Err(Error::Credentials(
                 "the metadata service answered HTTP 401".to_owned(),
             ))
+        })
+    }
+}
+
+/// A CI job's OIDC token, exchanged at the security token service for the
+/// access token of the `WORKLOAD` service account a federated credential
+/// trusts the job as. The access token is reused until a minute before it
+/// expires; then a fresh job token is fetched and exchanged again. An
+/// exchange the STS can't check right now (`503`) is sent again twice.
+pub struct Federated {
+    source: JobToken,
+    endpoint: String,
+    audience: String,
+    http: Option<reqwest::Client>,
+    cache: Mutex<Cached>,
+}
+
+/// Where the job's token comes from.
+enum JobToken {
+    File(PathBuf),
+    GitHubActions {
+        request_url: String,
+        request_token: String,
+    },
+}
+
+/// GitHub's answer to a job token request.
+#[derive(Deserialize)]
+struct GitHubToken {
+    value: String,
+}
+
+impl Federated {
+    /// The token in the file at `path`, read again at every exchange, so
+    /// that a rotated token is picked up: any CI provider's, or a
+    /// Kubernetes projected service account token.
+    pub fn from_file(path: impl Into<PathBuf>) -> Self {
+        Self::with_source(JobToken::File(path.into()))
+    }
+
+    /// A GitHub Actions job's token, requested at `request_url` with
+    /// `request_token`: the values of `ACTIONS_ID_TOKEN_REQUEST_URL` and
+    /// `ACTIONS_ID_TOKEN_REQUEST_TOKEN`, which GitHub sets in a job
+    /// granted `permissions: id-token: write`.
+    pub fn github_actions(
+        request_url: impl Into<String>,
+        request_token: impl Into<String>,
+    ) -> Self {
+        Self::with_source(JobToken::GitHubActions {
+            request_url: request_url.into(),
+            request_token: request_token.into(),
+        })
+    }
+
+    fn with_source(source: JobToken) -> Self {
+        Self {
+            source,
+            endpoint: STS_ENDPOINT.to_owned(),
+            audience: OIDC_AUDIENCE.to_owned(),
+            http: None,
+            cache: Mutex::default(),
+        }
+    }
+
+    /// Exchanges the token at the STS at `url` instead of [`STS_ENDPOINT`].
+    pub fn with_endpoint(mut self, url: impl Into<String>) -> Self {
+        self.endpoint = url.into().trim_end_matches('/').to_owned();
+        self
+    }
+
+    /// Requests GitHub's token for `audience` instead of [`OIDC_AUDIENCE`].
+    /// A token file's audience is whatever its issuer put in it.
+    pub fn with_audience(mut self, audience: impl Into<String>) -> Self {
+        self.audience = audience.into();
+        self
+    }
+
+    /// Sends the requests with `http`, instead of the client all
+    /// credentials share. Each request is bounded by 30 seconds either way.
+    pub fn with_http_client(mut self, http: reqwest::Client) -> Self {
+        self.http = Some(http);
+        self
+    }
+
+    fn http(&self) -> Result<&reqwest::Client, Error> {
+        match &self.http {
+            Some(http) => Ok(http),
+            None => default_http_client()
+                .map_err(|e| Error::Credentials(format!("exchanging the CI job's token: {e}"))),
+        }
+    }
+
+    /// A fresh job token.
+    async fn job_token(&self, http: &reqwest::Client) -> Result<String, Error> {
+        match &self.source {
+            JobToken::File(path) => {
+                let read = std::fs::read_to_string(path).map_err(|e| {
+                    Error::Credentials(format!(
+                        "reading the OIDC token file {}: {e}",
+                        path.display()
+                    ))
+                })?;
+                let token = read.trim();
+                if token.is_empty() {
+                    return Err(Error::Credentials(format!(
+                        "the OIDC token file {} is empty",
+                        path.display()
+                    )));
+                }
+                Ok(token.to_owned())
+            }
+            JobToken::GitHubActions {
+                request_url,
+                request_token,
+            } => {
+                let failed = |reason: &dyn fmt::Display| {
+                    Error::Credentials(format!(
+                        "requesting the GitHub Actions job's OIDC token: {reason}; \
+                         the workflow needs `permissions: id-token: write`"
+                    ))
+                };
+                let separator = if request_url.contains('?') { '&' } else { '?' };
+                let audience: String =
+                    url::form_urlencoded::byte_serialize(self.audience.as_bytes()).collect();
+                let response = http
+                    .get(format!("{request_url}{separator}audience={audience}"))
+                    .timeout(TOKEN_REQUEST_TIMEOUT)
+                    .header(
+                        reqwest::header::AUTHORIZATION,
+                        format!("bearer {request_token}"),
+                    )
+                    .header(reqwest::header::ACCEPT, "application/json")
+                    .send()
+                    .await
+                    .map_err(|e| failed(&e))?;
+                let (status, body) = read_bounded(response).await.map_err(|e| failed(&e))?;
+                if status != reqwest::StatusCode::OK {
+                    return Err(failed(&format_args!("HTTP {}", status.as_u16())));
+                }
+                match serde_json::from_slice::<GitHubToken>(&body) {
+                    Ok(token) if !token.value.is_empty() => Ok(token.value),
+                    _ => Err(Error::Credentials(
+                        "requesting the GitHub Actions job's OIDC token: the answer holds no token"
+                            .to_owned(),
+                    )),
+                }
+            }
+        }
+    }
+
+    /// The job's token exchanged for an access token.
+    async fn exchange(&self, http: &reqwest::Client, job_token: &str) -> Result<Granted, Error> {
+        let request = http
+            .post(format!("{}/v1/token", self.endpoint))
+            .timeout(TOKEN_REQUEST_TIMEOUT)
+            .header(reqwest::header::ACCEPT, "application/json")
+            .form(&[
+                ("grant_type", TOKEN_EXCHANGE_GRANT),
+                ("subject_token", job_token),
+                ("subject_token_type", JWT_TOKEN_TYPE),
+            ]);
+        let (status, body) = send_retrying(request, &STS_RETRY_DELAYS)
+            .await
+            .map_err(|e| Error::Credentials(format!("exchanging the CI job's token: {e}")))?;
+        let parsed = serde_json::from_slice::<Granted>(&body);
+        let granted = parsed.as_ref().ok();
+        let error = granted.map_or("", |g| g.error.as_str());
+        match status.as_u16() {
+            200 => match parsed {
+                Ok(granted) if !granted.access_token.is_empty() => Ok(granted),
+                _ => Err(Error::Credentials(
+                    "exchanging the CI job's token: the STS's answer is not a token response"
+                        .to_owned(),
+                )),
+            },
+            503 => Err(Error::Credentials(
+                "exchanging the CI job's token: the STS can't check it right now \
+                 (HTTP 503, 3 attempts); try again later"
+                    .to_owned(),
+            )),
+            _ if error == "invalid_grant" => Err(Error::Credentials(
+                "the STS refused the CI job's token (invalid_grant): check the federated \
+                 credential's issuer, audience and conditions against the token's claims"
+                    .to_owned(),
+            )),
+            status => {
+                let reason = match granted {
+                    Some(g) if !g.error_description.is_empty() => &g.error_description,
+                    Some(g) if !g.error.is_empty() => &g.error,
+                    _ => "not a token response",
+                };
+                Err(Error::Credentials(format!(
+                    "exchanging the CI job's token: the STS answered HTTP {status}: {reason}"
+                )))
+            }
+        }
+    }
+}
+
+impl fmt::Debug for Federated {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut debug = f.debug_struct("Federated");
+        match &self.source {
+            JobToken::File(path) => debug.field("token_file", path),
+            JobToken::GitHubActions { .. } => debug.field("source", &"GitHub Actions"),
+        };
+        debug
+            .field("endpoint", &self.endpoint)
+            .field("audience", &self.audience)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Credentials for Federated {
+    fn token(&self) -> TokenFuture<'_> {
+        Box::pin(async move {
+            let mut cache = self.cache.lock().await;
+            if let Some(token) = cache.valid_for(FEDERATED_EXPIRY_MARGIN) {
+                return Ok(token);
+            }
+            let http = self.http()?;
+            let job_token = self.job_token(http).await?;
+            let granted = self.exchange(http, &job_token).await?;
+            *cache = Cached {
+                token: granted.access_token.clone(),
+                expiry: Some(granted.expiry()),
+            };
+            Ok(granted.access_token)
         })
     }
 }
@@ -752,6 +1041,114 @@ mod tests {
         assert!(
             format!("{credentials:?}").starts_with("ServiceAccount"),
             "{credentials:?}"
+        );
+    }
+
+    const GITHUB: [(&str, &str); 2] = [
+        (
+            ENV_GITHUB_REQUEST_URL,
+            "https://github.invalid/idtoken?api-version=2.0",
+        ),
+        (ENV_GITHUB_REQUEST_TOKEN, "github-request-token"),
+    ];
+
+    fn with<'a>(
+        base: &[(&'a str, &'a str)],
+        more: &[(&'a str, &'a str)],
+    ) -> Vec<(&'a str, &'a str)> {
+        base.iter().chain(more).copied().collect()
+    }
+
+    #[test]
+    fn a_service_account_comes_before_a_ci_job_s_token() {
+        let credentials = from_environment(&env(&with(
+            &GITHUB,
+            &[(ENV_CLIENT_ID, "id"), (ENV_CLIENT_SECRET, "secret")],
+        )))
+        .unwrap();
+        assert!(
+            format!("{credentials:?}").starts_with("ServiceAccount"),
+            "{credentials:?}"
+        );
+    }
+
+    #[test]
+    fn a_ci_job_s_token_comes_before_the_cli_session() {
+        let dir = data_home();
+        let hour = chrono::Duration::hours(1);
+        write_session(&dir, now() + hour, now() + hour);
+        let credentials = from_environment(&env(&with(
+            &GITHUB,
+            &[("XDG_DATA_HOME", dir.to_str().unwrap())],
+        )))
+        .unwrap();
+        let debug = format!("{credentials:?}");
+        assert!(debug.starts_with("Federated"), "{debug}");
+        assert!(debug.contains("GitHub Actions"), "{debug}");
+        assert!(debug.contains(&format!("{STS_ENDPOINT:?}")), "{debug}");
+        assert!(!debug.contains("github-request-token"), "{debug}");
+        assert!(!debug.contains("github.invalid"), "{debug}");
+    }
+
+    #[test]
+    fn a_token_file_comes_before_github_actions() {
+        let credentials = from_environment(&env(&with(
+            &GITHUB,
+            &[(ENV_OIDC_TOKEN_FILE, "/var/run/secrets/token")],
+        )))
+        .unwrap();
+        let debug = format!("{credentials:?}");
+        assert!(
+            debug.starts_with(r#"Federated { token_file: "/var/run/secrets/token""#),
+            "{debug}"
+        );
+    }
+
+    #[test]
+    fn github_actions_needs_both_its_variables() {
+        let dir = data_home();
+        for half in GITHUB {
+            let credentials =
+                from_environment(&env(&[half, ("XDG_DATA_HOME", dir.to_str().unwrap())])).unwrap();
+            assert!(
+                format!("{credentials:?}").starts_with("InstanceMetadata"),
+                "{credentials:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_federated_step_can_be_left_out() {
+        let dir = data_home();
+        let credentials = from_environment(&env(&with(
+            &GITHUB,
+            &[
+                (ENV_OIDC_TOKEN_FILE, "/var/run/secrets/token"),
+                (ENV_OIDC_DISABLED, "True"),
+                ("XDG_DATA_HOME", dir.to_str().unwrap()),
+            ],
+        )))
+        .unwrap();
+        assert!(
+            format!("{credentials:?}").starts_with("InstanceMetadata"),
+            "{credentials:?}"
+        );
+    }
+
+    #[test]
+    fn the_sts_and_the_audience_can_be_named() {
+        let credentials = from_environment(&env(&with(
+            &GITHUB,
+            &[
+                (ENV_STS_ENDPOINT, "http://127.0.0.1:8080/"),
+                (ENV_OIDC_AUDIENCE, "https://sts.example"),
+            ],
+        )))
+        .unwrap();
+        let debug = format!("{credentials:?}");
+        assert!(
+            debug.contains(r#"endpoint: "http://127.0.0.1:8080", audience: "https://sts.example""#),
+            "{debug}"
         );
     }
 
