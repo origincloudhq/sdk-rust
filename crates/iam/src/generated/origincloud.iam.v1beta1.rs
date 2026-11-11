@@ -6326,7 +6326,8 @@ impl FederatedCredentialClient {
     /// the account yourself. Refused with `INVALID_ARGUMENT` when a condition
     /// contains `*`, or when no condition names an identity that never
     /// changes: `repository_id` or `repository_owner_id` for GitHub Actions'
-    /// issuer, `sub` for any other.
+    /// issuer, `project_id` or `namespace_id` for GitLab.com's, `sub` for any
+    /// other.
     pub async fn create_federated_credential(
         &self,
         mut request: CreateFederatedCredentialRequest,
