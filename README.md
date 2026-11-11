@@ -85,12 +85,16 @@ async fn main() -> Result<(), origincloud_core::Error> {
    `permissions: id-token: write` there is nothing to configure; elsewhere,
    `ORIGINCLOUD_OIDC_TOKEN_FILE` names a file holding the token (any CI
    provider's, or a Kubernetes projected token), read again at every
-   exchange. The token is exchanged again a minute before the access token
-   expires, with a fresh job token. Once found, this step's errors are
-   returned rather than passed over; `ORIGINCLOUD_OIDC_DISABLED=true` leaves
-   it out, `ORIGINCLOUD_STS_ENDPOINT` points it at another STS (default
-   `https://sts.origincloudapis.eu`) and `ORIGINCLOUD_OIDC_AUDIENCE` requests
-   GitHub's token for another audience (the same default).
+   exchange, or `ORIGINCLOUD_OIDC_TOKEN` holds the token itself, as GitLab
+   CI sets it for an `id_tokens` entry of that name; the file comes first.
+   The token is exchanged again a minute before the access token expires,
+   with a fresh job token; a token given in `ORIGINCLOUD_OIDC_TOKEN` can't
+   be renewed, so it is exchanged again as it is, until it expires itself.
+   Once found, this step's errors are returned rather than passed over;
+   `ORIGINCLOUD_OIDC_DISABLED=true` leaves it out, `ORIGINCLOUD_STS_ENDPOINT`
+   points it at another STS (default `https://sts.origincloudapis.eu`) and
+   `ORIGINCLOUD_OIDC_AUDIENCE` requests GitHub's token for another audience
+   (the same default).
 4. The session the `origin` CLI stored at its last login (`origin id login`).
 5. On an instance that runs as a service account, its credential from the
    instance's metadata service: nothing to configure, and no secret on the

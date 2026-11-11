@@ -25,6 +25,7 @@ const ENV_METADATA_DISABLED: &str = "ORIGINCLOUD_METADATA_DISABLED";
 const ENV_METADATA_ENDPOINT: &str = "ORIGINCLOUD_METADATA_ENDPOINT";
 const ENV_OIDC_DISABLED: &str = "ORIGINCLOUD_OIDC_DISABLED";
 const ENV_OIDC_TOKEN_FILE: &str = "ORIGINCLOUD_OIDC_TOKEN_FILE";
+const ENV_OIDC_TOKEN: &str = "ORIGINCLOUD_OIDC_TOKEN";
 const ENV_OIDC_AUDIENCE: &str = "ORIGINCLOUD_OIDC_AUDIENCE";
 const ENV_STS_ENDPOINT: &str = "ORIGINCLOUD_STS_ENDPOINT";
 const ENV_GITHUB_REQUEST_URL: &str = "ACTIONS_ID_TOKEN_REQUEST_URL";
@@ -103,12 +104,13 @@ pub trait Credentials: Send + Sync + fmt::Debug {
 ///    Only one of the two set is an error.
 /// 3. A CI job's OIDC token, exchanged at the security token service
 ///    ([`Federated`]): from the file `ORIGINCLOUD_OIDC_TOKEN_FILE` names,
-///    or else from GitHub Actions, in a job granted
-///    `permissions: id-token: write`. Once found, its errors are returned,
-///    not passed over. `ORIGINCLOUD_OIDC_DISABLED=true` leaves this step
-///    out; `ORIGINCLOUD_STS_ENDPOINT` asks another address than
-///    [`STS_ENDPOINT`], and `ORIGINCLOUD_OIDC_AUDIENCE` requests GitHub's
-///    token for another audience than [`OIDC_AUDIENCE`].
+///    or else from `ORIGINCLOUD_OIDC_TOKEN`, which holds the token itself
+///    (as GitLab CI's `id_tokens` set it), or else from GitHub Actions, in
+///    a job granted `permissions: id-token: write`. Once found, its errors
+///    are returned, not passed over. `ORIGINCLOUD_OIDC_DISABLED=true`
+///    leaves this step out; `ORIGINCLOUD_STS_ENDPOINT` asks another address
+///    than [`STS_ENDPOINT`], and `ORIGINCLOUD_OIDC_AUDIENCE` requests
+///    GitHub's token for another audience than [`OIDC_AUDIENCE`].
 /// 4. The session the `origin` CLI stored at its last login
 ///    (`origin id login`).
 /// 5. The instance's metadata service, on an instance that runs as a
@@ -160,19 +162,25 @@ pub(crate) fn from_environment(
 }
 
 /// The federated step of the chain, when the environment holds a CI job's
-/// OIDC token: a token file before GitHub Actions.
+/// OIDC token: a token file, which can be rotated in place, before a token
+/// given as it is, before GitHub Actions.
 fn federated_from(var: &dyn Fn(&str) -> Option<String>) -> Option<Federated> {
     if var(ENV_OIDC_DISABLED).is_some_and(|v| v.eq_ignore_ascii_case("true")) {
         return None;
     }
-    let mut federated = match (
-        var(ENV_OIDC_TOKEN_FILE),
-        var(ENV_GITHUB_REQUEST_URL),
-        var(ENV_GITHUB_REQUEST_TOKEN),
-    ) {
-        (Some(path), _, _) => Federated::from_file(path),
-        (None, Some(url), Some(token)) => Federated::github_actions(url, token),
-        _ => return None,
+    let mut federated = if let Some(path) = var(ENV_OIDC_TOKEN_FILE) {
+        Federated::from_file(path)
+    } else if let Some(token) = var(ENV_OIDC_TOKEN) {
+        Federated::with_source(JobToken::Given {
+            token,
+            variable: Some(ENV_OIDC_TOKEN),
+        })
+    } else if let (Some(url), Some(token)) =
+        (var(ENV_GITHUB_REQUEST_URL), var(ENV_GITHUB_REQUEST_TOKEN))
+    {
+        Federated::github_actions(url, token)
+    } else {
+        return None;
     };
     if let Some(endpoint) = var(ENV_STS_ENDPOINT) {
         federated = federated.with_endpoint(endpoint);
@@ -623,7 +631,8 @@ impl Credentials for InstanceMetadata {
 /// A CI job's OIDC token, exchanged at the security token service for the
 /// access token of the `WORKLOAD` service account a federated credential
 /// trusts the job as. The access token is reused until a minute before it
-/// expires; then a fresh job token is fetched and exchanged again. An
+/// expires; then a fresh job token is fetched and exchanged again, or a
+/// token given as it is ([`Federated::from_token`]) exchanged again. An
 /// exchange the STS can't check right now (`503`) is sent again twice.
 pub struct Federated {
     source: JobToken,
@@ -636,10 +645,22 @@ pub struct Federated {
 /// Where the job's token comes from.
 enum JobToken {
     File(PathBuf),
+    /// A token given as it is, from the environment variable `variable`
+    /// names, if any.
+    Given {
+        token: String,
+        variable: Option<&'static str>,
+    },
     GitHubActions {
         request_url: String,
         request_token: String,
     },
+}
+
+/// The claims of a job token that are read before it is exchanged.
+#[derive(Deserialize)]
+struct JobTokenClaims {
+    exp: Option<f64>,
 }
 
 /// GitHub's answer to a job token request.
@@ -654,6 +675,18 @@ impl Federated {
     /// Kubernetes projected service account token.
     pub fn from_file(path: impl Into<PathBuf>) -> Self {
         Self::with_source(JobToken::File(path.into()))
+    }
+
+    /// The token `token`, exchanged as it is: any CI provider's, such as the
+    /// one GitLab CI sets in the variable its `id_tokens` names. It can't
+    /// be renewed: each renewal of the access token exchanges it again,
+    /// until it expires itself, and from then on fails without asking the
+    /// STS.
+    pub fn from_token(token: impl Into<String>) -> Self {
+        Self::with_source(JobToken::Given {
+            token: token.into(),
+            variable: None,
+        })
     }
 
     /// A GitHub Actions job's token, requested at `request_url` with
@@ -687,7 +720,8 @@ impl Federated {
     }
 
     /// Requests GitHub's token for `audience` instead of [`OIDC_AUDIENCE`].
-    /// A token file's audience is whatever its issuer put in it.
+    /// A token file's or a given token's audience is whatever its issuer
+    /// put in it.
     pub fn with_audience(mut self, audience: impl Into<String>) -> Self {
         self.audience = audience.into();
         self
@@ -723,6 +757,28 @@ impl Federated {
                     return Err(Error::Credentials(format!(
                         "the OIDC token file {} is empty",
                         path.display()
+                    )));
+                }
+                Ok(token.to_owned())
+            }
+            JobToken::Given { token, variable } => {
+                let token = token.trim();
+                if token.is_empty() {
+                    return Err(Error::Credentials(format!(
+                        "the CI job's OIDC token{} is empty",
+                        in_variable(*variable)
+                    )));
+                }
+                if let Some(expiry) = job_token_expiry(token)
+                    && expiry <= SystemTime::now()
+                {
+                    let expiry = DateTime::<Utc>::from(expiry)
+                        .to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+                    return Err(Error::Credentials(format!(
+                        "the CI job's OIDC token{} expired at {expiry}; a token given as it is \
+                         can't be renewed: ask the CI provider for a longer-lived one, or use \
+                         {ENV_OIDC_TOKEN_FILE}",
+                        in_variable(*variable)
                     )));
                 }
                 Ok(token.to_owned())
@@ -820,6 +876,7 @@ impl fmt::Debug for Federated {
         let mut debug = f.debug_struct("Federated");
         match &self.source {
             JobToken::File(path) => debug.field("token_file", path),
+            JobToken::Given { .. } => debug.field("source", &"token"),
             JobToken::GitHubActions { .. } => debug.field("source", &"GitHub Actions"),
         };
         debug
@@ -846,6 +903,31 @@ impl Credentials for Federated {
             Ok(granted.access_token)
         })
     }
+}
+
+/// ` in VARIABLE`, naming where a given job token came from, if anywhere.
+fn in_variable(variable: Option<&str>) -> String {
+    variable.map_or_else(String::new, |name| format!(" in {name}"))
+}
+
+/// When a job token (a JWT) expires, as its unverified `exp` claim says:
+/// `None` when it has none, or isn't a JWT whose claims can be read, which
+/// is left to the STS to judge.
+fn job_token_expiry(token: &str) -> Option<SystemTime> {
+    use base64::Engine as _;
+    use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
+
+    const BASE64URL: GeneralPurpose = GeneralPurpose::new(
+        &base64::alphabet::URL_SAFE,
+        GeneralPurposeConfig::new().with_decode_padding_mode(DecodePaddingMode::Indifferent),
+    );
+    let payload = token.split('.').nth(1)?;
+    let claims: JobTokenClaims = serde_json::from_slice(&BASE64URL.decode(payload).ok()?).ok()?;
+    let exp = claims.exp?;
+    if !exp.is_finite() || exp < 0.0 {
+        return None;
+    }
+    SystemTime::UNIX_EPOCH.checked_add(Duration::try_from_secs_f64(exp).ok()?)
 }
 
 /// Where the CLI stores its session: under `XDG_DATA_HOME`, or
@@ -1102,6 +1184,121 @@ mod tests {
             debug.starts_with(r#"Federated { token_file: "/var/run/secrets/token""#),
             "{debug}"
         );
+    }
+
+    #[test]
+    fn a_token_in_the_environment_is_exchanged() {
+        let credentials = from_environment(&env(&[(ENV_OIDC_TOKEN, "gitlab-job-token")])).unwrap();
+        let debug = format!("{credentials:?}");
+        assert!(
+            debug.starts_with(r#"Federated { source: "token""#),
+            "{debug}"
+        );
+        assert!(!debug.contains("gitlab-job-token"), "{debug}");
+    }
+
+    #[test]
+    fn a_token_file_comes_before_a_token_in_the_environment() {
+        let credentials = from_environment(&env(&[
+            (ENV_OIDC_TOKEN, "gitlab-job-token"),
+            (ENV_OIDC_TOKEN_FILE, "/var/run/secrets/token"),
+        ]))
+        .unwrap();
+        let debug = format!("{credentials:?}");
+        assert!(
+            debug.starts_with(r#"Federated { token_file: "/var/run/secrets/token""#),
+            "{debug}"
+        );
+    }
+
+    #[test]
+    fn a_token_in_the_environment_comes_before_github_actions() {
+        let credentials = from_environment(&env(&with(
+            &GITHUB,
+            &[(ENV_OIDC_TOKEN, "gitlab-job-token")],
+        )))
+        .unwrap();
+        let debug = format!("{credentials:?}");
+        assert!(
+            debug.starts_with(r#"Federated { source: "token""#),
+            "{debug}"
+        );
+    }
+
+    #[test]
+    fn a_token_in_the_environment_is_left_out_with_the_federated_step() {
+        let dir = data_home();
+        let credentials = from_environment(&env(&[
+            (ENV_OIDC_TOKEN, "gitlab-job-token"),
+            (ENV_OIDC_DISABLED, "true"),
+            ("XDG_DATA_HOME", dir.to_str().unwrap()),
+        ]))
+        .unwrap();
+        assert!(
+            format!("{credentials:?}").starts_with("InstanceMetadata"),
+            "{credentials:?}"
+        );
+    }
+
+    /// An unsigned JWT with the claims `claims`.
+    fn jwt(claims: &str) -> String {
+        use base64::Engine as _;
+        let encode = |part: &str| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(part);
+        format!(
+            "{}.{}.",
+            encode(r#"{"alg":"none","typ":"JWT"}"#),
+            encode(claims)
+        )
+    }
+
+    #[tokio::test]
+    async fn an_expired_token_in_the_environment_names_the_variable() {
+        let token = jwt(r#"{"sub":"project_path:group/project","exp":1577836800}"#);
+        let credentials = from_environment(&env(&[
+            (ENV_OIDC_TOKEN, &token),
+            (ENV_STS_ENDPOINT, "http://127.0.0.1:9"),
+        ]))
+        .unwrap();
+        let message = credentials.token().await.unwrap_err().to_string();
+        assert!(
+            message.contains(
+                "the CI job's OIDC token in ORIGINCLOUD_OIDC_TOKEN expired at 2020-01-01T00:00:00Z"
+            ),
+            "{message}"
+        );
+        assert!(message.contains("ORIGINCLOUD_OIDC_TOKEN_FILE"), "{message}");
+        assert!(!message.contains(&token), "{message}");
+    }
+
+    #[test]
+    fn a_job_token_s_expiry_is_read_from_its_claims() {
+        let at = |secs| Some(SystemTime::UNIX_EPOCH + Duration::from_secs(secs));
+        assert_eq!(
+            job_token_expiry(&jwt(r#"{"exp":1577836800}"#)),
+            at(1577836800)
+        );
+        assert_eq!(
+            job_token_expiry(&jwt(r#"{"exp":1577836800.5}"#)),
+            at(1577836800).map(|t| t + Duration::from_millis(500))
+        );
+        // Padded base64url, as some issuers write it.
+        let padded = {
+            use base64::Engine as _;
+            let claims = base64::engine::general_purpose::URL_SAFE.encode(r#"{"exp":12}"#);
+            assert!(claims.ends_with("=="), "{claims}");
+            format!("e30.{claims}.")
+        };
+        assert_eq!(job_token_expiry(&padded), at(12));
+        for unreadable in [
+            jwt(r#"{"sub":"no expiry"}"#),
+            jwt(r#"{"exp":"tomorrow"}"#),
+            jwt(r#"{"exp":-1}"#),
+            jwt("not json"),
+            "not-a-jwt".to_owned(),
+            "a.%%%.c".to_owned(),
+        ] {
+            assert_eq!(job_token_expiry(&unreadable), None, "{unreadable}");
+        }
     }
 
     #[test]
