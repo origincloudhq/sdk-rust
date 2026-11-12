@@ -83,6 +83,51 @@ async fn a_request_carries_its_credentials_agent_query_and_body() {
     assert_eq!(got.query, "pageSize=10");
 }
 
+/// Credentials that never have a token, as a machine with none.
+#[derive(Debug)]
+struct NoCredentials;
+
+impl origincloud_core::credentials::Credentials for NoCredentials {
+    fn token(&self) -> origincloud_core::credentials::TokenFuture<'_> {
+        Box::pin(async { Err(Error::NoCredentials) })
+    }
+}
+
+#[tokio::test]
+async fn an_unauthenticated_call_is_sent_without_credentials() {
+    let seen = Arc::new(Mutex::new(None::<Received>));
+    let recorded = Arc::clone(&seen);
+    let server = FakeServer::start(move |r| {
+        *recorded.lock().unwrap() = Some(r);
+        async { Response::json("{}") }
+    })
+    .await;
+    let client = Client::builder()
+        .endpoint(server.url())
+        .credentials(NoCredentials)
+        .build()
+        .unwrap();
+    let sts = client.service("sts", false);
+
+    let _: Value = sts
+        .call(Request::new(Method::POST, "/v1beta1:assumeServiceAccount").unauthenticated())
+        .await
+        .unwrap();
+    assert_eq!(
+        seen.lock()
+            .unwrap()
+            .clone()
+            .unwrap()
+            .header("authorization"),
+        None
+    );
+
+    let refused: Result<Value, Error> = sts
+        .call(Request::new(Method::POST, "/v1beta1:assumeServiceAccount"))
+        .await;
+    assert!(matches!(refused, Err(Error::NoCredentials)), "{refused:?}");
+}
+
 #[tokio::test]
 async fn an_idempotent_call_is_retried_while_the_answer_is_retryable() {
     let calls = Arc::new(AtomicU32::new(0));
