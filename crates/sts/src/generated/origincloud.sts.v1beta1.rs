@@ -6,7 +6,7 @@
 pub struct AssumeServiceAccountRequest {
     /// The OIDC token, a JWT its issuer signed, such as a CI job's.
     #[prost(string, tag = "1")]
-    pub token: ::prost::alloc::string::String,
+    pub oidc_token: ::prost::alloc::string::String,
     /// The service account to assume,
     /// `organizations/{organization}/serviceAccounts/{service_account}`. Only
     /// its federated credentials are considered. Without it, any service
@@ -44,7 +44,7 @@ impl serde::Serialize for AssumeServiceAccountRequest {
     {
         use serde::ser::SerializeStruct;
         let mut len = 0;
-        if !self.token.is_empty() {
+        if !self.oidc_token.is_empty() {
             len += 1;
         }
         if !self.service_account.is_empty() {
@@ -58,8 +58,8 @@ impl serde::Serialize for AssumeServiceAccountRequest {
                 "origincloud.sts.v1beta1.AssumeServiceAccountRequest",
                 len,
             )?;
-        if !self.token.is_empty() {
-            struct_ser.serialize_field("token", &self.token)?;
+        if !self.oidc_token.is_empty() {
+            struct_ser.serialize_field("oidcToken", &self.oidc_token)?;
         }
         if !self.service_account.is_empty() {
             struct_ser.serialize_field("serviceAccount", &self.service_account)?;
@@ -77,14 +77,15 @@ impl<'de> serde::Deserialize<'de> for AssumeServiceAccountRequest {
         D: serde::Deserializer<'de>,
     {
         const FIELDS: &[&str] = &[
-            "token",
+            "oidc_token",
+            "oidcToken",
             "service_account",
             "serviceAccount",
             "lifetime",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
-            Token,
+            OidcToken,
             ServiceAccount,
             Lifetime,
             __SkipField__,
@@ -114,7 +115,7 @@ impl<'de> serde::Deserialize<'de> for AssumeServiceAccountRequest {
                         E: serde::de::Error,
                     {
                         match value {
-                            "token" => Ok(GeneratedField::Token),
+                            "oidcToken" | "oidc_token" => Ok(GeneratedField::OidcToken),
                             "serviceAccount" | "service_account" => {
                                 Ok(GeneratedField::ServiceAccount)
                             }
@@ -145,16 +146,16 @@ impl<'de> serde::Deserialize<'de> for AssumeServiceAccountRequest {
             where
                 V: serde::de::MapAccess<'de>,
             {
-                let mut token__ = None;
+                let mut oidc_token__ = None;
                 let mut service_account__ = None;
                 let mut lifetime__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
-                        GeneratedField::Token => {
-                            if token__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("token"));
+                        GeneratedField::OidcToken => {
+                            if oidc_token__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("oidcToken"));
                             }
-                            token__ = Some(map_.next_value()?);
+                            oidc_token__ = Some(map_.next_value()?);
                         }
                         GeneratedField::ServiceAccount => {
                             if service_account__.is_some() {
@@ -176,7 +177,7 @@ impl<'de> serde::Deserialize<'de> for AssumeServiceAccountRequest {
                     }
                 }
                 Ok(AssumeServiceAccountRequest {
-                    token: token__.unwrap_or_default(),
+                    oidc_token: oidc_token__.unwrap_or_default(),
                     service_account: service_account__.unwrap_or_default(),
                     lifetime: lifetime__,
                 })
