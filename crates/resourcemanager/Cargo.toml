@@ -1,6 +1,6 @@
 [package]
 name = "origincloud-resourcemanager"
-version = "0.25.0"
+version = "0.26.0"
 description = "The Origin Cloud resourcemanager API: organizations, projects and their quotas."
 keywords = ["origincloud", "cloud", "sdk", "api", "resourcemanager"]
 categories = ["api-bindings", "web-programming::http-client"]
@@ -12,7 +12,7 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
-origincloud-core = { version = "0.25.0", path = "../core" }
+origincloud-core = { version = "0.26.0", path = "../core" }
 pbjson = "0.9"
 prost = "0.14"
 serde = "1"

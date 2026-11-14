@@ -20,8 +20,9 @@ pub struct AuditLogEntry {
     /// Who made the change, as it was when the change was made:
     /// `user:{email}` with the verified address the account had then,
     /// `userId:{user}` when none was recorded, `serviceAccount:{service_account}`,
-    /// or `platform` for a change the platform made itself. A later change of
-    /// address doesn't change it.
+    /// `serviceAgent:{service_agent}` for a platform service agent acting in
+    /// the organization, or `platform` for a change the platform made itself.
+    /// A later change of address doesn't change it.
     #[prost(string, tag = "3")]
     pub actor: ::prost::alloc::string::String,
     /// What was done, as a permission key names it, such as
@@ -68,6 +69,10 @@ pub mod audit_log_entry {
         Succeeded = 1,
         /// It was refused for lack of a permission.
         Denied = 2,
+        /// It was attempted and refused for another reason, which `details`
+        /// names in `reason`, such as a key asked to decrypt under the wrong
+        /// encryption context.
+        Failed = 3,
     }
     impl Outcome {
         /// String value of the enum field names used in the ProtoBuf definition.
@@ -79,6 +84,7 @@ pub mod audit_log_entry {
                 Self::Unspecified => "OUTCOME_UNSPECIFIED",
                 Self::Succeeded => "SUCCEEDED",
                 Self::Denied => "DENIED",
+                Self::Failed => "FAILED",
             }
         }
         /// Creates an enum from field names used in the ProtoBuf definition.
@@ -87,6 +93,7 @@ pub mod audit_log_entry {
                 "OUTCOME_UNSPECIFIED" => Some(Self::Unspecified),
                 "SUCCEEDED" => Some(Self::Succeeded),
                 "DENIED" => Some(Self::Denied),
+                "FAILED" => Some(Self::Failed),
                 _ => None,
             }
         }
@@ -111,8 +118,8 @@ pub struct ListAuditLogEntriesRequest {
     #[prost(string, tag = "2")]
     pub project: ::prost::alloc::string::String,
     /// Only the entries of changes made by this member's account,
-    /// `user:{email}` or `serviceAccount:{service_account}`. Every actor's
-    /// when empty.
+    /// `user:{email}`, `serviceAccount:{service_account}` or
+    /// `serviceAgent:{service_agent}`. Every actor's when empty.
     #[prost(string, tag = "3")]
     pub actor: ::prost::alloc::string::String,
     /// Only the entries of this action, such as `iam.role.assign`. Every
@@ -399,8 +406,8 @@ pub struct RoleBinding {
     /// use.
     #[prost(string, tag = "2")]
     pub urn: ::prost::alloc::string::String,
-    /// Who holds the role: `user:{email}` or
-    /// `serviceAccount:{service_account}`. A user is shown with their
+    /// Who holds the role: `user:{email}`, `serviceAccount:{service_account}`
+    /// or `serviceAgent:{service_agent}`. A user is shown with their
     /// account's current verified address, as `userId:{user}` when it has
     /// none, or as `deleted:user:{user}` once the account is gone.
     #[prost(string, tag = "3")]
@@ -437,8 +444,9 @@ pub struct ListRoleBindingsRequest {
     /// organization.
     #[prost(string, tag = "1")]
     pub parent: ::prost::alloc::string::String,
-    /// Only the bindings of this member, `user:{email}` or
-    /// `serviceAccount:{service_account}`. Every member's when empty.
+    /// Only the bindings of this member, `user:{email}`,
+    /// `serviceAccount:{service_account}` or `serviceAgent:{service_agent}`.
+    /// Every member's when empty.
     #[prost(string, tag = "2")]
     pub member: ::prost::alloc::string::String,
     /// Only the bindings limited to this project, `projects/{project}`. Every
@@ -996,6 +1004,7 @@ impl serde::Serialize for audit_log_entry::Outcome {
             Self::Unspecified => "OUTCOME_UNSPECIFIED",
             Self::Succeeded => "SUCCEEDED",
             Self::Denied => "DENIED",
+            Self::Failed => "FAILED",
         };
         serializer.serialize_str(variant)
     }
@@ -1006,7 +1015,12 @@ impl<'de> serde::Deserialize<'de> for audit_log_entry::Outcome {
     where
         D: serde::Deserializer<'de>,
     {
-        const FIELDS: &[&str] = &["OUTCOME_UNSPECIFIED", "SUCCEEDED", "DENIED"];
+        const FIELDS: &[&str] = &[
+            "OUTCOME_UNSPECIFIED",
+            "SUCCEEDED",
+            "DENIED",
+            "FAILED",
+        ];
         struct GeneratedVisitor;
         impl serde::de::Visitor<'_> for GeneratedVisitor {
             type Value = audit_log_entry::Outcome;
@@ -1062,6 +1076,7 @@ impl<'de> serde::Deserialize<'de> for audit_log_entry::Outcome {
                     "OUTCOME_UNSPECIFIED" => Ok(audit_log_entry::Outcome::Unspecified),
                     "SUCCEEDED" => Ok(audit_log_entry::Outcome::Succeeded),
                     "DENIED" => Ok(audit_log_entry::Outcome::Denied),
+                    "FAILED" => Ok(audit_log_entry::Outcome::Failed),
                     _ => Ok(audit_log_entry::Outcome::default()),
                 }
             }
@@ -6754,6 +6769,14 @@ impl RoleClient {
 ///    account's current one.
 /// - `serviceAccount:{service_account}`: a service account of the same
 ///    organization, by its id.
+/// - `serviceAgent:{service_agent}`: a platform service agent, by its name,
+///    such as `serviceAgent:compute`. A service agent is the identity one of
+///    the platform's services acts as in an organization. Any organization
+///    can bind one, but only to a role its service needs; nobody outside the
+///    platform can act as one or get a credential for it. Every organization
+///    is created with `serviceAgent:compute` bound to
+///    `roles/kms.grant-delegate`; delete that binding and compute makes no
+///    new grants on the organization's keys.
 ///
 /// and shown, never accepted, as:
 /// - `userId:{user}`: a user by the id of their account, when no verified
@@ -6845,7 +6868,8 @@ impl RoleBindingClient {
     /// verified email: nothing is held for an address until its account
     /// exists. Refused with `CONFLICT` when the member already holds the role
     /// at that scope, and with `BAD_REQUEST` when the member is a deleted
-    /// service account.
+    /// service account, names no service agent the platform has, or is a
+    /// service agent and the role isn't one its service needs.
     pub async fn create_role_binding(
         &self,
         mut request: CreateRoleBindingRequest,

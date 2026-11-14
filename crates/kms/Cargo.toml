@@ -1,0 +1,18 @@
+[package]
+name = "origincloud-kms"
+version = "0.26.0"
+description = "The Origin Cloud KMS API: grants: permission for one platform host to use one key for one operation and one encryption context, for at most an hour at a time."
+keywords = ["origincloud", "cloud", "sdk", "api", "kms"]
+categories = ["api-bindings", "web-programming::http-client"]
+readme = "../../README.md"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[dependencies]
+origincloud-core = { version = "0.26.0", path = "../core" }
+pbjson = "0.9"
+prost = "0.14"
+serde = "1"
