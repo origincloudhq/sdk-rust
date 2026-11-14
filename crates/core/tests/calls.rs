@@ -327,6 +327,62 @@ async fn the_consistency_token_is_kept_and_sent_back() {
     assert_eq!(client.consistency_token(), "v1.after-failure");
 }
 
+/// A file comes back as it was sent, retried like any read, and is never
+/// read as JSON.
+#[tokio::test]
+async fn a_file_is_returned_as_it_was_sent_and_retried_like_a_read() {
+    let calls = Arc::new(AtomicU32::new(0));
+    let counted = Arc::clone(&calls);
+    let server = FakeServer::start(move |r| {
+        let n = counted.fetch_add(1, Ordering::SeqCst) + 1;
+        async move {
+            assert_eq!(r.header("accept"), Some("*/*"));
+            if n < 2 {
+                Response::json(UNAVAILABLE).with_status(503)
+            } else {
+                Response {
+                    status: 200,
+                    headers: vec![("Content-Type".to_owned(), "image/png".to_owned())],
+                    body: vec![0x89, b'P', b'N', b'G', 0, 0xff],
+                }
+            }
+        }
+    })
+    .await;
+
+    let file = service(&server)
+        .call_http_body(Request::new(Method::GET, "/x:download").idempotent())
+        .await
+        .unwrap();
+    assert_eq!(file.content_type, "image/png");
+    assert_eq!(file.data, [0x89, b'P', b'N', b'G', 0, 0xff]);
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+}
+
+/// A response too large to read whole fails, rather than come back cut
+/// short.
+#[tokio::test]
+async fn a_response_larger_than_the_limit_fails() {
+    let server = FakeServer::start(|_| async {
+        Response {
+            status: 200,
+            headers: vec![(
+                "Content-Type".to_owned(),
+                "application/octet-stream".to_owned(),
+            )],
+            body: vec![0; (32 << 20) + 1],
+        }
+    })
+    .await;
+
+    let err = service(&server)
+        .call_http_body(Request::new(Method::GET, "/x:download").idempotent())
+        .await
+        .unwrap_err();
+    assert!(matches!(err, Error::Decode(_)), "{err:?}");
+    assert!(err.to_string().contains("larger than the 32 MiB"), "{err}");
+}
+
 #[tokio::test]
 async fn a_name_of_the_wrong_form_is_refused_before_sending() {
     let err =

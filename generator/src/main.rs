@@ -256,13 +256,15 @@ fn generate_package(
     config
         .compile_well_known_types()
         .btree_map(["."])
-        .extern_path(".google.protobuf", format!("{core}::protobuf"));
+        .extern_path(".google.protobuf", format!("{core}::protobuf"))
+        .extern_path(".google.type", format!("{core}::types"));
     let mut json = pbjson_build::Builder::new();
     json.register_descriptors(encoded)?
         .btree_map(["."])
         .ignore_unknown_fields()
         .ignore_unknown_enum_variants()
-        .extern_path(".google.protobuf", format!("{core}::protobuf"));
+        .extern_path(".google.protobuf", format!("{core}::protobuf"))
+        .extern_path(".google.type", format!("{core}::types"));
     if !package.starts_with("origincloud.longrunning.") {
         config.extern_path(".origincloud.longrunning", format!("{core}::longrunning"));
         json.extern_path(".origincloud.longrunning", format!("{core}::longrunning"));

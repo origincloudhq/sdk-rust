@@ -82,6 +82,7 @@ mod pages;
 pub mod protobuf;
 pub mod rpc;
 mod transport;
+pub mod types;
 
 pub use client::{Client, ClientBuilder, Service, VERSION};
 pub use credentials::{
@@ -92,5 +93,6 @@ pub use error::{ApiError, Error, FieldViolation};
 pub use operation::Operation;
 pub use pages::Pages;
 pub use transport::{
-    CONSISTENCY_TOKEN_HEADER, Method, Query, Request, json_body, new_request_id, path_value, query,
+    CONSISTENCY_TOKEN_HEADER, HttpBody, Method, Query, Request, json_body, new_request_id,
+    path_value, query,
 };
