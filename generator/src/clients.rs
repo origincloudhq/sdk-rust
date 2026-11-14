@@ -6,7 +6,9 @@
 //! `Operation` of the result its `operation_info` names. A list method
 //! (AIP-158) also gets an `all_...` method streaming every page. A method
 //! with a `request_id` gets one filled in when it is empty, so that it is
-//! safe to retry.
+//! safe to retry. A method answering with a `google.api.HttpBody`, a file
+//! rather than JSON, returns the core crate's `HttpBody`: the file's bytes
+//! and media type, as the server sent them.
 
 use std::fmt::Write as _;
 
@@ -38,6 +40,7 @@ const UNAUTHENTICATED_SERVICES: &[&str] = &["sts"];
 
 const OPERATION: &str = "google.longrunning.Operation";
 const EMPTY: &str = "google.protobuf.Empty";
+const HTTP_BODY: &str = "google.api.HttpBody";
 
 /// Where the generated code of one package finds the rest.
 pub struct Generation<'a> {
@@ -57,6 +60,9 @@ impl Generation<'_> {
         if full_name == OPERATION {
             return Ok(format!("{core}::longrunning::Operation"));
         }
+        if full_name == HTTP_BODY {
+            return Ok(format!("{core}::HttpBody"));
+        }
         if full_name
             .strip_prefix(self.package)
             .is_some_and(|rest| rest.starts_with('.'))
@@ -65,6 +71,9 @@ impl Generation<'_> {
         }
         if let Some(name) = full_name.strip_prefix("google.protobuf.") {
             return Ok(format!("{core}::protobuf::{}", names::upper_camel(name)));
+        }
+        if let Some(name) = full_name.strip_prefix("google.type.") {
+            return Ok(format!("{core}::types::{}", names::upper_camel(name)));
         }
         if let Some(rest) = full_name.strip_prefix("origincloud.longrunning.") {
             let (version, _) = rest.split_once('.').context("a type outside a version")?;
@@ -236,6 +245,11 @@ fn generate_method(cx: &Generation<'_>, m: &MethodDescriptor, out: &mut String) 
     }
     let (verb, template) = binding(&rule)?;
     let segments = parse_template(&m.input(), &template)?;
+    ensure!(
+        m.input().full_name() != HTTP_BODY,
+        "a request that is a google.api.HttpBody, a file sent as it is, isn't supported"
+    );
+    let http_body = m.output().full_name() == HTTP_BODY;
 
     let input = cx.rust_type(m.input().full_name())?;
     let result = operation_result(cx.pool, m);
@@ -254,8 +268,14 @@ fn generate_method(cx: &Generation<'_>, m: &MethodDescriptor, out: &mut String) 
     } else {
         out.push_str(&docs::attributes(comment));
     }
+    let link = core.trim_start_matches("::");
+    if http_body {
+        out.push_str(&docs::line(""));
+        out.push_str(&docs::line(&format!(
+            "It answers with the file itself, not JSON: an [`HttpBody`]({link}::HttpBody) with the file's bytes and media type."
+        )));
+    }
     if let Some(r) = &result {
-        let link = core.trim_start_matches("::");
         out.push_str(&docs::line(""));
         if r.full_name() == EMPTY {
             out.push_str(&docs::line(&format!(
@@ -373,6 +393,7 @@ fn generate_method(cx: &Generation<'_>, m: &MethodDescriptor, out: &mut String) 
                 r.full_name()
             )?;
         }
+        None if http_body => writeln!(out, "self.service.call_http_body(call).await")?,
         None => writeln!(out, "self.service.call(call).await")?,
     }
     writeln!(out, "}}")?;

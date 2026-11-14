@@ -27,6 +27,10 @@ const WELL_KNOWN: &[&str] = &[
     "Value",
 ];
 
+/// The common types (`google.type`) the core crate's `types` module holds
+/// with their proto3 JSON mapping.
+const COMMON: &[&str] = &["Date"];
+
 /// Fails, naming each field, when a message of `package` has a field whose
 /// type the generated code can't refer to.
 pub fn check_fields(pool: &DescriptorPool, package: &str) -> Result<()> {
@@ -89,6 +93,11 @@ fn supported(package: &str, full_name: &str) -> Result<(), String> {
             "{full_name} isn't among the well-known types the core crate holds"
         ));
     }
+    if let Some(name) = full_name.strip_prefix("google.type.")
+        && COMMON.contains(&name)
+    {
+        return Ok(());
+    }
     if full_name.starts_with("google.") {
         return Err(format!("{full_name} has no Rust type in the SDK yet"));
     }
@@ -118,6 +127,19 @@ mod tests {
         }
     "#;
 
+    /// google.type.Date and google.type.Money as googleapis defines them,
+    /// cut to what matters.
+    const DATE: &str = r#"
+        syntax = "proto3";
+        package google.type;
+        message Date { int32 year = 1; int32 month = 2; int32 day = 3; }
+    "#;
+    const MONEY: &str = r#"
+        syntax = "proto3";
+        package google.type;
+        message Money { string currency_code = 1; int64 units = 2; int32 nanos = 3; }
+    "#;
+
     const SCRATCH: &str = r#"
         syntax = "proto3";
         package origincloud.scratch.v1;
@@ -125,6 +147,8 @@ mod tests {
         import "google/protobuf/field_mask.proto";
         import "google/protobuf/timestamp.proto";
         import "google/rpc/status.proto";
+        import "google/type/date.proto";
+        import "google/type/money.proto";
 
         message Supported {
           string name = 1;
@@ -133,6 +157,7 @@ mod tests {
           map<string, Supported> children = 4;
           Kind kind = 5;
           enum Kind { KIND_UNSPECIFIED = 0; }
+          google.type.Date effective_date = 6;
         }
 
         message Unsupported {
@@ -140,6 +165,7 @@ mod tests {
           google.rpc.Status error = 2;
           map<string, google.protobuf.Any> by_name = 3;
           Supported fine = 4;
+          google.type.Money price = 5;
         }
     "#;
 
@@ -164,6 +190,8 @@ mod tests {
     fn any_and_google_rpc_fields_are_refused_by_name() {
         let pool = pool(&[
             ("google/rpc/status.proto", STATUS),
+            ("google/type/date.proto", DATE),
+            ("google/type/money.proto", MONEY),
             ("origincloud/scratch/v1/scratch.proto", SCRATCH),
         ]);
         let err = check_fields(&pool, "origincloud.scratch.v1")
@@ -185,6 +213,12 @@ mod tests {
             err.contains("origincloud.scratch.v1.Unsupported.by_name: google.protobuf.Any"),
             "{err}"
         );
+        assert!(
+            err.contains(
+                "origincloud.scratch.v1.Unsupported.price: google.type.Money has no Rust type"
+            ),
+            "{err}"
+        );
         assert!(!err.contains("Supported."), "{err}");
         assert!(!err.contains(".fine"), "{err}");
     }
@@ -194,6 +228,8 @@ mod tests {
         let source = SCRATCH.split("message Unsupported").next().unwrap();
         let pool = pool(&[
             ("google/rpc/status.proto", STATUS),
+            ("google/type/date.proto", DATE),
+            ("google/type/money.proto", MONEY),
             ("origincloud/scratch/v1/scratch.proto", source),
         ]);
         check_fields(&pool, "origincloud.scratch.v1").unwrap();
@@ -210,6 +246,7 @@ mod tests {
             .is_ok()
         );
         assert!(supported("origincloud.pvs.v1beta1", "google.type.Money").is_err());
+        assert!(supported("origincloud.pvs.v1beta1", "google.type.Date").is_ok());
         assert!(supported("origincloud.pvs.v1beta1", "google.protobuf.Type").is_err());
     }
 }

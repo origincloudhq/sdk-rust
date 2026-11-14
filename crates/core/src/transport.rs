@@ -25,6 +25,24 @@ pub use reqwest::Method;
 /// Query parameters, by their JSON paths.
 pub type Query = Vec<(String, String)>;
 
+/// What a method answering with a file rather than JSON returns
+/// (`google.api.HttpBody`): the file's bytes, as the server sent them, and
+/// their media type.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct HttpBody {
+    /// The media type the response's `Content-Type` names, such as
+    /// `application/pdf`; empty when it names none.
+    pub content_type: String,
+    /// The file's bytes.
+    pub data: Vec<u8>,
+}
+
+/// The body of a 200, and its `Content-Type`.
+struct Answer {
+    content_type: String,
+    body: Vec<u8>,
+}
+
 /// One call of a service's method, as its HTTP binding sends it. The
 /// generated clients build it.
 #[derive(Clone, Debug)]
@@ -87,17 +105,32 @@ impl Service {
     /// Sends `request`, retrying it while that is safe and the answer
     /// allows it, and reads the answer as `T`.
     pub async fn call<T: DeserializeOwned>(&self, request: Request) -> Result<T, Error> {
+        let answer = self.send_with_retries(&request, "application/json").await?;
+        serde_json::from_slice(&answer.body).map_err(|e| {
+            Error::Decode(format!(
+                "reading the response to {} {}: {e}",
+                request.method, request.path
+            ))
+        })
+    }
+
+    /// Sends `request` as [`call`](Self::call) does, to a method answering
+    /// with a file rather than JSON, and returns the file as it came.
+    pub async fn call_http_body(&self, request: Request) -> Result<HttpBody, Error> {
+        let answer = self.send_with_retries(&request, "*/*").await?;
+        Ok(HttpBody {
+            content_type: answer.content_type,
+            data: answer.body,
+        })
+    }
+
+    /// Sends `request`, accepting `accept`, retrying it while that is safe
+    /// and the answer allows it.
+    async fn send_with_retries(&self, request: &Request, accept: &str) -> Result<Answer, Error> {
         let mut attempt = 1;
         loop {
-            let err = match self.send(&request).await {
-                Ok(answer) => {
-                    return serde_json::from_slice(&answer).map_err(|e| {
-                        Error::Decode(format!(
-                            "reading the response to {} {}: {e}",
-                            request.method, request.path
-                        ))
-                    });
-                }
+            let err = match self.send(request, accept).await {
+                Ok(answer) => return Ok(answer),
                 Err(err) => err,
             };
             if request.timeout_answers && is_timeout(&err) {
@@ -115,7 +148,7 @@ impl Service {
     }
 
     /// Makes one attempt, and answers with the body of a 200.
-    async fn send(&self, request: &Request) -> Result<Vec<u8>, Error> {
+    async fn send(&self, request: &Request, accept: &str) -> Result<Answer, Error> {
         let base = self.base.as_ref().map_err(|e| Error::Config(e.clone()))?;
         let mut url = base.clone();
         url.set_path(&format!(
@@ -135,7 +168,7 @@ impl Service {
             builder = builder.header(AUTHORIZATION, format!("Bearer {token}"));
         }
         builder = builder
-            .header(ACCEPT, "application/json")
+            .header(ACCEPT, accept)
             .header(USER_AGENT, &inner.user_agent);
         if let Some(timeout) = inner.timeout {
             builder = builder.timeout(timeout);
@@ -161,18 +194,38 @@ impl Service {
             self.client.set_consistency_token(answered);
         }
         let status = response.status();
+        let content_type = response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or_default()
+            .to_owned();
         let mut answer = Vec::new();
+        let mut truncated = false;
         while let Some(chunk) = response.chunk().await.map_err(Error::Transport)? {
             answer.extend_from_slice(&chunk);
-            if answer.len() >= MAX_RESPONSE_BYTES {
+            if answer.len() > MAX_RESPONSE_BYTES {
                 answer.truncate(MAX_RESPONSE_BYTES);
+                truncated = true;
                 break;
             }
         }
         if status != reqwest::StatusCode::OK {
             return Err(ApiError::from_response(status.as_u16(), &answer).into());
         }
-        Ok(answer)
+        // Cut short, a file would come back as another one.
+        if truncated {
+            return Err(Error::Decode(format!(
+                "the response to {} {} is larger than the {} MiB a response may be",
+                request.method,
+                request.path,
+                MAX_RESPONSE_BYTES >> 20
+            )));
+        }
+        Ok(Answer {
+            content_type,
+            body: answer,
+        })
     }
 }
 
