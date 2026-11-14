@@ -34,9 +34,12 @@ const GLOBAL_SERVICES: &[&str] = &[
 ];
 
 /// The services that authenticate no caller: their calls are sent without
-/// the client's credentials, so that they work with none. The security
-/// token service's request carries its own proof, the token it exchanges.
-const UNAUTHENTICATED_SERVICES: &[&str] = &["sts"];
+/// the client's credentials, so that they work with none. An entry is a
+/// host's shortcode, for every service at that host, or the shortcode and
+/// one service's name, such as `billing.LegalDocumentService`, for that
+/// service alone. The security token service's request carries its own
+/// proof, the token it exchanges; the legal documents are public.
+const UNAUTHENTICATED_SERVICES: &[&str] = &["sts", "billing.LegalDocumentService"];
 
 const OPERATION: &str = "google.longrunning.Operation";
 const EMPTY: &str = "google.protobuf.Empty";
@@ -176,7 +179,11 @@ fn regional(shortcode: &str) -> bool {
 /// every one's but the unauthenticated services'.
 fn authenticated(pool: &DescriptorPool, s: &ServiceDescriptor) -> bool {
     default_host(pool, s).is_none_or(|host| {
-        !UNAUTHENTICATED_SERVICES.contains(&host.split('.').next().unwrap_or_default())
+        let shortcode = host.split('.').next().unwrap_or_default();
+        let service = format!("{shortcode}.{}", s.name());
+        !UNAUTHENTICATED_SERVICES
+            .iter()
+            .any(|entry| *entry == shortcode || *entry == service)
     })
 }
 
@@ -554,7 +561,6 @@ fn field_access(fields: &[FieldDescriptor]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
 
     use protox::file::{ChainFileResolver, GoogleFileResolver};
 
@@ -572,6 +578,78 @@ mod tests {
           rpc Change(Request) returns (Response);
         }
     "#;
+
+    /// google.api.default_host as googleapis defines it.
+    const CLIENT: &str = r#"
+        syntax = "proto3";
+        package google.api;
+        import "google/protobuf/descriptor.proto";
+        extend google.protobuf.ServiceOptions { string default_host = 1049; }
+    "#;
+
+    const HOSTS: &str = r#"
+        syntax = "proto3";
+        package origincloud.scratch.v1;
+        import "google/api/client.proto";
+        message Request {}
+        service LegalDocumentService {
+          option (google.api.default_host) = "billing.origincloudapis.eu";
+          rpc Get(Request) returns (Request);
+        }
+        service BillingAccountService {
+          option (google.api.default_host) = "billing.origincloudapis.eu";
+          rpc Get(Request) returns (Request);
+        }
+        service SecurityTokenService {
+          option (google.api.default_host) = "sts.origincloudapis.eu";
+          rpc Get(Request) returns (Request);
+        }
+        service VolumeService {
+          option (google.api.default_host) = "pvs.origincloudapis.eu";
+          rpc Get(Request) returns (Request);
+        }
+        service OperationService {
+          rpc Get(Request) returns (Request);
+        }
+    "#;
+
+    fn pool(files: &[(&str, &str)]) -> DescriptorPool {
+        let sources = files
+            .iter()
+            .map(|(name, source)| ((*name).to_owned(), (*source).to_owned()))
+            .collect();
+        let mut resolver = ChainFileResolver::new();
+        resolver.add(MemoryResolver(sources));
+        resolver.add(GoogleFileResolver::new());
+        let mut compiler = protox::Compiler::with_file_resolver(resolver);
+        let names: Vec<&str> = files.iter().map(|(name, _)| *name).collect();
+        compiler
+            .open_files(names)
+            .expect("the scratch protos compile");
+        compiler.descriptor_pool()
+    }
+
+    /// An unauthenticated entry names a whole host or one service at it:
+    /// the legal documents are called without credentials, the billing
+    /// host's other services with them.
+    #[test]
+    fn a_service_or_a_whole_host_can_be_unauthenticated() {
+        let pool = pool(&[("google/api/client.proto", CLIENT), ("hosts.proto", HOSTS)]);
+        let got: Vec<(String, bool)> = pool
+            .services()
+            .map(|s| (s.name().to_owned(), authenticated(&pool, &s)))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("LegalDocumentService".to_owned(), false),
+                ("BillingAccountService".to_owned(), true),
+                ("SecurityTokenService".to_owned(), false),
+                ("VolumeService".to_owned(), true),
+                ("OperationService".to_owned(), true),
+            ]
+        );
+    }
 
     #[test]
     fn the_global_services_have_no_regional_host() {
@@ -593,17 +671,7 @@ mod tests {
 
     #[test]
     fn a_declared_idempotency_level_makes_a_method_repeatable() {
-        let mut resolver = ChainFileResolver::new();
-        resolver.add(MemoryResolver(BTreeMap::from([(
-            "scratch.proto".to_owned(),
-            SCRATCH.to_owned(),
-        )])));
-        resolver.add(GoogleFileResolver::new());
-        let mut compiler = protox::Compiler::with_file_resolver(resolver);
-        compiler
-            .open_files(["scratch.proto"])
-            .expect("the scratch proto compiles");
-        let pool = compiler.descriptor_pool();
+        let pool = pool(&[("scratch.proto", SCRATCH)]);
         let service = pool
             .get_service_by_name("origincloud.scratch.v1.Scratch")
             .expect("the service is in the pool");
