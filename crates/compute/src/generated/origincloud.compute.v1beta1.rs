@@ -120,9 +120,6 @@ pub struct Image {
     /// The image's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The image's URN, the identifier access policies and the audit log use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
     /// What the image holds, as you describe it.
     #[prost(string, tag = "3")]
     pub description: ::prost::alloc::string::String,
@@ -148,7 +145,10 @@ pub struct Image {
     /// Where it is in its lifecycle.
     #[prost(enumeration = "image::State", tag = "9")]
     pub state: i32,
-    /// The principal that created the image, such as `user:<id>`.
+    /// The principal that created the image, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "10")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -289,8 +289,8 @@ pub struct ImageBlockDevice {
     /// The disk's size in GiB, at least the snapshot's.
     #[prost(int32, tag = "2")]
     pub size_gib: i32,
-    /// The protected snapshot the disk is created from, in the image's
-    /// project and zone; an empty disk when left empty.
+    /// The full name of the protected snapshot the disk is created from, in
+    /// the image's project and zone; an empty disk when left empty.
     #[prost(string, tag = "3")]
     pub source_snapshot: ::prost::alloc::string::String,
 }
@@ -363,29 +363,28 @@ pub struct Instance {
     /// The instance's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The instance's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
-    /// The instance type, `instanceTypes/{instance_type}`, such as
-    /// `instanceTypes/gp1.core.2`: one whose `available` is true. Changing it
+    /// The instance type by its full name,
+    /// `//compute.origincloudapis.eu/instanceTypes/{instance_type}`, such as
+    /// `//compute.origincloudapis.eu/instanceTypes/gp1.core.2`: one whose
+    /// `available` is true. Changing it
     /// needs the instance `instance::State::Stopped`.
     #[prost(string, tag = "3")]
     pub instance_type: ::prost::alloc::string::String,
-    /// The image the boot volume is created from, in the instance's zone: one
-    /// of the project's own, `projects/{project}/zones/{zone}/images/{image}`,
-    /// or a public one, `zones/{zone}/images/{image}`. Set exactly one of
+    /// The full name of the image the boot volume is created from, in the
+    /// instance's zone: one of the project's own,
+    /// `//compute.origincloudapis.eu/projects/{project}/zones/{zone}/images/{image}`,
+    /// or a public one, `//compute.origincloudapis.eu/zones/{zone}/images/{image}`. Set exactly one of
     /// `image` and `image_family`; launched from a family, this is the public
     /// image the family resolved to.
     #[prost(string, tag = "4")]
     pub image: ::prost::alloc::string::String,
-    /// The image family to launch the current public image of,
-    /// `imageFamilies/{image_family}`. Set exactly one of `image` and
+    /// The full name of the image family to launch the current public image
+    /// of, `//compute.origincloudapis.eu/imageFamilies/{image_family}`. Set exactly one of `image` and
     /// `image_family`. Empty when the instance was launched from an image.
     #[prost(string, tag = "5")]
     pub image_family: ::prost::alloc::string::String,
-    /// The key pair whose public key is installed for `login_user`, in the
-    /// instance's project.
+    /// The full name of the key pair whose public key is installed for
+    /// `login_user`, in the instance's project.
     #[prost(string, tag = "6")]
     pub key_pair: ::prost::alloc::string::String,
     /// The account to log in as: a user created at first boot that holds the
@@ -398,8 +397,8 @@ pub struct Instance {
     /// The image's size on the default storage class when left out.
     #[prost(message, optional, tag = "8")]
     pub boot_volume: ::core::option::Option<BootVolume>,
-    /// The network interfaces, in device order, the boot interface first;
-    /// exactly one today. Each is an existing interface in the instance's
+    /// The network interfaces' full names, in device order, the boot
+    /// interface first; exactly one today. Each is an existing interface in the instance's
     /// project and zone that nothing else holds, created with the network
     /// service: its subnet and security groups are the instance's.
     /// Terminating the instance releases it, and it stays. An instance
@@ -422,8 +421,10 @@ pub struct Instance {
     /// When the instance was launched.
     #[prost(message, optional, tag = "13")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that launched the instance, such as `user:<id>` or
-    /// `service_account:<id>`.
+    /// The principal that launched the instance, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "14")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -437,8 +438,8 @@ pub struct Instance {
     /// `network_interfaces`; an interface not attached yet has none.
     #[prost(message, repeated, tag = "16")]
     pub interface_addresses: ::prost::alloc::vec::Vec<InterfaceAddresses>,
-    /// The service account the instance runs as,
-    /// `organizations/{organization}/serviceAccounts/{service_account}`: a
+    /// The full name of the service account the instance runs as,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`: a
     /// `WORKLOAD` service account of the instance's organization that isn't
     /// deleted. Launching with one, or updating the instance to one, needs
     /// `iam.service_account.act_as` on the organization as well; an update
@@ -528,18 +529,19 @@ pub struct BootVolume {
     /// resize it; this keeps the size at launch.
     #[prost(int32, tag = "1")]
     pub size_gib: i32,
-    /// The storage class, `storageClasses/{storage_class}` of the persistent
-    /// volume service; the default class when left empty.
+    /// The storage class by its full name,
+    /// `//pvs.origincloudapis.eu/storageClasses/{storage_class}`; the default
+    /// class when left empty.
     #[prost(string, tag = "2")]
     pub storage_class: ::prost::alloc::string::String,
-    /// The volume, in the instance's project and zone.
+    /// The volume's full name, in the instance's project and zone.
     #[prost(string, tag = "3")]
     pub volume: ::prost::alloc::string::String,
 }
 /// The private addresses of one of an instance's network interfaces.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct InterfaceAddresses {
-    /// The network interface.
+    /// The network interface's full name.
     #[prost(string, tag = "1")]
     pub network_interface: ::prost::alloc::string::String,
     /// Its private IPv4 address.
@@ -886,10 +888,6 @@ pub struct KeyPair {
     /// The key pair's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The key pair's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
     /// The OpenSSH public key line, such as `ssh-ed25519 AAAA... comment`.
     /// Left empty, the platform generates the key pair.
     #[prost(string, tag = "3")]
@@ -899,8 +897,10 @@ pub struct KeyPair {
     /// Empty in every other response.
     #[prost(string, tag = "4")]
     pub private_key: ::prost::alloc::string::String,
-    /// The principal that created the key pair, such as `user:<id>` or
-    /// `service_account:<id>`.
+    /// The principal that created the key pair, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "5")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -984,9 +984,6 @@ pub struct PublicImage {
     /// The image's resource name, `zones/{zone}/images/{image}`.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The image's URN, the identifier access policies and the audit log use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
     /// What the image holds.
     #[prost(string, tag = "3")]
     pub description: ::prost::alloc::string::String,
@@ -1009,8 +1006,9 @@ pub struct PublicImage {
     /// Where it is in its lifecycle.
     #[prost(enumeration = "image::State", tag = "9")]
     pub state: i32,
-    /// The family the image belongs to, `imageFamilies/{image_family}`; empty
-    /// for an image of none.
+    /// The full name of the family the image belongs to,
+    /// `//compute.origincloudapis.eu/imageFamilies/{image_family}`; empty for
+    /// an image of none.
     #[prost(string, tag = "10")]
     pub image_family: ::prost::alloc::string::String,
     /// Whether `image_family` launches this image now.
@@ -1065,11 +1063,7 @@ pub struct VolumeAttachment {
     /// The attachment's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The attachment's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
-    /// The volume, in the instance's project and zone.
+    /// The volume's full name, in the instance's project and zone.
     #[prost(string, tag = "3")]
     pub volume: ::prost::alloc::string::String,
     /// The device name the guest sees the volume under, `vda` to `vdz`. The
@@ -1173,7 +1167,8 @@ pub struct ListVolumeAttachmentsRequest {
     /// A previous response's `next_page_token`, for the page after it.
     #[prost(string, tag = "3")]
     pub page_token: ::prost::alloc::string::String,
-    /// Only the attachments of this volume; every volume's when left empty.
+    /// Only the attachments of this volume, by its full name; every volume's
+    /// when left empty.
     #[prost(string, tag = "4")]
     pub volume: ::prost::alloc::string::String,
 }
@@ -3647,9 +3642,6 @@ impl serde::Serialize for Image {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.description.is_empty() {
             len += 1;
         }
@@ -3681,9 +3673,6 @@ impl serde::Serialize for Image {
             .serialize_struct("origincloud.compute.v1beta1.Image", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.description.is_empty() {
             struct_ser.serialize_field("description", &self.description)?;
@@ -3735,7 +3724,6 @@ impl<'de> serde::Deserialize<'de> for Image {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "description",
             "default_user",
             "defaultUser",
@@ -3752,7 +3740,6 @@ impl<'de> serde::Deserialize<'de> for Image {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Description,
             DefaultUser,
             RootDevice,
@@ -3790,7 +3777,6 @@ impl<'de> serde::Deserialize<'de> for Image {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "description" => Ok(GeneratedField::Description),
                             "defaultUser" | "default_user" => {
                                 Ok(GeneratedField::DefaultUser)
@@ -3827,7 +3813,6 @@ impl<'de> serde::Deserialize<'de> for Image {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut description__ = None;
                 let mut default_user__ = None;
                 let mut root_device__ = None;
@@ -3844,12 +3829,6 @@ impl<'de> serde::Deserialize<'de> for Image {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Description => {
                             if description__.is_some() {
@@ -3926,7 +3905,6 @@ impl<'de> serde::Deserialize<'de> for Image {
                 }
                 Ok(Image {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     description: description__.unwrap_or_default(),
                     default_user: default_user__.unwrap_or_default(),
                     root_device: root_device__.unwrap_or_default(),
@@ -4584,9 +4562,6 @@ impl serde::Serialize for Instance {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.instance_type.is_empty() {
             len += 1;
         }
@@ -4636,9 +4611,6 @@ impl serde::Serialize for Instance {
             .serialize_struct("origincloud.compute.v1beta1.Instance", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.instance_type.is_empty() {
             struct_ser.serialize_field("instanceType", &self.instance_type)?;
@@ -4700,7 +4672,6 @@ impl<'de> serde::Deserialize<'de> for Instance {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "instance_type",
             "instanceType",
             "image",
@@ -4730,7 +4701,6 @@ impl<'de> serde::Deserialize<'de> for Instance {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             InstanceType,
             Image,
             ImageFamily,
@@ -4774,7 +4744,6 @@ impl<'de> serde::Deserialize<'de> for Instance {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "instanceType" | "instance_type" => {
                                 Ok(GeneratedField::InstanceType)
                             }
@@ -4827,7 +4796,6 @@ impl<'de> serde::Deserialize<'de> for Instance {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut instance_type__ = None;
                 let mut image__ = None;
                 let mut image_family__ = None;
@@ -4850,12 +4818,6 @@ impl<'de> serde::Deserialize<'de> for Instance {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::InstanceType => {
                             if instance_type__.is_some() {
@@ -4968,7 +4930,6 @@ impl<'de> serde::Deserialize<'de> for Instance {
                 }
                 Ok(Instance {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     instance_type: instance_type__.unwrap_or_default(),
                     image: image__.unwrap_or_default(),
                     image_family: image_family__.unwrap_or_default(),
@@ -5781,9 +5742,6 @@ impl serde::Serialize for KeyPair {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.public_key.is_empty() {
             len += 1;
         }
@@ -5800,9 +5758,6 @@ impl serde::Serialize for KeyPair {
             .serialize_struct("origincloud.compute.v1beta1.KeyPair", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.public_key.is_empty() {
             struct_ser.serialize_field("publicKey", &self.public_key)?;
@@ -5827,7 +5782,6 @@ impl<'de> serde::Deserialize<'de> for KeyPair {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "public_key",
             "publicKey",
             "private_key",
@@ -5838,7 +5792,6 @@ impl<'de> serde::Deserialize<'de> for KeyPair {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             PublicKey,
             PrivateKey,
             Creator,
@@ -5871,7 +5824,6 @@ impl<'de> serde::Deserialize<'de> for KeyPair {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "publicKey" | "public_key" => Ok(GeneratedField::PublicKey),
                             "privateKey" | "private_key" => {
                                 Ok(GeneratedField::PrivateKey)
@@ -5899,7 +5851,6 @@ impl<'de> serde::Deserialize<'de> for KeyPair {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut public_key__ = None;
                 let mut private_key__ = None;
                 let mut creator__ = None;
@@ -5911,12 +5862,6 @@ impl<'de> serde::Deserialize<'de> for KeyPair {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::PublicKey => {
                             if public_key__.is_some() {
@@ -5951,7 +5896,6 @@ impl<'de> serde::Deserialize<'de> for KeyPair {
                 }
                 Ok(KeyPair {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     public_key: public_key__.unwrap_or_default(),
                     private_key: private_key__.unwrap_or_default(),
                     creator: creator__.unwrap_or_default(),
@@ -7844,9 +7788,6 @@ impl serde::Serialize for PublicImage {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.description.is_empty() {
             len += 1;
         }
@@ -7878,9 +7819,6 @@ impl serde::Serialize for PublicImage {
             .serialize_struct("origincloud.compute.v1beta1.PublicImage", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.description.is_empty() {
             struct_ser.serialize_field("description", &self.description)?;
@@ -7932,7 +7870,6 @@ impl<'de> serde::Deserialize<'de> for PublicImage {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "description",
             "default_user",
             "defaultUser",
@@ -7951,7 +7888,6 @@ impl<'de> serde::Deserialize<'de> for PublicImage {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Description,
             DefaultUser,
             RootDevice,
@@ -7989,7 +7925,6 @@ impl<'de> serde::Deserialize<'de> for PublicImage {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "description" => Ok(GeneratedField::Description),
                             "defaultUser" | "default_user" => {
                                 Ok(GeneratedField::DefaultUser)
@@ -8033,7 +7968,6 @@ impl<'de> serde::Deserialize<'de> for PublicImage {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut description__ = None;
                 let mut default_user__ = None;
                 let mut root_device__ = None;
@@ -8050,12 +7984,6 @@ impl<'de> serde::Deserialize<'de> for PublicImage {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Description => {
                             if description__.is_some() {
@@ -8134,7 +8062,6 @@ impl<'de> serde::Deserialize<'de> for PublicImage {
                 }
                 Ok(PublicImage {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     description: description__.unwrap_or_default(),
                     default_user: default_user__.unwrap_or_default(),
                     root_device: root_device__.unwrap_or_default(),
@@ -8949,9 +8876,6 @@ impl serde::Serialize for VolumeAttachment {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.volume.is_empty() {
             len += 1;
         }
@@ -8968,9 +8892,6 @@ impl serde::Serialize for VolumeAttachment {
             .serialize_struct("origincloud.compute.v1beta1.VolumeAttachment", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.volume.is_empty() {
             struct_ser.serialize_field("volume", &self.volume)?;
@@ -8997,11 +8918,10 @@ impl<'de> serde::Deserialize<'de> for VolumeAttachment {
     where
         D: serde::Deserializer<'de>,
     {
-        const FIELDS: &[&str] = &["name", "urn", "volume", "device", "boot", "state"];
+        const FIELDS: &[&str] = &["name", "volume", "device", "boot", "state"];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Volume,
             Device,
             Boot,
@@ -9034,7 +8954,6 @@ impl<'de> serde::Deserialize<'de> for VolumeAttachment {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "volume" => Ok(GeneratedField::Volume),
                             "device" => Ok(GeneratedField::Device),
                             "boot" => Ok(GeneratedField::Boot),
@@ -9064,7 +8983,6 @@ impl<'de> serde::Deserialize<'de> for VolumeAttachment {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut volume__ = None;
                 let mut device__ = None;
                 let mut boot__ = None;
@@ -9076,12 +8994,6 @@ impl<'de> serde::Deserialize<'de> for VolumeAttachment {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Volume => {
                             if volume__.is_some() {
@@ -9116,7 +9028,6 @@ impl<'de> serde::Deserialize<'de> for VolumeAttachment {
                 }
                 Ok(VolumeAttachment {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     volume: volume__.unwrap_or_default(),
                     device: device__.unwrap_or_default(),
                     boot: boot__.unwrap_or_default(),
