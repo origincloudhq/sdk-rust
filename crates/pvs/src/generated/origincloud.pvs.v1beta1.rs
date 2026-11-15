@@ -9,11 +9,7 @@ pub struct Snapshot {
     /// The snapshot's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The snapshot's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
-    /// The volume copied, in the same project and zone.
+    /// The full name of the volume copied, in the same project and zone.
     #[prost(string, tag = "3")]
     pub source_volume: ::prost::alloc::string::String,
     /// The source volume's size in GiB when it was copied: the least a volume
@@ -33,8 +29,11 @@ pub struct Snapshot {
     /// `snapshot::ProtectionState::ProtectionFailed`.
     #[prost(string, tag = "8")]
     pub protection_reason: ::prost::alloc::string::String,
-    /// The principal that took the snapshot, such as `user:<id>` or
-    /// `service_account:<id>`.
+    /// The principal that took the snapshot, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform took
+    /// it.
     #[prost(string, tag = "10")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -349,21 +348,18 @@ pub struct Volume {
     /// The volume's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The volume's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
     /// The size in GiB, at least 1. Growing it resizes the volume; it never
     /// shrinks.
     #[prost(int32, tag = "3")]
     pub size_gib: i32,
-    /// The storage class, `storageClasses/{storage_class}`. The default class
-    /// when left empty.
+    /// The storage class by its full name,
+    /// `//pvs.origincloudapis.eu/storageClasses/{storage_class}`. The default
+    /// class when left empty.
     #[prost(string, tag = "4")]
     pub storage_class: ::prost::alloc::string::String,
-    /// The snapshot the volume was created from, in the same project and
-    /// zone; empty for an empty volume. The volume is at least the snapshot's
-    /// size.
+    /// The full name of the snapshot the volume was created from, in the same
+    /// project and zone; empty for an empty volume. The volume is at least the
+    /// snapshot's size.
     #[prost(string, tag = "5")]
     pub source_snapshot: ::prost::alloc::string::String,
     /// Where the volume is in its lifecycle.
@@ -398,8 +394,11 @@ pub struct Volume {
     /// combined: a ceiling, not a guaranteed rate. 0 when it isn't limited.
     #[prost(int32, tag = "14")]
     pub throughput_mibps: i32,
-    /// The principal that created the volume, such as `user:<id>` or
-    /// `service_account:<id>`.
+    /// The principal that created the volume, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform
+    /// created it.
     #[prost(string, tag = "15")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -2514,9 +2513,6 @@ impl serde::Serialize for Snapshot {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.source_volume.is_empty() {
             len += 1;
         }
@@ -2545,9 +2541,6 @@ impl serde::Serialize for Snapshot {
             .serialize_struct("origincloud.pvs.v1beta1.Snapshot", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.source_volume.is_empty() {
             struct_ser.serialize_field("sourceVolume", &self.source_volume)?;
@@ -2592,7 +2585,6 @@ impl<'de> serde::Deserialize<'de> for Snapshot {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "source_volume",
             "sourceVolume",
             "source_size_gib",
@@ -2610,7 +2602,6 @@ impl<'de> serde::Deserialize<'de> for Snapshot {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             SourceVolume,
             SourceSizeGib,
             State,
@@ -2647,7 +2638,6 @@ impl<'de> serde::Deserialize<'de> for Snapshot {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "sourceVolume" | "source_volume" => {
                                 Ok(GeneratedField::SourceVolume)
                             }
@@ -2687,7 +2677,6 @@ impl<'de> serde::Deserialize<'de> for Snapshot {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut source_volume__ = None;
                 let mut source_size_gib__ = None;
                 let mut state__ = None;
@@ -2703,12 +2692,6 @@ impl<'de> serde::Deserialize<'de> for Snapshot {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::SourceVolume => {
                             if source_volume__.is_some() {
@@ -2783,7 +2766,6 @@ impl<'de> serde::Deserialize<'de> for Snapshot {
                 }
                 Ok(Snapshot {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     source_volume: source_volume__.unwrap_or_default(),
                     source_size_gib: source_size_gib__.unwrap_or_default(),
                     state: state__.unwrap_or_default(),
@@ -3734,9 +3716,6 @@ impl serde::Serialize for Volume {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if self.size_gib != 0 {
             len += 1;
         }
@@ -3783,9 +3762,6 @@ impl serde::Serialize for Volume {
             .serialize_struct("origincloud.pvs.v1beta1.Volume", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if self.size_gib != 0 {
             struct_ser.serialize_field("sizeGib", &self.size_gib)?;
@@ -3848,7 +3824,6 @@ impl<'de> serde::Deserialize<'de> for Volume {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "size_gib",
             "sizeGib",
             "storage_class",
@@ -3876,7 +3851,6 @@ impl<'de> serde::Deserialize<'de> for Volume {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             SizeGib,
             StorageClass,
             SourceSnapshot,
@@ -3919,7 +3893,6 @@ impl<'de> serde::Deserialize<'de> for Volume {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "sizeGib" | "size_gib" => Ok(GeneratedField::SizeGib),
                             "storageClass" | "storage_class" => {
                                 Ok(GeneratedField::StorageClass)
@@ -3971,7 +3944,6 @@ impl<'de> serde::Deserialize<'de> for Volume {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut size_gib__ = None;
                 let mut storage_class__ = None;
                 let mut source_snapshot__ = None;
@@ -3993,12 +3965,6 @@ impl<'de> serde::Deserialize<'de> for Volume {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::SizeGib => {
                             if size_gib__.is_some() {
@@ -4127,7 +4093,6 @@ impl<'de> serde::Deserialize<'de> for Volume {
                 }
                 Ok(Volume {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     size_gib: size_gib__.unwrap_or_default(),
                     storage_class: storage_class__.unwrap_or_default(),
                     source_snapshot: source_snapshot__.unwrap_or_default(),
