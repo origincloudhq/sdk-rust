@@ -13,24 +13,24 @@ pub struct AuditLogEntry {
     /// The entry's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The project the change was limited to, `projects/{project}`; empty for
-    /// a change to the whole organization.
+    /// The full name of the project the change was limited to,
+    /// `//resourcemanager.origincloudapis.eu/projects/{project}`; empty for a
+    /// change to the whole organization.
     #[prost(string, tag = "2")]
     pub project: ::prost::alloc::string::String,
-    /// Who made the change, as it was when the change was made:
-    /// `user:{email}` with the verified address the account had then,
-    /// `userId:{user}` when none was recorded, `serviceAccount:{service_account}`,
-    /// `serviceAgent:{service_agent}` for a platform service agent acting in
-    /// the organization, or `platform` for a change the platform made itself.
-    /// A later change of address doesn't change it.
+    /// The full name of who made the change: `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// `//iam.origincloudapis.eu/serviceAgents/{service_agent}` for a platform
+    /// service agent, or `//iam.origincloudapis.eu/services/{service}` for a
+    /// change the platform made itself.
     #[prost(string, tag = "3")]
     pub actor: ::prost::alloc::string::String,
     /// What was done, as a permission key names it, such as
     /// `iam.role.assign`.
     #[prost(string, tag = "4")]
     pub action: ::prost::alloc::string::String,
-    /// What it was done to, written as `actor` is, or the email address
-    /// invited; empty when the action has no target.
+    /// The full name of what it was done to, such as a member's, or the email
+    /// address invited; empty when the action has no target.
     #[prost(string, tag = "5")]
     pub target: ::prost::alloc::string::String,
     /// Whether the change was made.
@@ -113,13 +113,13 @@ pub struct ListAuditLogEntriesRequest {
     /// `organizations/{organization}`.
     #[prost(string, tag = "1")]
     pub parent: ::prost::alloc::string::String,
-    /// Only the entries of changes limited to this project,
-    /// `projects/{project}`. Every entry when empty.
+    /// Only the entries of changes limited to this project, by its full name,
+    /// `//resourcemanager.origincloudapis.eu/projects/{project}`. Every entry
+    /// when empty.
     #[prost(string, tag = "2")]
     pub project: ::prost::alloc::string::String,
-    /// Only the entries of changes made by this member, named by its full
-    /// name as a role binding's member is, or as an entry's `actor` shows it.
-    /// Every actor's when empty.
+    /// Only the entries of changes made by this member, by its full name, as
+    /// a role binding's `member` names it. Every actor's when empty.
     #[prost(string, tag = "3")]
     pub actor: ::prost::alloc::string::String,
     /// Only the entries of this action, such as `iam.role.assign`. Every
@@ -181,8 +181,11 @@ pub struct FederatedCredential {
     /// Where the federated credential is in its lifecycle.
     #[prost(enumeration = "federated_credential::State", tag = "6")]
     pub state: i32,
-    /// Who created the federated credential, written as a role binding's
-    /// member is.
+    /// The full name of who created the federated credential: `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// `//iam.origincloudapis.eu/serviceAgents/{service_agent}` for a platform
+    /// service agent, or `//iam.origincloudapis.eu/services/{service}` for a
+    /// change the platform made itself.
     #[prost(string, tag = "7")]
     pub creator: ::prost::alloc::string::String,
     /// When the federated credential was created.
@@ -305,10 +308,6 @@ pub struct Permission {
     /// such as `permissions/pvs.volume.create`.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The permission's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
     /// The service whose API checks it, such as `pvs`.
     #[prost(string, tag = "3")]
     pub service: ::prost::alloc::string::String,
@@ -364,17 +363,14 @@ pub struct Role {
     /// `roles/billing.administrator`. A role binding names its role by it.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The role's URN, the identifier access policies and the audit log use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
     /// The name the console shows, such as `Owner`.
     #[prost(string, tag = "3")]
     pub display_name: ::prost::alloc::string::String,
     /// What holding the role allows, in a sentence.
     #[prost(string, tag = "4")]
     pub description: ::prost::alloc::string::String,
-    /// The permissions the role grants, `permissions/{permission}`, in
-    /// catalog order.
+    /// The full names of the permissions the role grants,
+    /// `//iam.origincloudapis.eu/permissions/{permission}`, in catalog order.
     #[prost(string, repeated, tag = "5")]
     pub included_permissions: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
@@ -402,29 +398,29 @@ pub struct RoleBinding {
     /// The binding's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The binding's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
-    /// Who holds the role: given as a member's full name, such as
-    /// `//iam.origincloudapis.eu/users/{user}`, or in the form shown here.
-    /// Shown as `user:{email}`, `serviceAccount:{service_account}` or
-    /// `serviceAgent:{service_agent}`: a user with their account's current
-    /// verified address, as `userId:{user}` when it has none, or as
-    /// `deleted:user:{user}` once the account is gone.
+    /// The full name of who holds the role: a user,
+    /// `//iam.origincloudapis.eu/users/{user}`, one of the organization's
+    /// service accounts,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent,
+    /// `//iam.origincloudapis.eu/serviceAgents/{service_agent}`.
     #[prost(string, tag = "3")]
     pub member: ::prost::alloc::string::String,
-    /// The role granted, `roles/{role}`.
+    /// The full name of the role granted,
+    /// `//iam.origincloudapis.eu/roles/{role}`.
     #[prost(string, tag = "4")]
     pub role: ::prost::alloc::string::String,
-    /// The project the binding is limited to, `projects/{project}`, one of
-    /// the organization's. Empty for a binding on the whole organization,
-    /// which covers every project in it.
+    /// The full name of the project the binding is limited to, one of the
+    /// organization's: `//resourcemanager.origincloudapis.eu/projects/{project}`.
+    /// Empty for a binding on the whole organization, which covers every
+    /// project in it.
     #[prost(string, tag = "5")]
     pub project: ::prost::alloc::string::String,
-    /// Who created the binding, written as a member is, or `platform` for a
-    /// binding the platform made itself. Always `userId:{user}` for a user in
-    /// a list of the caller's own bindings (`organizations/-`).
+    /// The full name of who created the binding: `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// `//iam.origincloudapis.eu/serviceAgents/{service_agent}` for a platform
+    /// service agent, or `//iam.origincloudapis.eu/services/{service}` for a
+    /// change the platform made itself.
     #[prost(string, tag = "6")]
     pub creator: ::prost::alloc::string::String,
     /// When the binding was created.
@@ -446,12 +442,12 @@ pub struct ListRoleBindingsRequest {
     /// organization.
     #[prost(string, tag = "1")]
     pub parent: ::prost::alloc::string::String,
-    /// Only the bindings of this member, by its full name, such as
-    /// `//iam.origincloudapis.eu/users/{user}`, or as a binding's `member`
-    /// shows it. Every member's when empty.
+    /// Only the bindings of this member, by its full name, as a binding's
+    /// `member` names it. Every member's when empty.
     #[prost(string, tag = "2")]
     pub member: ::prost::alloc::string::String,
-    /// Only the bindings limited to this project, `projects/{project}`. Every
+    /// Only the bindings limited to this project, by its full name,
+    /// `//resourcemanager.origincloudapis.eu/projects/{project}`. Every
     /// binding, organization-wide or not, when empty.
     #[prost(string, tag = "3")]
     pub project: ::prost::alloc::string::String,
@@ -510,8 +506,9 @@ pub struct ServiceAccount {
     /// A name of your own, shown in the console; at most 100 characters.
     #[prost(string, tag = "2")]
     pub display_name: ::prost::alloc::string::String,
-    /// The member a role binding names it by,
-    /// `serviceAccount:{service_account}`.
+    /// The service account's full name,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// which a role binding names it by as a member.
     #[prost(string, tag = "3")]
     pub member: ::prost::alloc::string::String,
     /// The OAuth 2.0 client id it authenticates with; empty for a `service_account::Type::Workload`
@@ -526,8 +523,11 @@ pub struct ServiceAccount {
     /// Where the service account is in its lifecycle.
     #[prost(enumeration = "service_account::State", tag = "6")]
     pub state: i32,
-    /// Who created the service account, written as a role binding's member
-    /// is.
+    /// The full name of who created the service account: `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// `//iam.origincloudapis.eu/serviceAgents/{service_agent}` for a platform
+    /// service agent, or `//iam.origincloudapis.eu/services/{service}` for a
+    /// change the platform made itself.
     #[prost(string, tag = "7")]
     pub creator: ::prost::alloc::string::String,
     /// When the service account was created.
@@ -735,8 +735,8 @@ pub struct User {
     /// `users/me`.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// How a role binding shows the user: `user:{email}` once `email` is
-    /// verified, `userId:{user}` until then.
+    /// The user's full name, `//iam.origincloudapis.eu/users/{user}`, which a
+    /// role binding names them by as a member.
     #[prost(string, tag = "2")]
     pub member: ::prost::alloc::string::String,
     /// The email address the user signs in with.
@@ -766,8 +766,9 @@ pub struct LookupUserRequest {
     /// case aside.
     #[prost(string, tag = "1")]
     pub email: ::prost::alloc::string::String,
-    /// The organization the caller looks the user up for, where it needs
-    /// `iam.role.assign`: `organizations/{organization}`, or its full name.
+    /// The full name of the organization the caller looks the user up for,
+    /// where it needs `iam.role.assign`:
+    /// `//resourcemanager.origincloudapis.eu/organizations/{organization}`.
     #[prost(string, tag = "2")]
     pub organization: ::prost::alloc::string::String,
 }
@@ -4888,9 +4889,6 @@ impl serde::Serialize for Permission {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.service.is_empty() {
             len += 1;
         }
@@ -4904,9 +4902,6 @@ impl serde::Serialize for Permission {
             .serialize_struct("origincloud.iam.v1beta1.Permission", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.service.is_empty() {
             struct_ser.serialize_field("service", &self.service)?;
@@ -4928,7 +4923,6 @@ impl<'de> serde::Deserialize<'de> for Permission {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "service",
             "resource_type",
             "resourceType",
@@ -4937,7 +4931,6 @@ impl<'de> serde::Deserialize<'de> for Permission {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Service,
             ResourceType,
             Action,
@@ -4969,7 +4962,6 @@ impl<'de> serde::Deserialize<'de> for Permission {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "service" => Ok(GeneratedField::Service),
                             "resourceType" | "resource_type" => {
                                 Ok(GeneratedField::ResourceType)
@@ -4999,7 +4991,6 @@ impl<'de> serde::Deserialize<'de> for Permission {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut service__ = None;
                 let mut resource_type__ = None;
                 let mut action__ = None;
@@ -5010,12 +5001,6 @@ impl<'de> serde::Deserialize<'de> for Permission {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Service => {
                             if service__.is_some() {
@@ -5044,7 +5029,6 @@ impl<'de> serde::Deserialize<'de> for Permission {
                 }
                 Ok(Permission {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     service: service__.unwrap_or_default(),
                     resource_type: resource_type__.unwrap_or_default(),
                     action: action__.unwrap_or_default(),
@@ -5070,9 +5054,6 @@ impl serde::Serialize for Role {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.display_name.is_empty() {
             len += 1;
         }
@@ -5086,9 +5067,6 @@ impl serde::Serialize for Role {
             .serialize_struct("origincloud.iam.v1beta1.Role", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.display_name.is_empty() {
             struct_ser.serialize_field("displayName", &self.display_name)?;
@@ -5111,7 +5089,6 @@ impl<'de> serde::Deserialize<'de> for Role {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "display_name",
             "displayName",
             "description",
@@ -5121,7 +5098,6 @@ impl<'de> serde::Deserialize<'de> for Role {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             DisplayName,
             Description,
             IncludedPermissions,
@@ -5153,7 +5129,6 @@ impl<'de> serde::Deserialize<'de> for Role {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "displayName" | "display_name" => {
                                 Ok(GeneratedField::DisplayName)
                             }
@@ -5182,7 +5157,6 @@ impl<'de> serde::Deserialize<'de> for Role {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut display_name__ = None;
                 let mut description__ = None;
                 let mut included_permissions__ = None;
@@ -5193,12 +5167,6 @@ impl<'de> serde::Deserialize<'de> for Role {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::DisplayName => {
                             if display_name__.is_some() {
@@ -5231,7 +5199,6 @@ impl<'de> serde::Deserialize<'de> for Role {
                 }
                 Ok(Role {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     display_name: display_name__.unwrap_or_default(),
                     description: description__.unwrap_or_default(),
                     included_permissions: included_permissions__.unwrap_or_default(),
@@ -5253,9 +5220,6 @@ impl serde::Serialize for RoleBinding {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.member.is_empty() {
             len += 1;
         }
@@ -5275,9 +5239,6 @@ impl serde::Serialize for RoleBinding {
             .serialize_struct("origincloud.iam.v1beta1.RoleBinding", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.member.is_empty() {
             struct_ser.serialize_field("member", &self.member)?;
@@ -5305,7 +5266,6 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "member",
             "role",
             "project",
@@ -5316,7 +5276,6 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Member,
             Role,
             Project,
@@ -5350,7 +5309,6 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "member" => Ok(GeneratedField::Member),
                             "role" => Ok(GeneratedField::Role),
                             "project" => Ok(GeneratedField::Project),
@@ -5382,7 +5340,6 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut member__ = None;
                 let mut role__ = None;
                 let mut project__ = None;
@@ -5395,12 +5352,6 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Member => {
                             if member__.is_some() {
@@ -5439,7 +5390,6 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                 }
                 Ok(RoleBinding {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     member: member__.unwrap_or_default(),
                     role: role__.unwrap_or_default(),
                     project: project__.unwrap_or_default(),
@@ -6941,7 +6891,7 @@ impl RoleClient {
 /// of its bindings. Each binding is managed on its own, so creating or
 /// deleting one never touches another, whoever made it.
 ///
-/// A member is named by its full name, one of:
+/// A member is named by its full name, and only by it, one of:
 /// - `//iam.origincloudapis.eu/users/{user}`: a user, by the id of their
 ///    account, which must exist and be enabled.
 /// - `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`:
@@ -6955,21 +6905,8 @@ impl RoleClient {
 ///    agent bound to `roles/kms.grant-delegate`; delete that binding and
 ///    compute makes no new grants on the organization's keys.
 ///
-/// A member is also accepted in the form responses show it in:
-/// - `user:{email}`: a user, by the verified email address of their
-///    account. A binding holds on to the account, not the address: it
-///    follows a later change of address, and is always shown with the
-///    account's current one.
-/// - `serviceAccount:{service_account}`: a service account of the same
-///    organization, by its id.
-/// - `serviceAgent:{service_agent}`: a platform service agent, by its name,
-///    such as `serviceAgent:compute`.
-///
-/// and shown, never accepted, as:
-/// - `userId:{user}`: a user by the id of their account, when no verified
-///    address can be shown: the account's current address isn't verified, or
-///    the caller may only see their own bindings.
-/// - `deleted:user:{user}`: a user whose account no longer exists.
+/// A user known only by an email address is found with
+/// `UserService.LookupUser`, which answers their name.
 #[derive(Clone, Debug)]
 pub struct RoleBindingClient {
     service: ::origincloud_core::Service,
@@ -7060,9 +6997,7 @@ impl RoleBindingClient {
     /// the role at the binding's scope: a permission held on the organization
     /// counts for any scope, one held on a project only for that project.
     /// Refused with `NOT_FOUND` when `member` names a user without an enabled
-    /// account, a service account of another organization, or an address no
-    /// enabled account has verified: nothing is held for an address until its
-    /// account exists.
+    /// account or a service account of another organization.
     /// Refused with `CONFLICT` when the member already holds the role at that
     /// scope, and with `BAD_REQUEST` when the member is a deleted service
     /// account, names no service agent the platform has, or is a service
@@ -7355,9 +7290,8 @@ impl UserClient {
         self.service.call(call).await
     }
     /// Looks up the user whose account has verified an email address, and
-    /// answers them with their `name`: their full name is
-    /// `//iam.origincloudapis.eu/` followed by it, which is how a role
-    /// binding names them as a member. Needs `iam.role.assign` on
+    /// answers them with their `name` and their full name, `member`, which is
+    /// how a role binding names them. Needs `iam.role.assign` on
     /// `organization`, the permission a binding of the user needs anyway.
     /// Refused with `NOT_FOUND` when no enabled account has verified the
     /// address, and with `CONFLICT` when more than one has. The answer leaves
