@@ -25,10 +25,8 @@ pub struct Acl {
     /// The ACL's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The ACL's URN, the identifier access policies and the audit log use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
-    /// The VPC the ACL belongs to, in the same project and region.
+    /// The full name of the VPC the ACL belongs to, in the same project and
+    /// region.
     #[prost(string, tag = "3")]
     pub vpc: ::prost::alloc::string::String,
     /// Whether the platform created the ACL with the VPC. Only the project's
@@ -39,8 +37,10 @@ pub struct Acl {
     /// When the ACL was created.
     #[prost(message, optional, tag = "5")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the ACL, such as `user:<id>` or
-    /// `service_account:<id>`; empty for one the platform created.
+    /// The principal that created the ACL, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "6")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -71,7 +71,7 @@ pub struct ListAclsRequest {
     /// A previous response's `next_page_token`, for the page after it.
     #[prost(string, tag = "3")]
     pub page_token: ::prost::alloc::string::String,
-    /// Only the ACLs of this VPC, when set.
+    /// Only the ACLs of this VPC, by its full name, when set.
     #[prost(string, tag = "4")]
     pub vpc: ::prost::alloc::string::String,
 }
@@ -130,7 +130,8 @@ pub struct AclAssociation {
     /// The association's resource name. Its last segment is the ACL's id.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The ACL that filters the subnet's traffic, in the subnet's VPC.
+    /// The full name of the ACL that filters the subnet's traffic, in the
+    /// subnet's VPC.
     #[prost(string, tag = "2")]
     pub acl: ::prost::alloc::string::String,
 }
@@ -434,10 +435,6 @@ pub struct DnsPolicy {
     /// The policy's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The policy's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
     /// Whether this is the project's default policy in its region, which a
     /// VPC without a DNS policy association relays through. Change it with
     /// `SetDefaultDnsPolicy`.
@@ -454,8 +451,10 @@ pub struct DnsPolicy {
     /// When the DNS policy was created.
     #[prost(message, optional, tag = "6")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the DNS policy, such as `user:<id>` or
-    /// `service_account:<id>`; empty for one the platform created.
+    /// The principal that created the DNS policy, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "7")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -557,7 +556,8 @@ pub struct DnsPolicyAssociation {
     /// id.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The DNS policy the VPC relays through, in the VPC's project and region.
+    /// The full name of the DNS policy the VPC relays through, in the VPC's
+    /// project and region.
     #[prost(string, tag = "2")]
     pub dns_policy: ::prost::alloc::string::String,
 }
@@ -625,14 +625,11 @@ pub struct FloatingIp {
     /// The floating IP's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The floating IP's URN, the identifier access policies and the audit
-    /// log use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
     /// The public address.
     #[prost(string, tag = "3")]
     pub address: ::prost::alloc::string::String,
-    /// The network interface the address reaches, as the floating IP's
+    /// The full name of the network interface the address reaches, as the
+    /// floating IP's
     /// association (a `FloatingIpAssociation`) sets it; empty while it has
     /// none.
     #[prost(string, tag = "4")]
@@ -651,8 +648,10 @@ pub struct FloatingIp {
     /// When the floating IP was created.
     #[prost(message, optional, tag = "7")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the floating IP, such as `user:<id>` or
-    /// `service_account:<id>`; empty for one the platform created.
+    /// The principal that created the floating IP, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "8")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -741,7 +740,8 @@ pub struct FloatingIpAssociation {
     /// interface's id.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The network interface the address reaches, in the floating IP's project
+    /// The full name of the network interface the address reaches, in the
+    /// floating IP's project
     /// and zone.
     #[prost(string, tag = "2")]
     pub network_interface: ::prost::alloc::string::String,
@@ -813,18 +813,17 @@ pub struct InternetGateway {
     /// The gateway's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The gateway's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
-    /// The VPC the gateway connects, in the same project and region.
+    /// The full name of the VPC the gateway connects, in the same project and
+    /// region.
     #[prost(string, tag = "3")]
     pub vpc: ::prost::alloc::string::String,
     /// When the internet gateway was created.
     #[prost(message, optional, tag = "4")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the internet gateway, such as `user:<id>`
-    /// or `service_account:<id>`; empty for one the platform created.
+    /// The principal that created the internet gateway, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "5")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -856,7 +855,7 @@ pub struct ListInternetGatewaysRequest {
     /// A previous response's `next_page_token`, for the page after it.
     #[prost(string, tag = "3")]
     pub page_token: ::prost::alloc::string::String,
-    /// Only the gateway of this VPC, when set.
+    /// Only the gateway of this VPC, by its full name, when set.
     #[prost(string, tag = "4")]
     pub vpc: ::prost::alloc::string::String,
 }
@@ -916,25 +915,25 @@ pub struct NatGateway {
     /// The gateway's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The gateway's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
-    /// The public subnet the gateway lives in, in the same project and zone.
+    /// The full name of the public subnet the gateway lives in, in the same
+    /// project and zone.
     #[prost(string, tag = "3")]
     pub subnet: ::prost::alloc::string::String,
-    /// The floating IP instances behind the gateway appear as, in the same
+    /// The full name of the floating IP instances behind the gateway appear
+    /// as, in the same
     /// project and zone. It stays allocated when the gateway is deleted.
     #[prost(string, tag = "4")]
     pub floating_ip: ::prost::alloc::string::String,
-    /// The subnet's VPC.
+    /// The full name of the subnet's VPC.
     #[prost(string, tag = "5")]
     pub vpc: ::prost::alloc::string::String,
     /// When the NAT gateway was created.
     #[prost(message, optional, tag = "6")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the NAT gateway, such as `user:<id>` or
-    /// `service_account:<id>`; empty for one the platform created.
+    /// The principal that created the NAT gateway, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "7")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -1023,15 +1022,13 @@ pub struct NetworkInterface {
     /// The interface's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The interface's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
-    /// The subnet the interface has its addresses in, in the same project
+    /// The full name of the subnet the interface has its addresses in, in the
+    /// same project
     /// and zone.
     #[prost(string, tag = "3")]
     pub subnet: ::prost::alloc::string::String,
-    /// The security groups that filter the interface's traffic, as its
+    /// The full names of the security groups that filter the interface's
+    /// traffic, as its
     /// security group associations (each a `SecurityGroupAssociation`) set
     /// them. The interface admits the traffic any of them allows. With none,
     /// it admits and sends nothing except replies to its own traffic and
@@ -1053,15 +1050,18 @@ pub struct NetworkInterface {
     /// Whether the interface is in use.
     #[prost(enumeration = "network_interface::State", tag = "8")]
     pub state: i32,
-    /// The instance the interface is attached to; empty while it is
+    /// The full name of the instance the interface is attached to, on the
+    /// compute service; empty while it is
     /// `network_interface::State::Available`. An instance attaches interfaces when it is launched.
     #[prost(string, tag = "9")]
     pub instance: ::prost::alloc::string::String,
     /// When the network interface was created.
     #[prost(message, optional, tag = "10")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the network interface, such as `user:<id>`
-    /// or `service_account:<id>`; empty for one the platform created.
+    /// The principal that created the network interface, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "11")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -1139,7 +1139,7 @@ pub struct ListNetworkInterfacesRequest {
     /// A previous response's `next_page_token`, for the page after it.
     #[prost(string, tag = "3")]
     pub page_token: ::prost::alloc::string::String,
-    /// Only the interfaces in this subnet, when set.
+    /// Only the interfaces in this subnet, by its full name, when set.
     #[prost(string, tag = "4")]
     pub subnet: ::prost::alloc::string::String,
 }
@@ -1207,10 +1207,12 @@ pub struct Route {
     /// decides only where traffic to the internet goes.
     #[prost(string, tag = "2")]
     pub destination: ::prost::alloc::string::String,
-    /// The internet gateway of the table's VPC to send the traffic to.
+    /// The full name of the internet gateway of the table's VPC to send the
+    /// traffic to.
     #[prost(string, tag = "3")]
     pub internet_gateway: ::prost::alloc::string::String,
-    /// The NAT gateway in the table's VPC to send the traffic to, for the
+    /// The full name of the NAT gateway in the table's VPC to send the traffic
+    /// to, for the
     /// IPv4 default route only: a NAT gateway translates IPv4 only. Named in
     /// the gateway's own zone; a name with another zone is refused with
     /// `INVALID_ARGUMENT`.
@@ -1281,11 +1283,8 @@ pub struct RouteTable {
     /// The route table's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The route table's URN, the identifier access policies and the audit
-    /// log use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
-    /// The VPC the table routes for, in the same project and region.
+    /// The full name of the VPC the table routes for, in the same project and
+    /// region.
     #[prost(string, tag = "3")]
     pub vpc: ::prost::alloc::string::String,
     /// Whether the platform created the table with the VPC, as its main route
@@ -1301,8 +1300,10 @@ pub struct RouteTable {
     /// When the route table was created.
     #[prost(message, optional, tag = "6")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the route table, such as `user:<id>` or
-    /// `service_account:<id>`; empty for one the platform created.
+    /// The principal that created the route table, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "7")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -1334,7 +1335,7 @@ pub struct ListRouteTablesRequest {
     /// A previous response's `next_page_token`, for the page after it.
     #[prost(string, tag = "3")]
     pub page_token: ::prost::alloc::string::String,
-    /// Only the route tables of this VPC, when set.
+    /// Only the route tables of this VPC, by its full name, when set.
     #[prost(string, tag = "4")]
     pub vpc: ::prost::alloc::string::String,
 }
@@ -1395,7 +1396,7 @@ pub struct RouteTableAssociation {
     /// table's id.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The route table the subnet uses, in the subnet's VPC.
+    /// The full name of the route table the subnet uses, in the subnet's VPC.
     #[prost(string, tag = "2")]
     pub route_table: ::prost::alloc::string::String,
 }
@@ -1464,10 +1465,8 @@ pub struct SecurityGroup {
     /// The group's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The group's URN, the identifier access policies and the audit log use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
-    /// The VPC the group belongs to, in the same project and region.
+    /// The full name of the VPC the group belongs to, in the same project and
+    /// region.
     #[prost(string, tag = "3")]
     pub vpc: ::prost::alloc::string::String,
     /// Whether the platform created the group with the VPC. Only the
@@ -1478,8 +1477,10 @@ pub struct SecurityGroup {
     /// When the security group was created.
     #[prost(message, optional, tag = "5")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the security group, such as `user:<id>` or
-    /// `service_account:<id>`; empty for one the platform created.
+    /// The principal that created the security group, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "6")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -1511,7 +1512,7 @@ pub struct ListSecurityGroupsRequest {
     /// A previous response's `next_page_token`, for the page after it.
     #[prost(string, tag = "3")]
     pub page_token: ::prost::alloc::string::String,
-    /// Only the groups of this VPC, when set.
+    /// Only the groups of this VPC, by its full name, when set.
     #[prost(string, tag = "4")]
     pub vpc: ::prost::alloc::string::String,
 }
@@ -1572,7 +1573,7 @@ pub struct SecurityGroupAssociation {
     /// group's id.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The security group, in the interface's VPC.
+    /// The security group's full name, in the interface's VPC.
     #[prost(string, tag = "2")]
     pub security_group: ::prost::alloc::string::String,
 }
@@ -1665,7 +1666,8 @@ pub struct SecurityGroupRule {
     /// where sent traffic goes to.
     #[prost(string, tag = "6")]
     pub cidr_block: ::prost::alloc::string::String,
-    /// The peer as another security group of the same VPC: its members'
+    /// The peer as another security group of the same VPC, by its full name:
+    /// its members'
     /// addresses. The rule's own group is refused here with
     /// `INVALID_ARGUMENT`: it is `same_group`.
     #[prost(string, tag = "7")]
@@ -1839,16 +1841,14 @@ pub struct Subnet {
     /// The subnet's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The subnet's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
-    /// The VPC the subnet is part of, in the same project and in the zone's
+    /// The full name of the VPC the subnet is part of, in the same project and
+    /// in the zone's
     /// region. For now a VPC lives in one zone of its region: a subnet in
     /// another zone is refused with `FAILED_PRECONDITION`.
     #[prost(string, tag = "3")]
     pub vpc: ::prost::alloc::string::String,
-    /// The route table that decides where the subnet's traffic goes, as the
+    /// The full name of the route table that decides where the subnet's
+    /// traffic goes, as the
     /// subnet's route table association (a `RouteTableAssociation`) sets it.
     /// A subnet reaches, and is reached from, the internet for an address
     /// family only if its own route table has that family's default route (a
@@ -1857,7 +1857,8 @@ pub struct Subnet {
     /// reachable from the internet, even when the VPC has an internet gateway.
     #[prost(string, tag = "4")]
     pub route_table: ::prost::alloc::string::String,
-    /// The ACL that filters traffic in and out of the subnet, as the subnet's
+    /// The full name of the ACL that filters traffic in and out of the subnet,
+    /// as the subnet's
     /// ACL association (an `AclAssociation`) sets it. Empty while it has
     /// none: nothing is filtered at the subnet's edge, and its interfaces'
     /// security groups still apply.
@@ -1897,8 +1898,10 @@ pub struct Subnet {
     /// When the subnet was created.
     #[prost(message, optional, tag = "14")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the subnet, such as `user:<id>` or
-    /// `service_account:<id>`; empty for one the platform created.
+    /// The principal that created the subnet, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "15")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -1929,7 +1932,7 @@ pub struct ListSubnetsRequest {
     /// A previous response's `next_page_token`, for the page after it.
     #[prost(string, tag = "3")]
     pub page_token: ::prost::alloc::string::String,
-    /// Only the subnets of this VPC, when set.
+    /// Only the subnets of this VPC, by its full name, when set.
     #[prost(string, tag = "4")]
     pub vpc: ::prost::alloc::string::String,
 }
@@ -1990,9 +1993,6 @@ pub struct Vpc {
     /// The VPC's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The VPC's URN, the identifier access policies and the audit log use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
     /// The private IPv4 range (RFC 1918), from `/16` to `/28`. A free `/16`
     /// of the `172.16` private block when left empty. Subnets are carved from
     /// it in equal sizes.
@@ -2008,13 +2008,14 @@ pub struct Vpc {
     /// How many more subnets the VPC's address space holds.
     #[prost(int32, tag = "6")]
     pub available_subnet_count: i32,
-    /// The DNS policy the VPC's resolver relays through, as the VPC's DNS
+    /// The full name of the DNS policy the VPC's resolver relays through, as
+    /// the VPC's DNS
     /// policy association (a `DnsPolicyAssociation`) sets it. Empty while it
     /// has none: the VPC then relays through the project's default DNS policy
     /// in its region.
     #[prost(string, tag = "7")]
     pub dns_policy: ::prost::alloc::string::String,
-    /// The VPC's internet gateway; empty while it has none.
+    /// The full name of the VPC's internet gateway; empty while it has none.
     #[prost(string, tag = "8")]
     pub internet_gateway: ::prost::alloc::string::String,
     /// Whether this is the project's default VPC. Unlike a VPC you create, the
@@ -2026,8 +2027,10 @@ pub struct Vpc {
     /// When the VPC was created.
     #[prost(message, optional, tag = "10")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the VPC, such as `user:<id>` or
-    /// `service_account:<id>`; empty for one the platform created.
+    /// The principal that created the VPC, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "11")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -2119,9 +2122,6 @@ impl serde::Serialize for Acl {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.vpc.is_empty() {
             len += 1;
         }
@@ -2141,9 +2141,6 @@ impl serde::Serialize for Acl {
             .serialize_struct("origincloud.network.v1beta1.Acl", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.vpc.is_empty() {
             struct_ser.serialize_field("vpc", &self.vpc)?;
@@ -2171,7 +2168,6 @@ impl<'de> serde::Deserialize<'de> for Acl {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "vpc",
             "vpc_default",
             "vpcDefault",
@@ -2183,7 +2179,6 @@ impl<'de> serde::Deserialize<'de> for Acl {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Vpc,
             VpcDefault,
             CreateTime,
@@ -2217,7 +2212,6 @@ impl<'de> serde::Deserialize<'de> for Acl {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "vpc" => Ok(GeneratedField::Vpc),
                             "vpcDefault" | "vpc_default" => {
                                 Ok(GeneratedField::VpcDefault)
@@ -2248,7 +2242,6 @@ impl<'de> serde::Deserialize<'de> for Acl {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut vpc__ = None;
                 let mut vpc_default__ = None;
                 let mut create_time__ = None;
@@ -2261,12 +2254,6 @@ impl<'de> serde::Deserialize<'de> for Acl {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Vpc => {
                             if vpc__.is_some() {
@@ -2307,7 +2294,6 @@ impl<'de> serde::Deserialize<'de> for Acl {
                 }
                 Ok(Acl {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     vpc: vpc__.unwrap_or_default(),
                     vpc_default: vpc_default__.unwrap_or_default(),
                     create_time: create_time__,
@@ -7967,9 +7953,6 @@ impl serde::Serialize for DnsPolicy {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if self.project_default {
             len += 1;
         }
@@ -7992,9 +7975,6 @@ impl serde::Serialize for DnsPolicy {
             .serialize_struct("origincloud.network.v1beta1.DnsPolicy", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if self.project_default {
             struct_ser.serialize_field("projectDefault", &self.project_default)?;
@@ -8025,7 +8005,6 @@ impl<'de> serde::Deserialize<'de> for DnsPolicy {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "project_default",
             "projectDefault",
             "relay_enabled",
@@ -8040,7 +8019,6 @@ impl<'de> serde::Deserialize<'de> for DnsPolicy {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             ProjectDefault,
             RelayEnabled,
             UpstreamServers,
@@ -8075,7 +8053,6 @@ impl<'de> serde::Deserialize<'de> for DnsPolicy {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "projectDefault" | "project_default" => {
                                 Ok(GeneratedField::ProjectDefault)
                             }
@@ -8114,7 +8091,6 @@ impl<'de> serde::Deserialize<'de> for DnsPolicy {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut project_default__ = None;
                 let mut relay_enabled__ = None;
                 let mut upstream_servers__ = None;
@@ -8128,12 +8104,6 @@ impl<'de> serde::Deserialize<'de> for DnsPolicy {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::ProjectDefault => {
                             if project_default__.is_some() {
@@ -8186,7 +8156,6 @@ impl<'de> serde::Deserialize<'de> for DnsPolicy {
                 }
                 Ok(DnsPolicy {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     project_default: project_default__.unwrap_or_default(),
                     relay_enabled: relay_enabled__.unwrap_or_default(),
                     upstream_servers: upstream_servers__.unwrap_or_default(),
@@ -8339,9 +8308,6 @@ impl serde::Serialize for FloatingIp {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.address.is_empty() {
             len += 1;
         }
@@ -8367,9 +8333,6 @@ impl serde::Serialize for FloatingIp {
             .serialize_struct("origincloud.network.v1beta1.FloatingIp", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.address.is_empty() {
             struct_ser.serialize_field("address", &self.address)?;
@@ -8403,7 +8366,6 @@ impl<'de> serde::Deserialize<'de> for FloatingIp {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "address",
             "network_interface",
             "networkInterface",
@@ -8419,7 +8381,6 @@ impl<'de> serde::Deserialize<'de> for FloatingIp {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Address,
             NetworkInterface,
             PrivateAddress,
@@ -8455,7 +8416,6 @@ impl<'de> serde::Deserialize<'de> for FloatingIp {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "address" => Ok(GeneratedField::Address),
                             "networkInterface" | "network_interface" => {
                                 Ok(GeneratedField::NetworkInterface)
@@ -8495,7 +8455,6 @@ impl<'de> serde::Deserialize<'de> for FloatingIp {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut address__ = None;
                 let mut network_interface__ = None;
                 let mut private_address__ = None;
@@ -8510,12 +8469,6 @@ impl<'de> serde::Deserialize<'de> for FloatingIp {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Address => {
                             if address__.is_some() {
@@ -8574,7 +8527,6 @@ impl<'de> serde::Deserialize<'de> for FloatingIp {
                 }
                 Ok(FloatingIp {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     address: address__.unwrap_or_default(),
                     network_interface: network_interface__.unwrap_or_default(),
                     private_address: private_address__.unwrap_or_default(),
@@ -10746,9 +10698,6 @@ impl serde::Serialize for InternetGateway {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.vpc.is_empty() {
             len += 1;
         }
@@ -10765,9 +10714,6 @@ impl serde::Serialize for InternetGateway {
             .serialize_struct("origincloud.network.v1beta1.InternetGateway", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.vpc.is_empty() {
             struct_ser.serialize_field("vpc", &self.vpc)?;
@@ -10792,7 +10738,6 @@ impl<'de> serde::Deserialize<'de> for InternetGateway {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "vpc",
             "create_time",
             "createTime",
@@ -10802,7 +10747,6 @@ impl<'de> serde::Deserialize<'de> for InternetGateway {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Vpc,
             CreateTime,
             Creator,
@@ -10835,7 +10779,6 @@ impl<'de> serde::Deserialize<'de> for InternetGateway {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "vpc" => Ok(GeneratedField::Vpc),
                             "createTime" | "create_time" => {
                                 Ok(GeneratedField::CreateTime)
@@ -10866,7 +10809,6 @@ impl<'de> serde::Deserialize<'de> for InternetGateway {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut vpc__ = None;
                 let mut create_time__ = None;
                 let mut creator__ = None;
@@ -10878,12 +10820,6 @@ impl<'de> serde::Deserialize<'de> for InternetGateway {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Vpc => {
                             if vpc__.is_some() {
@@ -10918,7 +10854,6 @@ impl<'de> serde::Deserialize<'de> for InternetGateway {
                 }
                 Ok(InternetGateway {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     vpc: vpc__.unwrap_or_default(),
                     create_time: create_time__,
                     creator: creator__.unwrap_or_default(),
@@ -16325,9 +16260,6 @@ impl serde::Serialize for NatGateway {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.subnet.is_empty() {
             len += 1;
         }
@@ -16350,9 +16282,6 @@ impl serde::Serialize for NatGateway {
             .serialize_struct("origincloud.network.v1beta1.NatGateway", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.subnet.is_empty() {
             struct_ser.serialize_field("subnet", &self.subnet)?;
@@ -16383,7 +16312,6 @@ impl<'de> serde::Deserialize<'de> for NatGateway {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "subnet",
             "floating_ip",
             "floatingIp",
@@ -16396,7 +16324,6 @@ impl<'de> serde::Deserialize<'de> for NatGateway {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Subnet,
             FloatingIp,
             Vpc,
@@ -16431,7 +16358,6 @@ impl<'de> serde::Deserialize<'de> for NatGateway {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "subnet" => Ok(GeneratedField::Subnet),
                             "floatingIp" | "floating_ip" => {
                                 Ok(GeneratedField::FloatingIp)
@@ -16466,7 +16392,6 @@ impl<'de> serde::Deserialize<'de> for NatGateway {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut subnet__ = None;
                 let mut floating_ip__ = None;
                 let mut vpc__ = None;
@@ -16480,12 +16405,6 @@ impl<'de> serde::Deserialize<'de> for NatGateway {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Subnet => {
                             if subnet__.is_some() {
@@ -16532,7 +16451,6 @@ impl<'de> serde::Deserialize<'de> for NatGateway {
                 }
                 Ok(NatGateway {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     subnet: subnet__.unwrap_or_default(),
                     floating_ip: floating_ip__.unwrap_or_default(),
                     vpc: vpc__.unwrap_or_default(),
@@ -16559,9 +16477,6 @@ impl serde::Serialize for NetworkInterface {
         use serde::ser::SerializeStruct;
         let mut len = 0;
         if !self.name.is_empty() {
-            len += 1;
-        }
-        if !self.urn.is_empty() {
             len += 1;
         }
         if !self.subnet.is_empty() {
@@ -16598,9 +16513,6 @@ impl serde::Serialize for NetworkInterface {
             .serialize_struct("origincloud.network.v1beta1.NetworkInterface", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.subnet.is_empty() {
             struct_ser.serialize_field("subnet", &self.subnet)?;
@@ -16647,7 +16559,6 @@ impl<'de> serde::Deserialize<'de> for NetworkInterface {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "subnet",
             "security_groups",
             "securityGroups",
@@ -16667,7 +16578,6 @@ impl<'de> serde::Deserialize<'de> for NetworkInterface {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Subnet,
             SecurityGroups,
             SourceAddressCheck,
@@ -16706,7 +16616,6 @@ impl<'de> serde::Deserialize<'de> for NetworkInterface {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "subnet" => Ok(GeneratedField::Subnet),
                             "securityGroups" | "security_groups" => {
                                 Ok(GeneratedField::SecurityGroups)
@@ -16752,7 +16661,6 @@ impl<'de> serde::Deserialize<'de> for NetworkInterface {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut subnet__ = None;
                 let mut security_groups__ = None;
                 let mut source_address_check__ = None;
@@ -16770,12 +16678,6 @@ impl<'de> serde::Deserialize<'de> for NetworkInterface {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Subnet => {
                             if subnet__.is_some() {
@@ -16856,7 +16758,6 @@ impl<'de> serde::Deserialize<'de> for NetworkInterface {
                 }
                 Ok(NetworkInterface {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     subnet: subnet__.unwrap_or_default(),
                     security_groups: security_groups__.unwrap_or_default(),
                     source_address_check: source_address_check__,
@@ -17139,9 +17040,6 @@ impl serde::Serialize for RouteTable {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.vpc.is_empty() {
             len += 1;
         }
@@ -17164,9 +17062,6 @@ impl serde::Serialize for RouteTable {
             .serialize_struct("origincloud.network.v1beta1.RouteTable", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.vpc.is_empty() {
             struct_ser.serialize_field("vpc", &self.vpc)?;
@@ -17197,7 +17092,6 @@ impl<'de> serde::Deserialize<'de> for RouteTable {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "vpc",
             "main",
             "local_routes",
@@ -17210,7 +17104,6 @@ impl<'de> serde::Deserialize<'de> for RouteTable {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Vpc,
             Main,
             LocalRoutes,
@@ -17245,7 +17138,6 @@ impl<'de> serde::Deserialize<'de> for RouteTable {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "vpc" => Ok(GeneratedField::Vpc),
                             "main" => Ok(GeneratedField::Main),
                             "localRoutes" | "local_routes" => {
@@ -17280,7 +17172,6 @@ impl<'de> serde::Deserialize<'de> for RouteTable {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut vpc__ = None;
                 let mut main__ = None;
                 let mut local_routes__ = None;
@@ -17294,12 +17185,6 @@ impl<'de> serde::Deserialize<'de> for RouteTable {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Vpc => {
                             if vpc__.is_some() {
@@ -17348,7 +17233,6 @@ impl<'de> serde::Deserialize<'de> for RouteTable {
                 }
                 Ok(RouteTable {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     vpc: vpc__.unwrap_or_default(),
                     main: main__.unwrap_or_default(),
                     local_routes: local_routes__.unwrap_or_default(),
@@ -17505,9 +17389,6 @@ impl serde::Serialize for SecurityGroup {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.vpc.is_empty() {
             len += 1;
         }
@@ -17527,9 +17408,6 @@ impl serde::Serialize for SecurityGroup {
             .serialize_struct("origincloud.network.v1beta1.SecurityGroup", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.vpc.is_empty() {
             struct_ser.serialize_field("vpc", &self.vpc)?;
@@ -17557,7 +17435,6 @@ impl<'de> serde::Deserialize<'de> for SecurityGroup {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "vpc",
             "vpc_default",
             "vpcDefault",
@@ -17569,7 +17446,6 @@ impl<'de> serde::Deserialize<'de> for SecurityGroup {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Vpc,
             VpcDefault,
             CreateTime,
@@ -17603,7 +17479,6 @@ impl<'de> serde::Deserialize<'de> for SecurityGroup {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "vpc" => Ok(GeneratedField::Vpc),
                             "vpcDefault" | "vpc_default" => {
                                 Ok(GeneratedField::VpcDefault)
@@ -17637,7 +17512,6 @@ impl<'de> serde::Deserialize<'de> for SecurityGroup {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut vpc__ = None;
                 let mut vpc_default__ = None;
                 let mut create_time__ = None;
@@ -17650,12 +17524,6 @@ impl<'de> serde::Deserialize<'de> for SecurityGroup {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Vpc => {
                             if vpc__.is_some() {
@@ -17696,7 +17564,6 @@ impl<'de> serde::Deserialize<'de> for SecurityGroup {
                 }
                 Ok(SecurityGroup {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     vpc: vpc__.unwrap_or_default(),
                     vpc_default: vpc_default__.unwrap_or_default(),
                     create_time: create_time__,
@@ -18437,9 +18304,6 @@ impl serde::Serialize for Subnet {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.vpc.is_empty() {
             len += 1;
         }
@@ -18486,9 +18350,6 @@ impl serde::Serialize for Subnet {
             .serialize_struct("origincloud.network.v1beta1.Subnet", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.vpc.is_empty() {
             struct_ser.serialize_field("vpc", &self.vpc)?;
@@ -18550,7 +18411,6 @@ impl<'de> serde::Deserialize<'de> for Subnet {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "vpc",
             "route_table",
             "routeTable",
@@ -18579,7 +18439,6 @@ impl<'de> serde::Deserialize<'de> for Subnet {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Vpc,
             RouteTable,
             Acl,
@@ -18622,7 +18481,6 @@ impl<'de> serde::Deserialize<'de> for Subnet {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "vpc" => Ok(GeneratedField::Vpc),
                             "routeTable" | "route_table" => {
                                 Ok(GeneratedField::RouteTable)
@@ -18679,7 +18537,6 @@ impl<'de> serde::Deserialize<'de> for Subnet {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut vpc__ = None;
                 let mut route_table__ = None;
                 let mut acl__ = None;
@@ -18701,12 +18558,6 @@ impl<'de> serde::Deserialize<'de> for Subnet {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Vpc => {
                             if vpc__.is_some() {
@@ -18823,7 +18674,6 @@ impl<'de> serde::Deserialize<'de> for Subnet {
                 }
                 Ok(Subnet {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     vpc: vpc__.unwrap_or_default(),
                     route_table: route_table__.unwrap_or_default(),
                     acl: acl__.unwrap_or_default(),
@@ -20401,9 +20251,6 @@ impl serde::Serialize for Vpc {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.ipv4_cidr_block.is_empty() {
             len += 1;
         }
@@ -20438,9 +20285,6 @@ impl serde::Serialize for Vpc {
             .serialize_struct("origincloud.network.v1beta1.Vpc", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.ipv4_cidr_block.is_empty() {
             struct_ser.serialize_field("ipv4CidrBlock", &self.ipv4_cidr_block)?;
@@ -20488,7 +20332,6 @@ impl<'de> serde::Deserialize<'de> for Vpc {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "ipv4_cidr_block",
             "ipv4CidrBlock",
             "ipv6_cidr_block",
@@ -20511,7 +20354,6 @@ impl<'de> serde::Deserialize<'de> for Vpc {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Ipv4CidrBlock,
             Ipv6CidrBlock,
             SubnetIpv4PrefixLength,
@@ -20550,7 +20392,6 @@ impl<'de> serde::Deserialize<'de> for Vpc {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "ipv4CidrBlock" | "ipv4_cidr_block" => {
                                 Ok(GeneratedField::Ipv4CidrBlock)
                             }
@@ -20596,7 +20437,6 @@ impl<'de> serde::Deserialize<'de> for Vpc {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut ipv4_cidr_block__ = None;
                 let mut ipv6_cidr_block__ = None;
                 let mut subnet_ipv4_prefix_length__ = None;
@@ -20614,12 +20454,6 @@ impl<'de> serde::Deserialize<'de> for Vpc {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Ipv4CidrBlock => {
                             if ipv4_cidr_block__.is_some() {
@@ -20710,7 +20544,6 @@ impl<'de> serde::Deserialize<'de> for Vpc {
                 }
                 Ok(Vpc {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     ipv4_cidr_block: ipv4_cidr_block__.unwrap_or_default(),
                     ipv6_cidr_block: ipv6_cidr_block__.unwrap_or_default(),
                     subnet_ipv4_prefix_length: subnet_ipv4_prefix_length__
