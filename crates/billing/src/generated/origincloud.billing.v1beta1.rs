@@ -10319,11 +10319,15 @@ impl BillingAccountClient {
     /// organization.
     pub async fn get_billing_account(
         &self,
-        request: GetBillingAccountRequest,
+        mut request: GetBillingAccountRequest,
     ) -> ::core::result::Result<BillingAccount, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "organizations/*/billingAccounts/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["billing"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/billingAccounts/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10337,9 +10341,13 @@ impl BillingAccountClient {
     /// `admin.billing_account.list` on the organization.
     pub async fn list_billing_accounts(
         &self,
-        request: ListBillingAccountsRequest,
+        mut request: ListBillingAccountsRequest,
     ) -> ::core::result::Result<ListBillingAccountsResponse, ::origincloud_core::Error> {
-        let p0 = self.service.path_value("parent", &request.parent, "organizations/*")?;
+        let n0 = self
+            .service
+            .relative_name("parent", &request.parent, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "organizations/*")?;
+        request.parent = n0;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10383,7 +10391,11 @@ impl BillingAccountClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = self.service.path_value("parent", &request.parent, "organizations/*")?;
+        let n0 = self
+            .service
+            .relative_name("parent", &request.parent, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "organizations/*")?;
+        request.parent = n0;
         let body = ::origincloud_core::json_body(
             request
                 .billing_account
@@ -10408,15 +10420,23 @@ impl BillingAccountClient {
     /// `admin.billing_account.update` on the organization.
     pub async fn update_billing_account(
         &self,
-        request: UpdateBillingAccountRequest,
+        mut request: UpdateBillingAccountRequest,
     ) -> ::core::result::Result<BillingAccount, ::origincloud_core::Error> {
-        let p0 = self
+        let n0 = self
             .service
-            .path_value(
+            .relative_name(
                 "billingAccount.name",
                 request.billing_account.as_ref().map_or("", |m| m.name.as_str()),
-                "organizations/*/billingAccounts/*",
+                &["billing"],
             )?;
+        let p0 = ::origincloud_core::path_value(
+            "billingAccount.name",
+            &n0,
+            "organizations/*/billingAccounts/*",
+        )?;
+        if let Some(m) = request.billing_account.as_mut() {
+            m.name = n0;
+        }
         let body = ::origincloud_core::json_body(
             request
                 .billing_account
@@ -10442,14 +10462,18 @@ impl BillingAccountClient {
     /// `admin.billing_account.delete` on the organization.
     pub async fn delete_billing_account(
         &self,
-        request: DeleteBillingAccountRequest,
+        mut request: DeleteBillingAccountRequest,
     ) -> ::core::result::Result<
         ::origincloud_core::protobuf::Empty,
         ::origincloud_core::Error,
     > {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "organizations/*/billingAccounts/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["billing"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/billingAccounts/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -10467,14 +10491,18 @@ impl BillingAccountClient {
     /// `admin.billing_account.update` on the organization.
     pub async fn start_payment_method_setup(
         &self,
-        request: StartPaymentMethodSetupRequest,
+        mut request: StartPaymentMethodSetupRequest,
     ) -> ::core::result::Result<
         StartPaymentMethodSetupResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "organizations/*/billingAccounts/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["billing"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/billingAccounts/*",
+        )?;
+        request.name = n0;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -10495,11 +10523,15 @@ impl BillingAccountClient {
     /// organization.
     pub async fn confirm_payment_method_setup(
         &self,
-        request: ConfirmPaymentMethodSetupRequest,
+        mut request: ConfirmPaymentMethodSetupRequest,
     ) -> ::core::result::Result<BillingAccount, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "organizations/*/billingAccounts/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["billing"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/billingAccounts/*",
+        )?;
+        request.name = n0;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -10512,11 +10544,11 @@ impl BillingAccountClient {
     /// `admin.project.get` on the project.
     pub async fn get_project_billing_info(
         &self,
-        request: GetProjectBillingInfoRequest,
+        mut request: GetProjectBillingInfoRequest,
     ) -> ::core::result::Result<ProjectBillingInfo, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "projects/*/billingInfo")?;
+        let n0 = self.service.relative_name("name", &request.name, &["billing"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "projects/*/billingInfo")?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10533,15 +10565,23 @@ impl BillingAccountClient {
     /// on the project, which is separate from access to billing accounts.
     pub async fn update_project_billing_info(
         &self,
-        request: UpdateProjectBillingInfoRequest,
+        mut request: UpdateProjectBillingInfoRequest,
     ) -> ::core::result::Result<ProjectBillingInfo, ::origincloud_core::Error> {
-        let p0 = self
+        let n0 = self
             .service
-            .path_value(
+            .relative_name(
                 "projectBillingInfo.name",
                 request.project_billing_info.as_ref().map_or("", |m| m.name.as_str()),
-                "projects/*/billingInfo",
+                &["billing"],
             )?;
+        let p0 = ::origincloud_core::path_value(
+            "projectBillingInfo.name",
+            &n0,
+            "projects/*/billingInfo",
+        )?;
+        if let Some(m) = request.project_billing_info.as_mut() {
+            m.name = n0;
+        }
         let body = ::origincloud_core::json_body(
             request
                 .project_billing_info
@@ -10564,14 +10604,18 @@ impl BillingAccountClient {
     /// `admin.billing_account.get` on the organization.
     pub async fn list_project_billing_info(
         &self,
-        request: ListProjectBillingInfoRequest,
+        mut request: ListProjectBillingInfoRequest,
     ) -> ::core::result::Result<
         ListProjectBillingInfoResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "organizations/*/billingAccounts/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["billing"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/billingAccounts/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10604,9 +10648,11 @@ impl BillingAccountClient {
     /// Returns a country a billing address may be in.
     pub async fn get_billing_country(
         &self,
-        request: GetBillingCountryRequest,
+        mut request: GetBillingCountryRequest,
     ) -> ::core::result::Result<BillingCountry, ::origincloud_core::Error> {
-        let p0 = self.service.path_value("name", &request.name, "billingCountries/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["billing"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "billingCountries/*")?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10683,9 +10729,13 @@ impl CostClient {
     /// or daily buckets. Needs `admin.usage.list` on the organization.
     pub async fn query_project_cost(
         &self,
-        request: QueryProjectCostRequest,
+        mut request: QueryProjectCostRequest,
     ) -> ::core::result::Result<CostReport, ::origincloud_core::Error> {
-        let p0 = self.service.path_value("project", &request.project, "projects/*")?;
+        let n0 = self
+            .service
+            .relative_name("project", &request.project, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("project", &n0, "projects/*")?;
+        request.project = n0;
         let query = ::origincloud_core::query(&request, &["project"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10701,11 +10751,13 @@ impl CostClient {
     /// cost in it.
     pub async fn query_organization_cost(
         &self,
-        request: QueryOrganizationCostRequest,
+        mut request: QueryOrganizationCostRequest,
     ) -> ::core::result::Result<OrganizationCostReport, ::origincloud_core::Error> {
-        let p0 = self
+        let n0 = self
             .service
-            .path_value("organization", &request.organization, "organizations/*")?;
+            .relative_name("organization", &request.organization, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("organization", &n0, "organizations/*")?;
+        request.organization = n0;
         let query = ::origincloud_core::query(&request, &["organization"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10722,15 +10774,17 @@ impl CostClient {
     /// `limit`. Needs `admin.spend_limit.get` on the organization.
     pub async fn query_billing_account_cost(
         &self,
-        request: QueryBillingAccountCostRequest,
+        mut request: QueryBillingAccountCostRequest,
     ) -> ::core::result::Result<CostReport, ::origincloud_core::Error> {
-        let p0 = self
+        let n0 = self
             .service
-            .path_value(
-                "billingAccount",
-                &request.billing_account,
-                "organizations/*/billingAccounts/*",
-            )?;
+            .relative_name("billingAccount", &request.billing_account, &["billing"])?;
+        let p0 = ::origincloud_core::path_value(
+            "billingAccount",
+            &n0,
+            "organizations/*/billingAccounts/*",
+        )?;
+        request.billing_account = n0;
         let query = ::origincloud_core::query(&request, &["billingAccount"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10745,9 +10799,13 @@ impl CostClient {
     /// on the organization.
     pub async fn query_project_usage(
         &self,
-        request: QueryProjectUsageRequest,
+        mut request: QueryProjectUsageRequest,
     ) -> ::core::result::Result<QueryProjectUsageResponse, ::origincloud_core::Error> {
-        let p0 = self.service.path_value("project", &request.project, "projects/*")?;
+        let n0 = self
+            .service
+            .relative_name("project", &request.project, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("project", &n0, "projects/*")?;
+        request.project = n0;
         let query = ::origincloud_core::query(&request, &["project"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10804,14 +10862,18 @@ impl LegalAcceptanceClient {
     /// `admin.billing_account.get` on the organization.
     pub async fn list_legal_acceptances(
         &self,
-        request: ListLegalAcceptancesRequest,
+        mut request: ListLegalAcceptancesRequest,
     ) -> ::core::result::Result<
         ListLegalAcceptancesResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = self
-            .service
-            .path_value("parent", &request.parent, "organizations/*/billingAccounts/*")?;
+        let n0 = self.service.relative_name("parent", &request.parent, &["billing"])?;
+        let p0 = ::origincloud_core::path_value(
+            "parent",
+            &n0,
+            "organizations/*/billingAccounts/*",
+        )?;
+        request.parent = n0;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10845,15 +10907,15 @@ impl LegalAcceptanceClient {
     /// `admin.billing_account.get` on the organization.
     pub async fn get_legal_acceptance(
         &self,
-        request: GetLegalAcceptanceRequest,
+        mut request: GetLegalAcceptanceRequest,
     ) -> ::core::result::Result<LegalAcceptance, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value(
-                "name",
-                &request.name,
-                "organizations/*/billingAccounts/*/legalAcceptances/*",
-            )?;
+        let n0 = self.service.relative_name("name", &request.name, &["billing"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/billingAccounts/*/legalAcceptances/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10871,14 +10933,18 @@ impl LegalAcceptanceClient {
     /// only. Needs `admin.billing_account.update` on the organization.
     pub async fn accept_legal_documents(
         &self,
-        request: AcceptLegalDocumentsRequest,
+        mut request: AcceptLegalDocumentsRequest,
     ) -> ::core::result::Result<
         ListLegalAcceptancesResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "organizations/*/billingAccounts/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["billing"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/billingAccounts/*",
+        )?;
+        request.name = n0;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -10895,14 +10961,18 @@ impl LegalAcceptanceClient {
     /// `admin.billing_account.get` on the organization.
     pub async fn query_legal_requirements(
         &self,
-        request: QueryLegalRequirementsRequest,
+        mut request: QueryLegalRequirementsRequest,
     ) -> ::core::result::Result<
         QueryLegalRequirementsResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "organizations/*/billingAccounts/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["billing"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/billingAccounts/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10980,9 +11050,11 @@ impl LegalDocumentClient {
     /// version.
     pub async fn get_legal_document(
         &self,
-        request: GetLegalDocumentRequest,
+        mut request: GetLegalDocumentRequest,
     ) -> ::core::result::Result<LegalDocument, ::origincloud_core::Error> {
-        let p0 = self.service.path_value("name", &request.name, "legalDocuments/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["billing"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "legalDocuments/*")?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10996,12 +11068,14 @@ impl LegalDocumentClient {
     /// Lists a legal document's published versions, the latest first.
     pub async fn list_legal_document_versions(
         &self,
-        request: ListLegalDocumentVersionsRequest,
+        mut request: ListLegalDocumentVersionsRequest,
     ) -> ::core::result::Result<
         ListLegalDocumentVersionsResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = self.service.path_value("parent", &request.parent, "legalDocuments/*")?;
+        let n0 = self.service.relative_name("parent", &request.parent, &["billing"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "legalDocuments/*")?;
+        request.parent = n0;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -11036,11 +11110,15 @@ impl LegalDocumentClient {
     /// Returns one published version of a legal document, its text included.
     pub async fn get_legal_document_version(
         &self,
-        request: GetLegalDocumentVersionRequest,
+        mut request: GetLegalDocumentVersionRequest,
     ) -> ::core::result::Result<LegalDocumentVersion, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "legalDocuments/*/versions/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["billing"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "legalDocuments/*/versions/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -11058,14 +11136,18 @@ impl LegalDocumentClient {
     /// It answers with the file itself, not JSON: an [`HttpBody`](origincloud_core::HttpBody) with the file's bytes and media type.
     pub async fn download_legal_document_version(
         &self,
-        request: DownloadLegalDocumentVersionRequest,
+        mut request: DownloadLegalDocumentVersionRequest,
     ) -> ::core::result::Result<
         ::origincloud_core::HttpBody,
         ::origincloud_core::Error,
     > {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "legalDocuments/*/versions/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["billing"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "legalDocuments/*/versions/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -11144,15 +11226,15 @@ impl SpendLimitClient {
     /// `limit`. Needs `admin.spend_limit.get` on the organization.
     pub async fn get_spend_limit(
         &self,
-        request: GetSpendLimitRequest,
+        mut request: GetSpendLimitRequest,
     ) -> ::core::result::Result<SpendLimit, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value(
-                "name",
-                &request.name,
-                "organizations/*/billingAccounts/*/spendLimit",
-            )?;
+        let n0 = self.service.relative_name("name", &request.name, &["billing"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/billingAccounts/*/spendLimit",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -11168,15 +11250,23 @@ impl SpendLimitClient {
     /// `admin.spend_limit.update` on the organization.
     pub async fn update_spend_limit(
         &self,
-        request: UpdateSpendLimitRequest,
+        mut request: UpdateSpendLimitRequest,
     ) -> ::core::result::Result<SpendLimit, ::origincloud_core::Error> {
-        let p0 = self
+        let n0 = self
             .service
-            .path_value(
+            .relative_name(
                 "spendLimit.name",
                 request.spend_limit.as_ref().map_or("", |m| m.name.as_str()),
-                "organizations/*/billingAccounts/*/spendLimit",
+                &["billing"],
             )?;
+        let p0 = ::origincloud_core::path_value(
+            "spendLimit.name",
+            &n0,
+            "organizations/*/billingAccounts/*/spendLimit",
+        )?;
+        if let Some(m) = request.spend_limit.as_mut() {
+            m.name = n0;
+        }
         let body = ::origincloud_core::json_body(
             request.spend_limit.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;

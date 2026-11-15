@@ -870,9 +870,13 @@ impl MetricClient {
     /// points it returns; a refused one isn't.
     pub async fn query_time_series(
         &self,
-        request: QueryTimeSeriesRequest,
+        mut request: QueryTimeSeriesRequest,
     ) -> ::core::result::Result<QueryTimeSeriesResponse, ::origincloud_core::Error> {
-        let p0 = self.service.path_value("parent", &request.parent, "projects/*")?;
+        let n0 = self
+            .service
+            .relative_name("parent", &request.parent, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "projects/*")?;
+        request.parent = n0;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,

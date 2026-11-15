@@ -63,9 +63,11 @@
 //!
 //! A resource's `name` is its relative name; its full resource name,
 //! `//{service}.origincloudapis.eu/{name}`, is what references carry
-//! ([`FullName`]). A request's path fields take either: a full name of the
-//! client's own service is sent as its relative name, and one of another
-//! service is refused before anything is sent.
+//! ([`FullName`]). A request's path fields take either. A full name is
+//! checked against the type the field refers to (the client's own service
+//! for its own resources, resourcemanager for a project or an organization
+//! as a `parent`) and sent as its relative name; one on any other host is
+//! refused before anything is sent.
 //!
 //! # Errors
 //!

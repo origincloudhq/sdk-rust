@@ -431,7 +431,7 @@ fn a_path_name_is_the_relative_name_of_the_client_s_own_service() {
         ("projects/p 1/zones/z", "projects/p 1/zones/z"),
         ("", ""),
     ] {
-        assert_eq!(path_name("pvs", "name", value), Ok(sent), "{value:?}");
+        assert_eq!(path_name("pvs", &[], "name", value), Ok(sent), "{value:?}");
     }
 }
 
@@ -476,7 +476,7 @@ fn a_path_name_of_another_host_or_no_full_name_is_refused() {
             "is not the host of one of the platform's APIs",
         ),
     ] {
-        let err = path_name("pvs", "name", value).expect_err(value);
+        let err = path_name("pvs", &[], "name", value).expect_err(value);
         assert!(err.starts_with("name"), "{value}: {err}");
         assert!(err.contains(says), "{value}: {err}");
     }
@@ -484,8 +484,80 @@ fn a_path_name_of_another_host_or_no_full_name_is_refused() {
     assert!(
         path_name(
             "observability",
+            &[],
             "parent",
             "//observability.origincloudapis.eu/projects/p"
+        )
+        .is_err()
+    );
+}
+
+/// A path field referring to another service's type takes that service's
+/// full names, and no other's.
+#[test]
+fn a_path_name_is_checked_against_the_type_the_field_refers_to() {
+    let project = "//resourcemanager.origincloudapis.eu/projects/p";
+    for own in ["billing", "observability"] {
+        assert_eq!(
+            path_name(own, &["resourcemanager"], "parent", project),
+            Ok("projects/p")
+        );
+        assert_eq!(
+            path_name(own, &["resourcemanager"], "parent", "projects/p"),
+            Ok("projects/p")
+        );
+        let err = path_name(
+            own,
+            &["resourcemanager"],
+            "parent",
+            "//pvs.origincloudapis.eu/projects/p",
+        )
+        .unwrap_err();
+        assert!(
+            err.contains("parent must be a name on resourcemanager.origincloudapis.eu, got"),
+            "{err}"
+        );
+        // The client's own host isn't one the field takes.
+        let err = path_name(
+            own,
+            &["resourcemanager"],
+            "parent",
+            &format!("//{own}.origincloudapis.eu/projects/p"),
+        )
+        .unwrap_err();
+        // billing's names are no projects; observability names nothing.
+        assert!(
+            err.starts_with("parent") && err.contains(&format!("{own}.origincloudapis.eu")),
+            "{err}"
+        );
+    }
+    // Several services: the error names each host.
+    let err = path_name(
+        "iam",
+        &["compute", "location"],
+        "parent",
+        "//pvs.origincloudapis.eu/zones/z",
+    )
+    .unwrap_err();
+    assert!(
+        err.contains(
+            "must be a name on one of compute.origincloudapis.eu, location.origincloudapis.eu"
+        ),
+        "{err}"
+    );
+    // Any service: every resource service's full name, still checked.
+    for value in [VOLUME, project] {
+        assert!(
+            path_name("iam", &[ANY_SERVICE], "resource", value).is_ok(),
+            "{value}"
+        );
+    }
+    assert!(
+        path_name(
+            "iam",
+            &[ANY_SERVICE],
+            "resource",
+            "//sts.origincloudapis.eu/x/y"
         )
         .is_err()
     );

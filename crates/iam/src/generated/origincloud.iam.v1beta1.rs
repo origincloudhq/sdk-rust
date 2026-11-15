@@ -6419,11 +6419,15 @@ impl AuditLogClient {
     /// organization.
     pub async fn get_audit_log_entry(
         &self,
-        request: GetAuditLogEntryRequest,
+        mut request: GetAuditLogEntryRequest,
     ) -> ::core::result::Result<AuditLogEntry, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "organizations/*/auditLogEntries/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["iam"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/auditLogEntries/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -6438,9 +6442,13 @@ impl AuditLogClient {
     /// `iam.audit_log.list` on the organization.
     pub async fn list_audit_log_entries(
         &self,
-        request: ListAuditLogEntriesRequest,
+        mut request: ListAuditLogEntriesRequest,
     ) -> ::core::result::Result<ListAuditLogEntriesResponse, ::origincloud_core::Error> {
-        let p0 = self.service.path_value("parent", &request.parent, "organizations/*")?;
+        let n0 = self
+            .service
+            .relative_name("parent", &request.parent, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "organizations/*")?;
+        request.parent = n0;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -6499,15 +6507,15 @@ impl FederatedCredentialClient {
     /// `iam.service_account.list` on the organization.
     pub async fn get_federated_credential(
         &self,
-        request: GetFederatedCredentialRequest,
+        mut request: GetFederatedCredentialRequest,
     ) -> ::core::result::Result<FederatedCredential, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value(
-                "name",
-                &request.name,
-                "organizations/*/serviceAccounts/*/federatedCredentials/*",
-            )?;
+        let n0 = self.service.relative_name("name", &request.name, &["iam"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/serviceAccounts/*/federatedCredentials/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -6522,14 +6530,18 @@ impl FederatedCredentialClient {
     /// `iam.service_account.list` on the organization.
     pub async fn list_federated_credentials(
         &self,
-        request: ListFederatedCredentialsRequest,
+        mut request: ListFederatedCredentialsRequest,
     ) -> ::core::result::Result<
         ListFederatedCredentialsResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = self
-            .service
-            .path_value("parent", &request.parent, "organizations/*/serviceAccounts/*")?;
+        let n0 = self.service.relative_name("parent", &request.parent, &["iam"])?;
+        let p0 = ::origincloud_core::path_value(
+            "parent",
+            &n0,
+            "organizations/*/serviceAccounts/*",
+        )?;
+        request.parent = n0;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -6576,9 +6588,13 @@ impl FederatedCredentialClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = self
-            .service
-            .path_value("parent", &request.parent, "organizations/*/serviceAccounts/*")?;
+        let n0 = self.service.relative_name("parent", &request.parent, &["iam"])?;
+        let p0 = ::origincloud_core::path_value(
+            "parent",
+            &n0,
+            "organizations/*/serviceAccounts/*",
+        )?;
+        request.parent = n0;
         let body = ::origincloud_core::json_body(
             request
                 .federated_credential
@@ -6604,18 +6620,18 @@ impl FederatedCredentialClient {
     /// succeeds. Needs `iam.service_account.revoke` on the organization.
     pub async fn delete_federated_credential(
         &self,
-        request: DeleteFederatedCredentialRequest,
+        mut request: DeleteFederatedCredentialRequest,
     ) -> ::core::result::Result<
         ::origincloud_core::protobuf::Empty,
         ::origincloud_core::Error,
     > {
-        let p0 = self
-            .service
-            .path_value(
-                "name",
-                &request.name,
-                "organizations/*/serviceAccounts/*/federatedCredentials/*",
-            )?;
+        let n0 = self.service.relative_name("name", &request.name, &["iam"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/serviceAccounts/*/federatedCredentials/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -6649,9 +6665,11 @@ impl PermissionClient {
     /// Returns a permission.
     pub async fn get_permission(
         &self,
-        request: GetPermissionRequest,
+        mut request: GetPermissionRequest,
     ) -> ::core::result::Result<Permission, ::origincloud_core::Error> {
-        let p0 = self.service.path_value("name", &request.name, "permissions/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["iam"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "permissions/*")?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -6685,9 +6703,11 @@ impl PermissionClient {
     /// catalog doesn't name is never held.
     pub async fn test_iam_permissions(
         &self,
-        request: TestIamPermissionsRequest,
+        mut request: TestIamPermissionsRequest,
     ) -> ::core::result::Result<TestIamPermissionsResponse, ::origincloud_core::Error> {
-        let p0 = self.service.path_value("resource", &request.resource, "*/*")?;
+        let n0 = self.service.relative_name("resource", &request.resource, &["*"])?;
+        let p0 = ::origincloud_core::path_value("resource", &n0, "*/*")?;
+        request.resource = n0;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -6722,9 +6742,11 @@ impl RoleClient {
     /// Returns a role.
     pub async fn get_role(
         &self,
-        request: GetRoleRequest,
+        mut request: GetRoleRequest,
     ) -> ::core::result::Result<Role, ::origincloud_core::Error> {
-        let p0 = self.service.path_value("name", &request.name, "roles/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["iam"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "roles/*")?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -6795,11 +6817,15 @@ impl RoleBindingClient {
     /// Returns a role binding. Needs `iam.member.list` on the organization.
     pub async fn get_role_binding(
         &self,
-        request: GetRoleBindingRequest,
+        mut request: GetRoleBindingRequest,
     ) -> ::core::result::Result<RoleBinding, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "organizations/*/roleBindings/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["iam"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/roleBindings/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -6816,9 +6842,13 @@ impl RoleBindingClient {
     /// there.
     pub async fn list_role_bindings(
         &self,
-        request: ListRoleBindingsRequest,
+        mut request: ListRoleBindingsRequest,
     ) -> ::core::result::Result<ListRoleBindingsResponse, ::origincloud_core::Error> {
-        let p0 = self.service.path_value("parent", &request.parent, "organizations/*")?;
+        let n0 = self
+            .service
+            .relative_name("parent", &request.parent, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "organizations/*")?;
+        request.parent = n0;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -6865,7 +6895,11 @@ impl RoleBindingClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = self.service.path_value("parent", &request.parent, "organizations/*")?;
+        let n0 = self
+            .service
+            .relative_name("parent", &request.parent, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "organizations/*")?;
+        request.parent = n0;
         let body = ::origincloud_core::json_body(
             request.role_binding.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -6894,9 +6928,13 @@ impl RoleBindingClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "organizations/*/roleBindings/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["iam"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/roleBindings/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -6934,11 +6972,15 @@ impl ServiceAccountClient {
     /// `iam.service_account.list` on the organization.
     pub async fn get_service_account(
         &self,
-        request: GetServiceAccountRequest,
+        mut request: GetServiceAccountRequest,
     ) -> ::core::result::Result<ServiceAccount, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "organizations/*/serviceAccounts/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["iam"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/serviceAccounts/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -6953,9 +6995,13 @@ impl ServiceAccountClient {
     /// `iam.service_account.list` on the organization.
     pub async fn list_service_accounts(
         &self,
-        request: ListServiceAccountsRequest,
+        mut request: ListServiceAccountsRequest,
     ) -> ::core::result::Result<ListServiceAccountsResponse, ::origincloud_core::Error> {
-        let p0 = self.service.path_value("parent", &request.parent, "organizations/*")?;
+        let n0 = self
+            .service
+            .relative_name("parent", &request.parent, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "organizations/*")?;
+        request.parent = n0;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -6996,7 +7042,11 @@ impl ServiceAccountClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = self.service.path_value("parent", &request.parent, "organizations/*")?;
+        let n0 = self
+            .service
+            .relative_name("parent", &request.parent, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "organizations/*")?;
+        request.parent = n0;
         let body = ::origincloud_core::json_body(
             request
                 .service_account
@@ -7027,9 +7077,13 @@ impl ServiceAccountClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "organizations/*/serviceAccounts/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["iam"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/serviceAccounts/*",
+        )?;
+        request.name = n0;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -7047,14 +7101,18 @@ impl ServiceAccountClient {
     /// organization.
     pub async fn delete_service_account(
         &self,
-        request: DeleteServiceAccountRequest,
+        mut request: DeleteServiceAccountRequest,
     ) -> ::core::result::Result<
         ::origincloud_core::protobuf::Empty,
         ::origincloud_core::Error,
     > {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "organizations/*/serviceAccounts/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["iam"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/serviceAccounts/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -7089,9 +7147,11 @@ impl UserClient {
     /// profile.
     pub async fn get_user(
         &self,
-        request: GetUserRequest,
+        mut request: GetUserRequest,
     ) -> ::core::result::Result<User, ::origincloud_core::Error> {
-        let p0 = self.service.path_value("name", &request.name, "users/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["iam"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "users/*")?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,

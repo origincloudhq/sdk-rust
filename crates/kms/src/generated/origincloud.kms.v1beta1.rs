@@ -4762,11 +4762,15 @@ impl GrantClient {
     /// the project.
     pub async fn get_grant(
         &self,
-        request: GetGrantRequest,
+        mut request: GetGrantRequest,
     ) -> ::core::result::Result<Grant, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "projects/*/regions/*/keys/*/grants/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/keys/*/grants/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -4781,11 +4785,15 @@ impl GrantClient {
     /// zone's change arrives. Needs `kms.grant.list` on the project.
     pub async fn list_grants(
         &self,
-        request: ListGrantsRequest,
+        mut request: ListGrantsRequest,
     ) -> ::core::result::Result<ListGrantsResponse, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("parent", &request.parent, "projects/*/regions/*/keys/*")?;
+        let n0 = self.service.relative_name("parent", &request.parent, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "parent",
+            &n0,
+            "projects/*/regions/*/keys/*",
+        )?;
+        request.parent = n0;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -4827,9 +4835,13 @@ impl GrantClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = self
-            .service
-            .path_value("parent", &request.parent, "projects/*/regions/*/keys/*")?;
+        let n0 = self.service.relative_name("parent", &request.parent, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "parent",
+            &n0,
+            "projects/*/regions/*/keys/*",
+        )?;
+        request.parent = n0;
         let body = ::origincloud_core::json_body(
             request.grant.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -4848,11 +4860,15 @@ impl GrantClient {
     /// `kms.grant.update` on the project.
     pub async fn renew_grant(
         &self,
-        request: RenewGrantRequest,
+        mut request: RenewGrantRequest,
     ) -> ::core::result::Result<Grant, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "projects/*/regions/*/keys/*/grants/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/keys/*/grants/*",
+        )?;
+        request.name = n0;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -4865,14 +4881,18 @@ impl GrantClient {
     /// `kms.grant.delete` on the project.
     pub async fn delete_grant(
         &self,
-        request: DeleteGrantRequest,
+        mut request: DeleteGrantRequest,
     ) -> ::core::result::Result<
         ::origincloud_core::protobuf::Empty,
         ::origincloud_core::Error,
     > {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "projects/*/regions/*/keys/*/grants/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/keys/*/grants/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -4910,11 +4930,15 @@ impl KeyClient {
     /// Returns a key, deleted or not. Needs `kms.key.get` on the project.
     pub async fn get_key(
         &self,
-        request: GetKeyRequest,
+        mut request: GetKeyRequest,
     ) -> ::core::result::Result<Key, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "projects/*/regions/*/keys/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/keys/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -4930,11 +4954,11 @@ impl KeyClient {
     /// on the project.
     pub async fn list_keys(
         &self,
-        request: ListKeysRequest,
+        mut request: ListKeysRequest,
     ) -> ::core::result::Result<ListKeysResponse, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("parent", &request.parent, "projects/*/regions/*")?;
+        let n0 = self.service.relative_name("parent", &request.parent, &["kms"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "projects/*/regions/*")?;
+        request.parent = n0;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -4971,9 +4995,9 @@ impl KeyClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = self
-            .service
-            .path_value("parent", &request.parent, "projects/*/regions/*")?;
+        let n0 = self.service.relative_name("parent", &request.parent, &["kms"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "projects/*/regions/*")?;
+        request.parent = n0;
         let body = ::origincloud_core::json_body(
             request.key.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -5002,13 +5026,21 @@ impl KeyClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = self
+        let n0 = self
             .service
-            .path_value(
+            .relative_name(
                 "key.name",
                 request.key.as_ref().map_or("", |m| m.name.as_str()),
-                "projects/*/regions/*/keys/*",
+                &["kms"],
             )?;
+        let p0 = ::origincloud_core::path_value(
+            "key.name",
+            &n0,
+            "projects/*/regions/*/keys/*",
+        )?;
+        if let Some(m) = request.key.as_mut() {
+            m.name = n0;
+        }
         let body = ::origincloud_core::json_body(
             request.key.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -5035,9 +5067,13 @@ impl KeyClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "projects/*/regions/*/keys/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/keys/*",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -5059,9 +5095,13 @@ impl KeyClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "projects/*/regions/*/keys/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/keys/*",
+        )?;
+        request.name = n0;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -5083,9 +5123,13 @@ impl KeyClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "projects/*/regions/*/keys/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/keys/*",
+        )?;
+        request.name = n0;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -5102,11 +5146,15 @@ impl KeyClient {
     /// `kms.key.encrypt` on the project.
     pub async fn encrypt(
         &self,
-        request: EncryptRequest,
+        mut request: EncryptRequest,
     ) -> ::core::result::Result<EncryptResponse, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "projects/*/regions/*/keys/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/keys/*",
+        )?;
+        request.name = n0;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -5122,11 +5170,15 @@ impl KeyClient {
     /// project.
     pub async fn decrypt(
         &self,
-        request: DecryptRequest,
+        mut request: DecryptRequest,
     ) -> ::core::result::Result<DecryptResponse, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "projects/*/regions/*/keys/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/keys/*",
+        )?;
+        request.name = n0;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -5142,11 +5194,15 @@ impl KeyClient {
     /// `kms.key.generate_data_key` on the project.
     pub async fn generate_data_key(
         &self,
-        request: GenerateDataKeyRequest,
+        mut request: GenerateDataKeyRequest,
     ) -> ::core::result::Result<GenerateDataKeyResponse, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "projects/*/regions/*/keys/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/keys/*",
+        )?;
+        request.name = n0;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -5162,11 +5218,15 @@ impl KeyClient {
     /// `key::Purpose::EncryptDecrypt` key. Needs `kms.key.sign` on the project.
     pub async fn sign(
         &self,
-        request: SignRequest,
+        mut request: SignRequest,
     ) -> ::core::result::Result<SignResponse, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value("name", &request.name, "projects/*/regions/*/keys/*")?;
+        let n0 = self.service.relative_name("name", &request.name, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/keys/*",
+        )?;
+        request.name = n0;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -5181,15 +5241,15 @@ impl KeyClient {
     /// Needs `kms.key.get_public_key` on the project.
     pub async fn get_public_key(
         &self,
-        request: GetPublicKeyRequest,
+        mut request: GetPublicKeyRequest,
     ) -> ::core::result::Result<PublicKey, ::origincloud_core::Error> {
-        let p0 = self
-            .service
-            .path_value(
-                "name",
-                &request.name,
-                "projects/*/regions/*/keys/*/versions/*/publicKey",
-            )?;
+        let n0 = self.service.relative_name("name", &request.name, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/keys/*/versions/*/publicKey",
+        )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,

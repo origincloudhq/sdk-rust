@@ -40,7 +40,10 @@ module `{version}` of the crate `origincloud-{service}` in `crates/{service}`;
 `origincloud.longrunning.{version}` the core crate's
 `longrunning::{version}`. The core crate's `names/generated/services.rs`
 lists the services that have resources, the domains of the resource types
-the API declares, which are the hosts a full resource name may name. The
+the API declares, which are the hosts a full resource name may name. Each
+client passes a path field's own list to `Service::relative_name`: the
+service of the type its `google.api.resource_reference` names (for a
+`child_type`, its parent's), or of the resource whose `name` it is. The
 rest of the core crate is written by hand.
 
 So a change to what a service offers starts in the API, which is why it is

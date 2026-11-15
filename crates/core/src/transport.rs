@@ -102,20 +102,44 @@ impl Request {
 }
 
 impl Service {
-    /// `value`, the path field `field` of a call to this service, as the
-    /// path segments of the request, checked against `pattern` as
-    /// [`path_value`] checks it. The generated clients call it.
+    /// The relative name `value`, the path field `field` of a call to this
+    /// service, stands for: `value` itself, or the relative name of a full
+    /// resource name it is. The generated clients call it, and send the
+    /// relative name in the path and in the body alike.
     ///
-    /// A full resource name of this service, such as
-    /// `//pvs.origincloudapis.eu/projects/p/zones/z/volumes/vol-1` given to
-    /// a PVS client, is sent as its relative name, the path every call
-    /// takes. A full name of another service, one with a regional or zonal
-    /// host or an API version, a URN, a URL or a malformed full name is
-    /// refused before anything is sent; see [`FullName`](crate::names::FullName).
-    pub fn path_value(&self, field: &str, value: &str, pattern: &str) -> Result<String, Error> {
-        let relative = crate::names::path_name(&self.shortcode, field, value)
-            .map_err(Error::InvalidRequest)?;
-        path_value(field, relative, pattern)
+    /// `services` are the short codes of the services whose full names the
+    /// field takes: the service of the type the field refers to, such as
+    /// `resourcemanager` for a billing account's `parent`
+    /// (`organizations/*`), [`ANY_SERVICE`](crate::names::ANY_SERVICE) for
+    /// a field referring to any type, or none for this service's own. A full
+    /// name of one of them, such as
+    /// `//resourcemanager.origincloudapis.eu/organizations/o`, stands for its
+    /// relative name. A full name of another service, one with a regional or
+    /// zonal host or an API version, a URN, a URL or a malformed full name is
+    /// refused, naming the hosts the field takes; see
+    /// [`FullName`](crate::names::FullName).
+    pub fn relative_name(
+        &self,
+        field: &str,
+        value: &str,
+        services: &[&str],
+    ) -> Result<String, Error> {
+        crate::names::path_name(&self.shortcode, services, field, value)
+            .map(str::to_owned)
+            .map_err(Error::InvalidRequest)
+    }
+
+    /// `value`, the path field `field` of a call to this service, as the
+    /// path segments of the request: its [`relative_name`](Self::relative_name),
+    /// checked against `pattern` and escaped as [`path_value`] does.
+    pub fn path_value(
+        &self,
+        field: &str,
+        value: &str,
+        pattern: &str,
+        services: &[&str],
+    ) -> Result<String, Error> {
+        path_value(field, &self.relative_name(field, value, services)?, pattern)
     }
 
     /// Sends `request`, retrying it while that is safe and the answer

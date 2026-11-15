@@ -461,26 +461,60 @@ fn is_version(segment: &str) -> bool {
     }
 }
 
+/// Every resource service, in the services a path field takes: a field
+/// referring to any type (`google.api.resource_reference`'s `type: "*"`).
+pub const ANY_SERVICE: &str = "*";
+
 /// The relative name to send in a request's path for `value`, the path
-/// field `field` of a call to the service `own` (a short code): `value` as
-/// it is when it isn't a full name, its relative name when it is one of
-/// `own`'s, and an error when it is another service's, a URN, a URL or no
-/// valid full name.
-pub(crate) fn path_name<'v>(own: &str, field: &str, value: &'v str) -> Result<&'v str, String> {
+/// field `field` of a call to the service `own` (a short code), which takes
+/// full names of `services`: the services of the type it refers to,
+/// [`ANY_SERVICE`] for any, or none for `own`.
+///
+/// `value` is sent as it is when it isn't a full name, and as its relative
+/// name when it is one of those services'. A full name of another service,
+/// a URN, a URL or no valid full name is an error.
+pub(crate) fn path_name<'v>(
+    own: &str,
+    services: &[&str],
+    field: &str,
+    value: &'v str,
+) -> Result<&'v str, String> {
+    let own = [own];
+    let services = if services.is_empty() {
+        &own[..]
+    } else {
+        services
+    };
+    let refused = |e: FullNameError| format!("{field} must be a name on {}: {e}", hosts(services));
     if !value.starts_with("//") {
         return match not_full(value) {
-            e @ (FullNameError::Urn(_) | FullNameError::Scheme(_)) => Err(format!("{field}: {e}")),
+            e @ (FullNameError::Urn(_) | FullNameError::Scheme(_)) => Err(refused(e)),
             _ => Ok(value),
         };
     }
-    let name = FullName::parse(value).map_err(|e| format!("{field}: {e}"))?;
-    if name.service() != own {
+    let name = FullName::parse(value).map_err(refused)?;
+    if !services.contains(&ANY_SERVICE) && !services.contains(&name.service()) {
         return Err(format!(
-            "{field} must be a name on {own}.{DOMAIN}, the host this client calls, got {value:?}, a name on {}",
+            "{field} must be a name on {}, got {value:?}, a name on {}",
+            hosts(services),
             name.host()
         ));
     }
     Ok(&value[value.len() - name.relative().len()..])
+}
+
+/// The hosts of `services`, for an error: `a.origincloudapis.eu`, `one of
+/// a.origincloudapis.eu, b.origincloudapis.eu`, or any API's for
+/// [`ANY_SERVICE`].
+fn hosts(services: &[&str]) -> String {
+    if services.contains(&ANY_SERVICE) {
+        return "the host of one of the platform's APIs".to_owned();
+    }
+    let hosts: Vec<String> = services.iter().map(|s| format!("{s}.{DOMAIN}")).collect();
+    match hosts.as_slice() {
+        [one] => one.clone(),
+        _ => format!("one of {}", hosts.join(", ")),
+    }
 }
 
 impl fmt::Display for FullName {

@@ -119,9 +119,12 @@ async fn main() -> Result<(), origincloud_core::Error> {
   a regional or zonal host, a version), builds one with `from_relative`,
   and gives its `service`, `host`, `relative` name and `url`; principals
   and roles are iam names (`principal`, `role`). A request's `name` or
-  `parent` takes either form: a full name of the client's own service is
-  sent as its relative name, and one of another service is refused before
-  anything is sent.
+  `parent` takes either form. A full name is checked against the type the
+  field refers to: the client's own service for its own resources, the
+  referenced type's service otherwise (a billing account's `parent` takes
+  `//resourcemanager.origincloudapis.eu/organizations/o`). It is sent as
+  its relative name, in the path and the body alike, and a full name on
+  any other host is refused before anything is sent.
 - **Operations.** A create, update or delete returns an `Operation`; its
   `wait` returns the resource once the change is complete, or the error the
   change failed with.

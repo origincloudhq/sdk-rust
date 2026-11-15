@@ -251,6 +251,56 @@ async fn a_full_name_of_the_service_is_sent_as_its_relative_name() {
     );
 }
 
+/// A full name in a path field that the body also carries, as an update's
+/// resource does, is sent as the relative name in both: the same request.
+#[tokio::test]
+async fn a_full_name_in_the_body_s_resource_is_sent_as_its_relative_name() {
+    let (_server, client, calls) =
+        recording(r#"{"name":"projects/p/zones/z/operations/op-1"}"#).await;
+    let volumes = VolumeClient::new(&client);
+    let relative = format!("{ZONE}/volumes/vol-1");
+    for name in [
+        relative.clone(),
+        format!("//pvs.origincloudapis.eu/{relative}"),
+    ] {
+        volumes
+            .update_volume(UpdateVolumeRequest {
+                volume: Some(Volume {
+                    name,
+                    size_gib: 2,
+                    ..Default::default()
+                }),
+                request_id: "given".to_owned(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        volumes
+            .import_volume(ImportVolumeRequest {
+                parent: format!("//pvs.origincloudapis.eu/{ZONE}"),
+                request_id: "given".to_owned(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+    }
+    let calls = calls.lock().unwrap();
+    let [update, import, full_update, full_import] = calls.as_slice() else {
+        panic!("{calls:?}");
+    };
+    assert_eq!(
+        json_of(full_update),
+        json!({"name": relative, "sizeGib": 2})
+    );
+    for (a, b) in [(update, full_update), (import, full_import)] {
+        assert_eq!(
+            (&a.method, &a.path, &a.query, &a.body),
+            (&b.method, &b.path, &b.query, &b.body)
+        );
+    }
+    assert_eq!(json_of(full_import)["parent"], json!(ZONE));
+}
+
 /// A full name of another service, or one that isn't a valid full name,
 /// is refused before anything is sent, naming the field and the host the
 /// client calls.
@@ -261,7 +311,7 @@ async fn a_name_of_another_service_is_refused_before_sending() {
     for (name, says) in [
         (
             "//compute.origincloudapis.eu/projects/p/zones/z/volumes/vol-1",
-            "name must be a name on pvs.origincloudapis.eu, the host this client calls",
+            "name must be a name on pvs.origincloudapis.eu, got",
         ),
         (
             "//pvs.eu-central1-az1.origincloudapis.eu/projects/p/zones/z/volumes/vol-1",

@@ -107,8 +107,9 @@ fn main() -> Result<()> {
             summary = service.summary(),
         );
     }
+    let resources = services::Resources::index(&pool)?;
     for target in &targets {
-        let code = generate_package(target, &pool, &fds, &encoded, &comments)
+        let code = generate_package(target, &pool, &resources, &fds, &encoded, &comments)
             .with_context(|| target.package.clone())?;
         files.insert(
             target
@@ -117,7 +118,7 @@ fn main() -> Result<()> {
             code,
         );
     }
-    let resource_services = services::resource_services(&pool)?;
+    let resource_services = resources.services();
     ensure!(
         !resource_services.is_empty(),
         "the API declares no resource types"
@@ -250,6 +251,7 @@ fn plan(packages: &BTreeSet<String>, repository: &Path) -> Result<(Vec<Target>, 
 fn generate_package(
     target: &Target,
     pool: &DescriptorPool,
+    resources: &services::Resources,
     fds: &FileDescriptorSet,
     encoded: &[u8],
     comments: &docs::Comments,
@@ -302,6 +304,7 @@ fn generate_package(
     }
     let clients = clients::generate(&clients::Generation {
         pool,
+        resources,
         comments,
         package,
         core,
