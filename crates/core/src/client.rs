@@ -1,10 +1,11 @@
 use std::fmt;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use url::Url;
 
 use crate::Error;
+use crate::consistency::{ConsistencyTokenCell, ConsistencyTokenStore};
 use crate::credentials::{self, Credentials};
 
 /// This SDK's version, sent in the `User-Agent` header.
@@ -16,8 +17,8 @@ const DEFAULT_MAX_ATTEMPTS: u32 = 5;
 const DEFAULT_OPERATION_WAIT: Duration = Duration::from_secs(60);
 
 /// What the clients of every service share: credentials, endpoints, an
-/// HTTP client and the consistency token. Cloning it is cheap, and the
-/// clones share all of it.
+/// HTTP client and the consistency token's store. Cloning it is cheap, and
+/// the clones share all of it.
 #[derive(Clone)]
 pub struct Client {
     pub(crate) inner: Arc<Inner>,
@@ -34,7 +35,7 @@ pub(crate) struct Inner {
     pub(crate) timeout: Option<Duration>,
     /// How long one call waiting on an operation asks the API to wait.
     pub(crate) operation_wait: Duration,
-    token: Mutex<String>,
+    pub(crate) tokens: Arc<dyn ConsistencyTokenStore>,
 }
 
 impl Client {
@@ -85,15 +86,17 @@ impl Client {
             client: self.clone(),
             base,
             shortcode: shortcode.to_owned(),
+            options: CallOptions::default(),
         }
     }
 
     /// The consistency token the client holds: the one the last answer
     /// carrying one brought, or empty before any. Hand it to
     /// [`Client::set_consistency_token`] of a client in another process for
-    /// its reads to show this client's writes.
+    /// its reads to show this client's writes. It is read from the client's
+    /// store ([`ClientBuilder::consistency_token_store`]).
     pub fn consistency_token(&self) -> String {
-        self.inner.token.lock().expect("the token lock").clone()
+        self.inner.tokens.get()
     }
 
     /// Replaces the consistency token the client sends with its calls.
@@ -106,7 +109,7 @@ impl Client {
     /// presents a token covering them, such as one from waiting on their
     /// operations.
     pub fn set_consistency_token(&self, token: impl Into<String>) {
-        *self.inner.token.lock().expect("the token lock") = token.into();
+        self.inner.tokens.set(token.into());
     }
 }
 
@@ -132,6 +135,7 @@ pub struct ClientBuilder {
     max_attempts: Option<u32>,
     timeout: Option<Duration>,
     operation_wait: Option<Duration>,
+    tokens: Option<Arc<dyn ConsistencyTokenStore>>,
 }
 
 impl ClientBuilder {
@@ -204,6 +208,18 @@ impl ClientBuilder {
         self
     }
 
+    /// Keeps the consistency token in `store` instead of in a
+    /// [`ConsistencyTokenCell`] of the client's own. Clients given the same
+    /// store share one token: each presents the token the store holds, and
+    /// each answer carrying a token replaces it there, so a read through
+    /// any of them shows the writes made through all of them, as through
+    /// one client (see [`Client::set_consistency_token`] for concurrent
+    /// writes).
+    pub fn consistency_token_store(mut self, store: Arc<dyn ConsistencyTokenStore>) -> Self {
+        self.tokens = Some(store);
+        self
+    }
+
     /// The client. It fails when no credentials are found or an option is
     /// invalid.
     pub fn build(self) -> Result<Client, Error> {
@@ -269,7 +285,9 @@ impl ClientBuilder {
                 max_attempts,
                 timeout: self.timeout,
                 operation_wait: self.operation_wait.unwrap_or(DEFAULT_OPERATION_WAIT),
-                token: Mutex::default(),
+                tokens: self
+                    .tokens
+                    .unwrap_or_else(|| Arc::new(ConsistencyTokenCell::new())),
             }),
         })
     }
@@ -284,6 +302,7 @@ impl fmt::Debug for ClientBuilder {
             .field("max_attempts", &self.max_attempts)
             .field("timeout", &self.timeout)
             .field("operation_wait", &self.operation_wait)
+            .field("consistency_token_store", &self.tokens)
             .finish_non_exhaustive()
     }
 }
@@ -296,7 +315,8 @@ fn is_label(s: &str) -> bool {
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
 
-/// The endpoint of one service, which its generated clients send calls to.
+/// The endpoint of one service, which its generated clients send calls to,
+/// and how they send them.
 #[derive(Clone, Debug)]
 pub struct Service {
     pub(crate) client: Client,
@@ -305,9 +325,33 @@ pub struct Service {
     /// The service's shortcode, such as `pvs`: its host's first label, and
     /// the service a full resource name in a path field must name.
     pub(crate) shortcode: String,
+    pub(crate) options: CallOptions,
 }
 
 impl Service {
+    /// The same endpoint, whose calls are sent as `options` says instead of
+    /// as the client's settings do. The generated clients'
+    /// `with_options` call it.
+    pub fn with_options(&self, options: CallOptions) -> Self {
+        Self {
+            options,
+            ..self.clone()
+        }
+    }
+
+    /// How the calls are sent where they differ from the client's settings.
+    pub fn options(&self) -> &CallOptions {
+        &self.options
+    }
+
+    /// The most attempts of a retryable call: the options', else the
+    /// client's.
+    pub(crate) fn max_attempts(&self) -> u32 {
+        self.options
+            .max_attempts
+            .unwrap_or(self.client.inner.max_attempts)
+    }
+
     /// The client the service's calls go through.
     pub fn client(&self) -> &Client {
         &self.client
@@ -317,6 +361,45 @@ impl Service {
     /// `None` when the service's shortcode can't name a host.
     pub fn base_url(&self) -> Option<&Url> {
         self.base.as_ref().ok()
+    }
+}
+
+/// How the calls of one service client are sent, where that differs from
+/// the [`Client`]'s settings: give it to a generated client's
+/// `with_options`, such as `ProjectClient::with_options`, for the calls
+/// made through the client it returns. Waiting on an operation such a call
+/// answers with follows the client's settings again.
+///
+/// ```
+/// let once = origincloud_core::CallOptions::new().max_attempts(1);
+/// assert_eq!(once.attempts(), Some(1));
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct CallOptions {
+    max_attempts: Option<u32>,
+}
+
+impl CallOptions {
+    /// The client's settings, unchanged.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sends a retryable call `attempts` times at most, the first included,
+    /// instead of [`ClientBuilder::max_attempts`]; 1, or 0, turns retries
+    /// off, for a mutation that must not be sent twice even with its
+    /// request id. A call the API refused for its consistency token alone
+    /// is sent again all the same, as the API refused it before doing
+    /// anything.
+    pub fn max_attempts(mut self, attempts: u32) -> Self {
+        self.max_attempts = Some(attempts.max(1));
+        self
+    }
+
+    /// The most attempts set, if any.
+    pub fn attempts(&self) -> Option<u32> {
+        self.max_attempts
     }
 }
 

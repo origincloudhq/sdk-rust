@@ -10315,6 +10315,12 @@ impl BillingAccountClient {
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
     }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
+    }
     /// Returns a billing account. Needs `admin.billing_account.get` on the
     /// organization.
     pub async fn get_billing_account(
@@ -10725,6 +10731,12 @@ impl CostClient {
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
     }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
+    }
     /// Returns a project's cost in a period, by service and product, in hourly
     /// or daily buckets. Needs `admin.usage.list` on the organization.
     pub async fn query_project_cost(
@@ -10857,6 +10869,12 @@ impl LegalAcceptanceClient {
     /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
+    }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
     }
     /// Lists a billing account's acceptances, the latest first. Needs
     /// `admin.billing_account.get` on the organization.
@@ -11006,6 +11024,12 @@ impl LegalDocumentClient {
     /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
+    }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
     }
     /// Lists the published legal documents, in a fixed order: `terms`, `dpa`,
     /// `sla`, `aup`, `subprocessors`, `toms`, `privacy`, `switching`,
@@ -11182,6 +11206,12 @@ impl PriceListClient {
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
     }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
+    }
     /// Returns the prices in effect now. The answer carries an `ETag`; a
     /// request that sends it back in `If-None-Match` is answered
     /// `304 Not Modified`, without a body, while the list is unchanged.
@@ -11221,6 +11251,12 @@ impl SpendLimitClient {
     /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
+    }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
     }
     /// Returns a billing account's spend limit; one that has none has no
     /// `limit`. Needs `admin.spend_limit.get` on the organization.

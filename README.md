@@ -131,10 +131,16 @@ async fn main() -> Result<(), origincloud_core::Error> {
 - **Retries.** A call answered as retryable is sent again with a growing delay,
   when sending it again is safe: a read, or a mutation with a request id. The
   client fills in an empty request id, so a retried create never creates twice.
+  `ClientBuilder::max_attempts` bounds every call; a service client's
+  `with_options(CallOptions::new().max_attempts(1))` turns retries off for the
+  calls made through it, for a mutation that must not be sent twice.
 - **Read-your-writes.** The client keeps the consistency token each write
   answers with and sends it with later calls, so a read right after a write, or
   after waiting on an operation, sees it. The token answered last is the one
-  kept: of concurrent writes, a read is sure to see the last answered.
+  kept: of concurrent writes, a read is sure to see the last answered. Clients
+  given the same `ClientBuilder::consistency_token_store` share one token. A
+  call the API refuses because its token isn't one is sent again once without
+  it, and the token is dropped.
 - **Pages.** Each list method has an `all_...` counterpart that streams every
   page.
 - **Errors.** A refused call returns `Error::Api`; branch on `Error::reason`,
@@ -178,6 +184,10 @@ settings in a browser, which leaves them to the browser. A response body is
 read whole and then held to the same 32 MiB limit. A retry waits at most
 about 24.8 days there, the longest a browser timer can, however long the
 server asks.
+
+A call to a method that authenticates no caller, such as billing's legal
+documents, carries no `User-Agent` and no consistency token, only `Accept`, so
+the browser sends it without a CORS preflight.
 
 ## Versions
 

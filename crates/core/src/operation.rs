@@ -23,13 +23,15 @@ impl<T: DeserializeOwned> Operation<T> {
     /// The operation `operation`, which a method of `service` answered
     /// with; its result is the message `result_type`, such as
     /// `origincloud.pvs.v1beta1.Volume`. The generated clients call it.
+    /// Waiting on it follows the client's settings, not the
+    /// [`CallOptions`](crate::CallOptions) of `service`.
     pub fn new(
         service: Service,
         operation: longrunning::Operation,
         result_type: &'static str,
     ) -> Self {
         Self {
-            service,
+            service: service.with_options(crate::CallOptions::default()),
             operation,
             result_type,
             result: PhantomData,
