@@ -8,11 +8,9 @@ pub struct Case {
     /// The case's resource name, `organizations/{organization}/cases/{case}`.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The case's URN, the identifier access policies and the audit log use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
-    /// The project the case is about, `projects/{project}`, one of the
-    /// organization's. Empty for a case about the organization as a whole.
+    /// The full name of the project the case is about, one of the
+    /// organization's: `//resourcemanager.origincloudapis.eu/projects/{project}`.
+    /// Empty for a case about the organization as a whole.
     #[prost(string, tag = "3")]
     pub project: ::prost::alloc::string::String,
     /// A one-line summary. Not empty.
@@ -30,8 +28,10 @@ pub struct Case {
     /// `ReopenCase`.
     #[prost(enumeration = "case::State", tag = "7")]
     pub state: i32,
-    /// The principal that opened the case, such as `user:<id>` or
-    /// `service_account:<id>`.
+    /// The principal that opened the case, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "8")]
     pub creator: ::prost::alloc::string::String,
     /// When the case was opened.
@@ -165,8 +165,10 @@ pub struct CaseMessage {
     /// The message's text. Not empty.
     #[prost(string, tag = "2")]
     pub body: ::prost::alloc::string::String,
-    /// The principal that wrote the message, such as `user:<id>` or
-    /// `service_account:<id>`.
+    /// The principal that wrote the message, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "3")]
     pub author: ::prost::alloc::string::String,
     /// When the message was added.
@@ -231,9 +233,6 @@ impl serde::Serialize for Case {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.project.is_empty() {
             len += 1;
         }
@@ -262,9 +261,6 @@ impl serde::Serialize for Case {
             .serialize_struct("origincloud.support.v1beta1.Case", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.project.is_empty() {
             struct_ser.serialize_field("project", &self.project)?;
@@ -305,7 +301,6 @@ impl<'de> serde::Deserialize<'de> for Case {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "project",
             "subject",
             "description",
@@ -321,7 +316,6 @@ impl<'de> serde::Deserialize<'de> for Case {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Project,
             Subject,
             Description,
@@ -358,7 +352,6 @@ impl<'de> serde::Deserialize<'de> for Case {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "project" => Ok(GeneratedField::Project),
                             "subject" => Ok(GeneratedField::Subject),
                             "description" => Ok(GeneratedField::Description),
@@ -394,7 +387,6 @@ impl<'de> serde::Deserialize<'de> for Case {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut project__ = None;
                 let mut subject__ = None;
                 let mut description__ = None;
@@ -410,12 +402,6 @@ impl<'de> serde::Deserialize<'de> for Case {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Project => {
                             if project__.is_some() {
@@ -476,7 +462,6 @@ impl<'de> serde::Deserialize<'de> for Case {
                 }
                 Ok(Case {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     project: project__.unwrap_or_default(),
                     subject: subject__.unwrap_or_default(),
                     description: description__.unwrap_or_default(),

@@ -11,7 +11,8 @@ pub struct Region {
     /// The name the console shows, such as `EU Central 1`.
     #[prost(string, tag = "3")]
     pub display_name: ::prost::alloc::string::String,
-    /// The region's zones, `zones/{zone}`, in catalog order.
+    /// The full names of the region's zones,
+    /// `//location.origincloudapis.eu/zones/{zone}`, in catalog order.
     #[prost(string, repeated, tag = "2")]
     pub zones: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
@@ -27,7 +28,8 @@ pub struct Zone {
     /// The name the console shows, such as `EU Central 1, zone 1`.
     #[prost(string, tag = "4")]
     pub display_name: ::prost::alloc::string::String,
-    /// The region the zone is in, `regions/{region}`.
+    /// The full name of the region the zone is in,
+    /// `//location.origincloudapis.eu/regions/{region}`.
     #[prost(string, tag = "2")]
     pub region: ::prost::alloc::string::String,
     /// The services whose zonal resources the zone holds, by the name of their

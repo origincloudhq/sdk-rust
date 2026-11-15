@@ -7,8 +7,8 @@ pub struct AssumeServiceAccountRequest {
     /// The OIDC token, a JWT its issuer signed, such as a CI job's.
     #[prost(string, tag = "1")]
     pub oidc_token: ::prost::alloc::string::String,
-    /// The service account to assume,
-    /// `organizations/{organization}/serviceAccounts/{service_account}`. Only
+    /// The full name of the service account to assume,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`. Only
     /// its federated credentials are considered. Without it, any service
     /// account's credential that trusts the token is.
     #[prost(string, tag = "2")]
@@ -28,11 +28,12 @@ pub struct AssumeServiceAccountResponse {
     /// When the access token expires.
     #[prost(message, optional, tag = "2")]
     pub expire_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The service account assumed,
-    /// `organizations/{organization}/serviceAccounts/{service_account}`.
+    /// The full name of the service account assumed,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`.
     #[prost(string, tag = "3")]
     pub service_account: ::prost::alloc::string::String,
-    /// The federated credential that trusted the token.
+    /// The full name of the federated credential that trusted the token, on
+    /// iam.
     #[prost(string, tag = "4")]
     pub federated_credential: ::prost::alloc::string::String,
 }
