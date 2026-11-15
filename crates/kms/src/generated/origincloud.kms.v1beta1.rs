@@ -4756,6 +4756,12 @@ impl GrantClient {
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
     }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
+    }
     /// Returns a grant that hasn't expired; an expired one is `NOT_FOUND`. A
     /// grant made moments ago may be refused with `SERVICE_UNAVAILABLE`,
     /// retryable, until its zone's change arrives. Needs `kms.grant.get` on
@@ -4926,6 +4932,12 @@ impl KeyClient {
     /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
+    }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
     }
     /// Returns a key, deleted or not. Needs `kms.key.get` on the project.
     pub async fn get_key(

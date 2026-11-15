@@ -397,6 +397,12 @@ impl SecurityTokenClient {
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
     }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
+    }
     /// Assumes a `WORKLOAD` service account with an OIDC token. Exactly one
     /// federated credential, of the named service account or of any, must
     /// trust the token: its issuer and audience, and every one of its

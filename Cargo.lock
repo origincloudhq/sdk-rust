@@ -104,6 +104,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
+name = "cast"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
+
+[[package]]
 name = "cc"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -359,6 +365,9 @@ name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
+dependencies = [
+ "getrandom 0.4.3",
+]
 
 [[package]]
 name = "find-msvc-tools"
@@ -483,6 +492,18 @@ dependencies = [
  "libc",
  "r-efi",
  "rand_core",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "gloo-timers"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbb143cf96099802033e0d4f4963b19fd2e0b728bcf076cd9cf7f6634f092994"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "js-sys",
  "wasm-bindgen",
 ]
 
@@ -861,6 +882,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 
 [[package]]
+name = "libm"
+version = "0.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -991,6 +1018,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
+name = "minicov"
+version = "0.3.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4869b6a491569605d66d3952bcdf03df789e5b536e5f0cf7758a7f08a55ae24d"
+dependencies = [
+ "cc",
+ "walkdir",
+]
+
+[[package]]
 name = "miniz_oxide"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1024,6 +1061,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 
 [[package]]
+name = "nu-ansi-term"
+version = "0.50.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
+dependencies = [
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "num-conv"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1036,6 +1082,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
+ "libm",
 ]
 
 [[package]]
@@ -1045,6 +1092,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
+name = "oorandom"
+version = "11.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
+
+[[package]]
 name = "openssl-probe"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1052,7 +1105,7 @@ checksum = "7e036b411754132fd6b74e94b74e9a13c5cf606fa93d1885c35860d3060820b1"
 
 [[package]]
 name = "origincloud-billing"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "fake-server",
  "origincloud-core",
@@ -1065,7 +1118,7 @@ dependencies = [
 
 [[package]]
 name = "origincloud-compute"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "fake-server",
  "origincloud-core",
@@ -1078,7 +1131,7 @@ dependencies = [
 
 [[package]]
 name = "origincloud-core"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -1086,6 +1139,8 @@ dependencies = [
  "fastrand",
  "futures-core",
  "futures-util",
+ "gloo-timers",
+ "js-sys",
  "pbjson",
  "pbjson-types",
  "percent-encoding",
@@ -1097,11 +1152,14 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
 name = "origincloud-dns"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "fake-server",
  "origincloud-core",
@@ -1114,7 +1172,7 @@ dependencies = [
 
 [[package]]
 name = "origincloud-iam"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "fake-server",
  "origincloud-core",
@@ -1127,7 +1185,7 @@ dependencies = [
 
 [[package]]
 name = "origincloud-kms"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "origincloud-core",
  "pbjson",
@@ -1137,7 +1195,7 @@ dependencies = [
 
 [[package]]
 name = "origincloud-location"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "fake-server",
  "origincloud-core",
@@ -1149,7 +1207,7 @@ dependencies = [
 
 [[package]]
 name = "origincloud-network"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "fake-server",
  "origincloud-core",
@@ -1162,7 +1220,7 @@ dependencies = [
 
 [[package]]
 name = "origincloud-observability"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "fake-server",
  "origincloud-core",
@@ -1174,7 +1232,7 @@ dependencies = [
 
 [[package]]
 name = "origincloud-pvs"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "fake-server",
  "origincloud-core",
@@ -1187,7 +1245,7 @@ dependencies = [
 
 [[package]]
 name = "origincloud-resourcemanager"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "fake-server",
  "origincloud-core",
@@ -1224,7 +1282,7 @@ dependencies = [
 
 [[package]]
 name = "origincloud-sts"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "origincloud-core",
  "pbjson",
@@ -1234,7 +1292,7 @@ dependencies = [
 
 [[package]]
 name = "origincloud-support"
-version = "0.30.0"
+version = "0.31.0"
 dependencies = [
  "fake-server",
  "origincloud-core",
@@ -2359,6 +2417,44 @@ checksum = "3b1f9c3798725016c6ee5f2f57869ec0831e8bbc0ab0310a86e787e97f41389e"
 dependencies = [
  "unicode-ident",
 ]
+
+[[package]]
+name = "wasm-bindgen-test"
+version = "0.3.80"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b4913c0ade07e01ab574b20d2741538f070efa12cb7a1a1e2d5df6ea41cf522"
+dependencies = [
+ "cast",
+ "js-sys",
+ "libm",
+ "minicov",
+ "nu-ansi-term",
+ "num-traits",
+ "oorandom",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test-macro",
+ "wasm-bindgen-test-shared",
+]
+
+[[package]]
+name = "wasm-bindgen-test-macro"
+version = "0.3.80"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "238071aa4c5b268e57d21018621a2e2403c29dd11c55dbdf790ed47fdb9241c0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "wasm-bindgen-test-shared"
+version = "0.2.130"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ab365ce29ba0232367502b2894556ae77a9c214d33dbf453fdba7f586905918"
 
 [[package]]
 name = "web-sys"

@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 
 use fake_server::{FakeServer, Received, Response};
 use origincloud_core::{
-    AccessToken, CONSISTENCY_TOKEN_HEADER, Client, Error, Method, Operation, Request, Service,
-    longrunning,
+    AccessToken, CONSISTENCY_TOKEN_HEADER, CallOptions, Client, ConsistencyTokenCell,
+    ConsistencyTokenStore, Error, Method, Operation, Request, Service, longrunning,
 };
 use serde_json::{Value, json};
 
@@ -126,6 +126,62 @@ async fn an_unauthenticated_call_is_sent_without_credentials() {
         .call(Request::new(Method::POST, "/v1beta1:assumeServiceAccount"))
         .await;
     assert!(matches!(refused, Err(Error::NoCredentials)), "{refused:?}");
+}
+
+/// An anonymous call carries no consistency token and leaves the token
+/// held as it was; natively it keeps the `User-Agent` (in a browser it has
+/// none, `tests/wasm.rs`). An authenticated call still carries both.
+#[tokio::test]
+async fn an_unauthenticated_call_carries_no_consistency_token() {
+    let seen = Arc::new(Mutex::new(Vec::<Received>::new()));
+    let recorded = Arc::clone(&seen);
+    let server = FakeServer::start(move |r| {
+        recorded.lock().unwrap().push(r);
+        async { Response::json("{}").with_header(CONSISTENCY_TOKEN_HEADER, "v1.anonymous") }
+    })
+    .await;
+    let client = client(&server, 1);
+    client.set_consistency_token("v1.held");
+    let billing = client.service("billing", false);
+
+    let _: Value = billing
+        .call(
+            Request::new(Method::GET, "/v1beta1/legalDocuments")
+                .idempotent()
+                .unauthenticated(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(client.consistency_token(), "v1.held");
+    let _: Value = billing
+        .call(Request::new(Method::GET, "/v1beta1/legalDocuments").idempotent())
+        .await
+        .unwrap();
+
+    let seen = seen.lock().unwrap();
+    let anonymous = &seen[0];
+    for header in ["authorization", "origin-consistency-token", "content-type"] {
+        assert_eq!(anonymous.header(header), None, "{header}");
+    }
+    assert_eq!(anonymous.header("accept"), Some("application/json"));
+    assert!(
+        anonymous
+            .header("user-agent")
+            .unwrap()
+            .starts_with("my-tool/1.2 origincloud-sdk-rust/"),
+        "{:?}",
+        anonymous.header("user-agent")
+    );
+    let authenticated = &seen[1];
+    assert_eq!(
+        authenticated.header("authorization"),
+        Some("Bearer test-token")
+    );
+    assert!(authenticated.header("user-agent").is_some());
+    assert_eq!(
+        authenticated.header("origin-consistency-token"),
+        Some("v1.held")
+    );
 }
 
 #[tokio::test]
@@ -325,6 +381,291 @@ async fn the_consistency_token_is_kept_and_sent_back() {
         ]
     );
     assert_eq!(client.consistency_token(), "v1.after-failure");
+}
+
+/// Clients given one store share its token: a read through one presents
+/// the token a write through the other was answered with.
+#[tokio::test]
+async fn clients_given_one_store_share_the_token() {
+    let presented = Arc::new(Mutex::new(Vec::<String>::new()));
+    let log = Arc::clone(&presented);
+    let server = FakeServer::start(move |r| {
+        log.lock().unwrap().push(
+            r.header(CONSISTENCY_TOKEN_HEADER)
+                .unwrap_or_default()
+                .to_owned(),
+        );
+        async move {
+            match r.path.as_str() {
+                "/mutate" => {
+                    Response::json("{}").with_header(CONSISTENCY_TOKEN_HEADER, "v1.written")
+                }
+                _ => Response::json("{}"),
+            }
+        }
+    })
+    .await;
+    let store = Arc::new(ConsistencyTokenCell::new());
+    let shared = |server: &FakeServer| {
+        Client::builder()
+            .endpoint(server.url())
+            .credentials(AccessToken::new("t"))
+            .consistency_token_store(store.clone())
+            .build()
+            .unwrap()
+    };
+    let (writer, reader) = (shared(&server), shared(&server));
+    let alone = client(&server, 1);
+
+    get(&writer.service("pvs", true), "/mutate").await.unwrap();
+    get(&reader.service("pvs", true), "/read").await.unwrap();
+    get(&alone.service("pvs", true), "/read").await.unwrap();
+
+    assert_eq!(*presented.lock().unwrap(), ["", "v1.written", ""]);
+    assert_eq!(store.get(), "v1.written");
+    assert_eq!(reader.consistency_token(), "v1.written");
+    reader.set_consistency_token("v1.set");
+    assert_eq!(writer.consistency_token(), "v1.set");
+    assert_eq!(alone.consistency_token(), "");
+}
+
+/// A store of the caller's own is read before each call, and told the
+/// token presented along with the one answered after it.
+#[tokio::test]
+async fn a_store_of_the_callers_own_holds_the_token() {
+    #[derive(Debug, Default)]
+    struct Logged {
+        token: Mutex<String>,
+        log: Mutex<Vec<String>>,
+    }
+    impl ConsistencyTokenStore for Logged {
+        fn get(&self) -> String {
+            let token = self.token.lock().unwrap().clone();
+            self.log.lock().unwrap().push(format!("get {token}"));
+            token
+        }
+        fn set(&self, token: String) {
+            self.log.lock().unwrap().push(format!("set {token}"));
+            *self.token.lock().unwrap() = token;
+        }
+        fn replace(&self, presented: &str, answered: String) {
+            self.log
+                .lock()
+                .unwrap()
+                .push(format!("replace {presented} with {answered}"));
+            *self.token.lock().unwrap() = answered;
+        }
+    }
+    let server = FakeServer::start(|_| async {
+        Response::json("{}").with_header(CONSISTENCY_TOKEN_HEADER, "v1.answered")
+    })
+    .await;
+    let store = Arc::new(Logged::default());
+    let client = Client::builder()
+        .endpoint(server.url())
+        .credentials(AccessToken::new("t"))
+        .consistency_token_store(store.clone())
+        .build()
+        .unwrap();
+
+    get(&client.service("pvs", true), "/x").await.unwrap();
+    get(&client.service("pvs", true), "/x").await.unwrap();
+    assert_eq!(
+        *store.log.lock().unwrap(),
+        [
+            "get ",
+            "replace  with v1.answered",
+            "get v1.answered",
+            "replace v1.answered with v1.answered"
+        ]
+    );
+}
+
+const MALFORMED_TOKEN: &str = r#"{"error":{"code":400,"status":"INVALID_ARGUMENT","message":"the Origin-Consistency-Token header must be a token a response of this API carried","details":[
+    {"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"BAD_REQUEST","domain":"origincloudapis.eu"}]}}"#;
+
+/// A server refusing every token but `v1.good`, recording what each call
+/// presented.
+async fn refusing_tokens() -> (FakeServer, Arc<Mutex<Vec<String>>>) {
+    let presented = Arc::new(Mutex::new(Vec::<String>::new()));
+    let log = Arc::clone(&presented);
+    let server = FakeServer::start(move |r| {
+        let token = r
+            .header(CONSISTENCY_TOKEN_HEADER)
+            .unwrap_or_default()
+            .to_owned();
+        log.lock().unwrap().push(token.clone());
+        async move {
+            if token.is_empty() || token == "v1.good" {
+                Response::json("{}")
+            } else {
+                Response::json(MALFORMED_TOKEN).with_status(400)
+            }
+        }
+    })
+    .await;
+    (server, presented)
+}
+
+/// A token the API refuses to read is dropped, and the call sent again
+/// once without it, a mutation without a request id too; later calls send
+/// no token.
+#[tokio::test]
+async fn a_refused_token_is_dropped_and_the_call_sent_again() {
+    let (server, presented) = refusing_tokens().await;
+    let client = client(&server, 1);
+    client.set_consistency_token("v1.from-another-api");
+    let service = client.service("pvs", true);
+
+    let _: Value = service
+        .call(Request::new(Method::POST, "/mutate"))
+        .await
+        .unwrap();
+    assert_eq!(client.consistency_token(), "");
+    get(&service, "/read").await.unwrap();
+
+    assert_eq!(*presented.lock().unwrap(), ["v1.from-another-api", "", ""]);
+}
+
+/// It is sent again once only: a store that keeps the refused token gets
+/// the refusal back.
+#[tokio::test]
+async fn a_refused_token_is_sent_again_once_only() {
+    #[derive(Debug)]
+    struct Stuck;
+    impl ConsistencyTokenStore for Stuck {
+        fn get(&self) -> String {
+            "v1.stuck".to_owned()
+        }
+        fn set(&self, _: String) {}
+    }
+    let (server, presented) = refusing_tokens().await;
+    let client = Client::builder()
+        .endpoint(server.url())
+        .credentials(AccessToken::new("t"))
+        .consistency_token_store(Arc::new(Stuck))
+        .build()
+        .unwrap();
+
+    let err = get(&client.service("pvs", true), "/read")
+        .await
+        .unwrap_err();
+    assert_eq!(err.api().unwrap().http_status, Some(400));
+    assert_eq!(*presented.lock().unwrap(), ["v1.stuck", "v1.stuck"]);
+}
+
+/// A token a concurrent call stored between presenting the refused one and
+/// its refusal stays: the refused one isn't dropped over it, and the call
+/// is sent again with the newer token.
+#[tokio::test]
+async fn a_token_stored_while_the_refused_one_was_out_stays() {
+    let store = Arc::new(ConsistencyTokenCell::new());
+    store.set("v1.stale".to_owned());
+    let presented = Arc::new(Mutex::new(Vec::<String>::new()));
+    let (log, concurrent) = (Arc::clone(&presented), Arc::clone(&store));
+    let server = FakeServer::start(move |r| {
+        let token = r
+            .header(CONSISTENCY_TOKEN_HEADER)
+            .unwrap_or_default()
+            .to_owned();
+        log.lock().unwrap().push(token.clone());
+        if token == "v1.stale" {
+            // Another call's answer arrives while this one is refused.
+            concurrent.set("v1.newer".to_owned());
+        }
+        async move {
+            if token == "v1.stale" {
+                Response::json(MALFORMED_TOKEN).with_status(400)
+            } else {
+                Response::json("{}")
+            }
+        }
+    })
+    .await;
+    let client = Client::builder()
+        .endpoint(server.url())
+        .credentials(AccessToken::new("t"))
+        .consistency_token_store(store.clone())
+        .build()
+        .unwrap();
+
+    get(&client.service("pvs", true), "/read").await.unwrap();
+    assert_eq!(*presented.lock().unwrap(), ["v1.stale", "v1.newer"]);
+    assert_eq!(store.get(), "v1.newer");
+}
+
+/// Any other 400 is returned as it is, and the token kept.
+#[tokio::test]
+async fn another_bad_request_keeps_the_token() {
+    let calls = Arc::new(AtomicU32::new(0));
+    let counted = Arc::clone(&calls);
+    let server = FakeServer::start(move |_| {
+        counted.fetch_add(1, Ordering::SeqCst);
+        async { Response::json(BAD_REQUEST).with_status(400) }
+    })
+    .await;
+    let client = client(&server, 5);
+    client.set_consistency_token("v1.held");
+
+    let err = get(&client.service("pvs", true), "/x").await.unwrap_err();
+    assert_eq!(err.reason(), Some("BAD_REQUEST"));
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_eq!(client.consistency_token(), "v1.held");
+}
+
+/// Call options turn retries off for the calls of one service, and leave
+/// the client's other services as they were.
+#[tokio::test]
+async fn call_options_bound_the_attempts_of_one_service() {
+    let calls = Arc::new(AtomicU32::new(0));
+    let counted = Arc::clone(&calls);
+    let server = FakeServer::start(move |_| {
+        counted.fetch_add(1, Ordering::SeqCst);
+        async { Response::json(UNAVAILABLE).with_status(503) }
+    })
+    .await;
+    let client = client(&server, 3);
+    let service = client.service("pvs", true);
+    let once = service.with_options(CallOptions::new().max_attempts(1));
+    assert_eq!(once.options().attempts(), Some(1));
+    assert_eq!(CallOptions::new().max_attempts(0).attempts(), Some(1));
+
+    let err = get(&once, "/x").await.unwrap_err();
+    assert!(err.is_retryable(), "{err}");
+    assert_eq!(calls.swap(0, Ordering::SeqCst), 1);
+
+    get(&service, "/x").await.unwrap_err();
+    assert_eq!(calls.swap(0, Ordering::SeqCst), 3);
+
+    let more = service.with_options(CallOptions::new().max_attempts(4));
+    get(&more, "/x").await.unwrap_err();
+    assert_eq!(calls.load(Ordering::SeqCst), 4);
+}
+
+/// Waiting on an operation a call without retries answered with follows
+/// the client's settings: a wait call answered as retryable is sent again.
+#[tokio::test]
+async fn waiting_follows_the_clients_settings_not_the_calls_options() {
+    let calls = Arc::new(AtomicU32::new(0));
+    let counted = Arc::clone(&calls);
+    let server = FakeServer::start(move |_| {
+        let n = counted.fetch_add(1, Ordering::SeqCst) + 1;
+        async move {
+            if n == 1 {
+                Response::json(UNAVAILABLE).with_status(503)
+            } else {
+                Response::json(done_volume())
+            }
+        }
+    })
+    .await;
+    let once = client(&server, 3)
+        .service("pvs", true)
+        .with_options(CallOptions::new().max_attempts(1));
+
+    let volume = running(&once).wait().await.unwrap();
+    assert_eq!(volume["name"], "projects/p/zones/z/volumes/vol-1");
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
 }
 
 /// A file comes back as it was sent, retried like any read, and is never

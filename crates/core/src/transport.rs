@@ -6,6 +6,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
+use crate::consistency::is_malformed_token;
 use crate::error::ApiError;
 use crate::{Error, Service};
 
@@ -95,6 +96,14 @@ impl Request {
     /// Sends the call without the client's credentials, to a method that
     /// authenticates no caller, such as the security token service's: it
     /// then works with none.
+    ///
+    /// It is sent without the consistency token too, and the token its
+    /// answer carries, if any, isn't kept. In a browser it also carries no
+    /// `User-Agent`: only `Accept`, which a page may send to another
+    /// origin without asking first, and `Content-Type` with a body. So a
+    /// browser asks no CORS preflight of a read, and the call works
+    /// against an anonymous route whose CORS policy allows no request
+    /// headers. Natively it carries the `User-Agent` as every call does.
     pub fn unauthenticated(mut self) -> Self {
         self.authenticated = false;
         self
@@ -166,29 +175,53 @@ impl Service {
 
     /// Sends `request`, accepting `accept`, retrying it while that is safe
     /// and the answer allows it.
+    ///
+    /// A call the API refuses because the consistency token it presented
+    /// isn't one (a token from another API, or one corrupted in storage) is
+    /// sent once more without it, whether it is retryable or not: the API
+    /// refuses that before doing anything. The token is dropped from the
+    /// store, so that later calls don't present it either.
     async fn send_with_retries(&self, request: &Request, accept: &str) -> Result<Answer, Error> {
+        let tokens = &self.client.inner.tokens;
         let mut attempt = 1;
+        let mut resent = false;
         loop {
-            let err = match self.send(request, accept).await {
+            let presented = if request.authenticated {
+                tokens.get()
+            } else {
+                String::new()
+            };
+            let err = match self.send(request, accept, &presented).await {
                 Ok(answer) => return Ok(answer),
                 Err(err) => err,
             };
+            if !resent && !presented.is_empty() && is_malformed_token(&err) {
+                tokens.remove(&presented);
+                resent = true;
+                continue;
+            }
             if request.timeout_answers && is_timeout(&err) {
                 return Err(err);
             }
-            if !request.idempotent || attempt >= self.client.inner.max_attempts {
+            if !request.idempotent || attempt >= self.max_attempts() {
                 return Err(err);
             }
             let Some(delay) = retry_delay(&err, attempt) else {
                 return Err(err);
             };
-            tokio::time::sleep(delay).await;
+            crate::runtime::sleep(delay).await;
             attempt += 1;
         }
     }
 
-    /// Makes one attempt, and answers with the body of a 200.
-    async fn send(&self, request: &Request, accept: &str) -> Result<Answer, Error> {
+    /// Makes one attempt, presenting the consistency token `presented` when
+    /// it isn't empty, and answers with the body of a 200.
+    async fn send(
+        &self,
+        request: &Request,
+        accept: &str,
+        presented: &str,
+    ) -> Result<Answer, Error> {
         let base = self.base.as_ref().map_err(|e| Error::Config(e.clone()))?;
         let mut url = base.clone();
         url.set_path(&format!(
@@ -203,13 +236,16 @@ impl Service {
         }
         let inner = &self.client.inner;
         let mut builder = inner.http.request(request.method.clone(), url);
+        builder = builder.header(ACCEPT, accept);
+        // In a browser an anonymous call is sent without it, as it would
+        // make the browser ask a CORS preflight.
+        if request.authenticated || cfg!(not(target_arch = "wasm32")) {
+            builder = builder.header(USER_AGENT, &inner.user_agent);
+        }
         if request.authenticated {
             let token = inner.credentials.token().await?;
             builder = builder.header(AUTHORIZATION, format!("Bearer {token}"));
         }
-        builder = builder
-            .header(ACCEPT, accept)
-            .header(USER_AGENT, &inner.user_agent);
         if let Some(timeout) = inner.timeout {
             builder = builder.timeout(timeout);
         }
@@ -218,20 +254,19 @@ impl Service {
                 .header(CONTENT_TYPE, "application/json")
                 .body(body.clone());
         }
-        let held = self.client.consistency_token();
-        if !held.is_empty() {
-            builder = builder.header(CONSISTENCY_TOKEN_HEADER, held);
+        if !presented.is_empty() {
+            builder = builder.header(CONSISTENCY_TOKEN_HEADER, presented);
         }
-        let mut response = builder.send().await.map_err(Error::Transport)?;
+        let response = builder.send().await.map_err(Error::Transport)?;
         // A failed mutation may still have applied a command: its token
         // comes back either way.
         if let Some(answered) = response
             .headers()
             .get(CONSISTENCY_TOKEN_HEADER)
             .and_then(|v: &HeaderValue| v.to_str().ok())
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.is_empty() && request.authenticated)
         {
-            self.client.set_consistency_token(answered);
+            inner.tokens.replace(presented, answered.to_owned());
         }
         let status = response.status();
         let content_type = response
@@ -240,16 +275,9 @@ impl Service {
             .and_then(|v| v.to_str().ok())
             .unwrap_or_default()
             .to_owned();
-        let mut answer = Vec::new();
-        let mut truncated = false;
-        while let Some(chunk) = response.chunk().await.map_err(Error::Transport)? {
-            answer.extend_from_slice(&chunk);
-            if answer.len() > MAX_RESPONSE_BYTES {
-                answer.truncate(MAX_RESPONSE_BYTES);
-                truncated = true;
-                break;
-            }
-        }
+        let (answer, truncated) = read_capped(response, MAX_RESPONSE_BYTES)
+            .await
+            .map_err(Error::Transport)?;
         if status != reqwest::StatusCode::OK {
             return Err(ApiError::from_response(status.as_u16(), &answer).into());
         }
@@ -266,6 +294,35 @@ impl Service {
             content_type,
             body: answer,
         })
+    }
+}
+
+/// A response's body, up to `max` bytes, and whether it was longer.
+/// Natively it is read chunk by chunk, and reading stops at the cap; in a
+/// browser, where reqwest's fetch has no `chunk()`, it is read whole and
+/// cut afterwards.
+pub(crate) async fn read_capped(
+    #[cfg_attr(target_arch = "wasm32", allow(unused_mut))] mut response: reqwest::Response,
+    max: usize,
+) -> Result<(Vec<u8>, bool), reqwest::Error> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut body = Vec::new();
+        while let Some(chunk) = response.chunk().await? {
+            body.extend_from_slice(&chunk);
+            if body.len() > max {
+                body.truncate(max);
+                return Ok((body, true));
+            }
+        }
+        Ok((body, false))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let mut body = Vec::from(response.bytes().await?);
+        let truncated = body.len() > max;
+        body.truncate(max);
+        Ok((body, truncated))
     }
 }
 

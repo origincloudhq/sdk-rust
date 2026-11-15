@@ -16,13 +16,17 @@
 //! # Credentials
 //!
 //! Unless [`ClientBuilder::credentials`] names them, [`Client::new`] takes
-//! the first of:
+//! the first of (natively; in a browser there are none of these, see
+//! [`credentials`]):
 //!
 //! 1. `ORIGINCLOUD_ACCESS_TOKEN`: an access token, sent as it is.
 //! 2. `ORIGINCLOUD_CLIENT_ID` and `ORIGINCLOUD_CLIENT_SECRET`: a service
 //!    account's credential, exchanged for access tokens as they expire.
 //! 3. A CI job's OIDC token, exchanged at the security token service for a
-//!    `WORKLOAD` service account's access tokens ([`Federated`]): from the
+//!    `WORKLOAD` service account's access tokens
+#![cfg_attr(not(target_arch = "wasm32"), doc = "   ([`Federated`]):")]
+#![cfg_attr(target_arch = "wasm32", doc = "   (`Federated`):")]
+//!    from the
 //!    file `ORIGINCLOUD_OIDC_TOKEN_FILE` names, from `ORIGINCLOUD_OIDC_TOKEN`,
 //!    which holds the token itself, or in a GitHub Actions job granted
 //!    `permissions: id-token: write`. `ORIGINCLOUD_OIDC_DISABLED=true`
@@ -47,6 +51,9 @@
 //! answer asks for or a growing one, as long as sending it again is safe: a
 //! read, or a mutation with a request id. The client fills in a mutation's
 //! request id when it is empty, so that a retry can't apply it twice.
+//! [`ClientBuilder::max_attempts`] bounds the attempts of every call;
+//! [`CallOptions`] those of the calls through one service client, such as
+//! a mutation that must not be sent twice at all.
 //!
 //! # Read-your-writes
 //!
@@ -57,7 +64,11 @@
 //! client's own writes. The token answered last replaces the one held: for
 //! writes made one after another, it covers them all; of writes made
 //! concurrently, it covers the one answered last (see
-//! [`Client::set_consistency_token`]).
+//! [`Client::set_consistency_token`]). The token is kept per client, and
+//! shared by its clones; clients given one store share it
+//! ([`ClientBuilder::consistency_token_store`]). A call the API refuses
+//! because its token isn't one is sent again once without it, and the
+//! token is dropped.
 //!
 //! # Names
 //!
@@ -80,10 +91,20 @@
 //!
 //! The clients are `async` and send their calls with
 //! [reqwest](https://docs.rs/reqwest), on [Tokio](https://tokio.rs).
+//!
+//! They also build for the browser, `wasm32-unknown-unknown`, where
+//! reqwest sends calls with the browser's `fetch`, retries wait on
+//! `setTimeout`, and no Tokio runtime is needed: run the futures with the
+//! UI framework's executor, such as `wasm-bindgen-futures`. There, the
+//! futures the SDK returns aren't `Send` ([`MaybeSend`]), the credentials
+//! are the page's own (see [`credentials`]), and the per-call
+//! [`ClientBuilder::timeout`] is the only one, as a browser's `fetch` has
+//! no connect timeout.
 
 #![warn(missing_docs)]
 
 mod client;
+pub mod consistency;
 pub mod credentials;
 mod error;
 pub mod longrunning;
@@ -92,18 +113,22 @@ mod operation;
 mod pages;
 pub mod protobuf;
 pub mod rpc;
+mod runtime;
 mod transport;
 pub mod types;
 
-pub use client::{Client, ClientBuilder, Service, VERSION};
-pub use credentials::{
-    AccessToken, CliSession, Credentials, Federated, InstanceMetadata, ServiceAccount,
-    default_credentials,
-};
+pub use client::{CallOptions, Client, ClientBuilder, Service, VERSION};
+pub use consistency::{ConsistencyTokenCell, ConsistencyTokenStore};
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+pub use credentials::ServiceAccount;
+pub use credentials::{AccessToken, Credentials};
+#[cfg(not(target_arch = "wasm32"))]
+pub use credentials::{CliSession, Federated, InstanceMetadata, default_credentials};
 pub use error::{ApiError, Error, FieldViolation};
 pub use names::{FullName, FullNameError};
 pub use operation::Operation;
 pub use pages::Pages;
+pub use runtime::{MaybeSend, MaybeSendFuture};
 pub use transport::{
     CONSISTENCY_TOKEN_HEADER, HttpBody, Method, Query, Request, json_body, new_request_id,
     path_value, query,

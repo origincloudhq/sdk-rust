@@ -8,6 +8,7 @@ use futures_core::Stream;
 use futures_util::StreamExt as _;
 
 use crate::Error;
+use crate::runtime::{BoxStream, MaybeSend};
 
 /// Everything a list method lists, page by page: a [`Stream`] that fetches
 /// the next page as it is reached. A page that fails ends it with its
@@ -24,7 +25,7 @@ use crate::Error;
 /// # }
 /// ```
 pub struct Pages<T> {
-    stream: Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>,
+    stream: BoxStream<Result<T, Error>>,
 }
 
 struct State<R, F, T> {
@@ -35,16 +36,16 @@ struct State<R, F, T> {
     set_page_token: fn(&mut R, String),
 }
 
-impl<T: Send + 'static> Pages<T> {
+impl<T: MaybeSend + 'static> Pages<T> {
     /// The items `fetch` lists from `request`'s page on: it answers with a
     /// page's items and the next page's token, which `set_page_token` puts
     /// in the request for it, until the token is empty. The generated
     /// clients call it.
     pub fn new<R, F, Fut>(request: R, fetch: F, set_page_token: fn(&mut R, String)) -> Self
     where
-        R: Clone + Send + 'static,
-        F: Fn(R) -> Fut + Send + 'static,
-        Fut: Future<Output = Result<(Vec<T>, String), Error>> + Send + 'static,
+        R: Clone + MaybeSend + 'static,
+        F: Fn(R) -> Fut + MaybeSend + 'static,
+        Fut: Future<Output = Result<(Vec<T>, String), Error>> + MaybeSend + 'static,
     {
         let state = State {
             request: Some(request),

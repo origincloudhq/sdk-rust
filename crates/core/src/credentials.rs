@@ -1,34 +1,64 @@
 //! Credentials: where the access token each call is sent with comes from.
+//!
+//! In a browser (`wasm32-unknown-unknown`) there are [`AccessToken`] and
+//! the [`Credentials`] trait, for credentials of the page's own. The
+//! providers that read the environment, files, a CI job's token or an
+//! instance's metadata service, and `default_credentials`, which chains
+//! them, are native only: a browser has none of these, and
+//! [`ClientBuilder::build`](crate::ClientBuilder::build) without
+//! credentials fails with [`Error::NoCredentials`] there. `ServiceAccount`
+//! is there only with the feature `service-account-wasm`, for runtimes
+//! that aren't a browser.
 
 use std::fmt;
-use std::future::Future;
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
-use std::pin::Pin;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+use std::sync::OnceLock;
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 use std::time::{Duration, SystemTime};
 
+#[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Utc};
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 use serde::Deserialize;
-use tokio::sync::Mutex;
 
 use crate::Error;
+use crate::runtime::MaybeSendFuture;
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+use crate::runtime::{Mutex, now};
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+use crate::transport::read_capped;
 
 /// The identity provider's token endpoint, where service account
 /// credentials and the CLI's session are exchanged for access tokens.
 pub const TOKEN_URL: &str =
     "https://auth.origincloud.eu/realms/origincloud/protocol/openid-connect/token";
 
+#[cfg(not(target_arch = "wasm32"))]
 const ENV_ACCESS_TOKEN: &str = "ORIGINCLOUD_ACCESS_TOKEN";
+#[cfg(not(target_arch = "wasm32"))]
 const ENV_CLIENT_ID: &str = "ORIGINCLOUD_CLIENT_ID";
+#[cfg(not(target_arch = "wasm32"))]
 const ENV_CLIENT_SECRET: &str = "ORIGINCLOUD_CLIENT_SECRET";
+#[cfg(not(target_arch = "wasm32"))]
 const ENV_METADATA_DISABLED: &str = "ORIGINCLOUD_METADATA_DISABLED";
+#[cfg(not(target_arch = "wasm32"))]
 const ENV_METADATA_ENDPOINT: &str = "ORIGINCLOUD_METADATA_ENDPOINT";
+#[cfg(not(target_arch = "wasm32"))]
 const ENV_OIDC_DISABLED: &str = "ORIGINCLOUD_OIDC_DISABLED";
+#[cfg(not(target_arch = "wasm32"))]
 const ENV_OIDC_TOKEN_FILE: &str = "ORIGINCLOUD_OIDC_TOKEN_FILE";
+#[cfg(not(target_arch = "wasm32"))]
 const ENV_OIDC_TOKEN: &str = "ORIGINCLOUD_OIDC_TOKEN";
+#[cfg(not(target_arch = "wasm32"))]
 const ENV_OIDC_AUDIENCE: &str = "ORIGINCLOUD_OIDC_AUDIENCE";
+#[cfg(not(target_arch = "wasm32"))]
 const ENV_STS_ENDPOINT: &str = "ORIGINCLOUD_STS_ENDPOINT";
+#[cfg(not(target_arch = "wasm32"))]
 const ENV_GITHUB_REQUEST_URL: &str = "ACTIONS_ID_TOKEN_REQUEST_URL";
+#[cfg(not(target_arch = "wasm32"))]
 const ENV_GITHUB_REQUEST_TOKEN: &str = "ACTIONS_ID_TOKEN_REQUEST_TOKEN";
 
 /// The security token service, where a CI job's OIDC token is exchanged
@@ -39,13 +69,17 @@ pub const STS_ENDPOINT: &str = "https://sts.origincloudapis.eu";
 pub const OIDC_AUDIENCE: &str = "https://sts.origincloudapis.eu";
 
 /// How long before its expiry an exchanged access token is replaced.
+#[cfg(not(target_arch = "wasm32"))]
 const FEDERATED_EXPIRY_MARGIN: Duration = Duration::from_secs(60);
 
 /// The waits before an exchange the STS answered with `503` (it can't
 /// check the token right now) is sent again.
+#[cfg(not(target_arch = "wasm32"))]
 const STS_RETRY_DELAYS: [Duration; 2] = [Duration::from_millis(200), Duration::from_millis(400)];
 
+#[cfg(not(target_arch = "wasm32"))]
 const TOKEN_EXCHANGE_GRANT: &str = "urn:ietf:params:oauth:grant-type:token-exchange";
+#[cfg(not(target_arch = "wasm32"))]
 const JWT_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:jwt";
 
 /// The instance metadata service, which software on an instance reaches
@@ -53,44 +87,60 @@ const JWT_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:jwt";
 pub const METADATA_ENDPOINT: &str = "http://169.254.169.254";
 
 /// How long a metadata-service session is asked for: the most it grants.
+#[cfg(not(target_arch = "wasm32"))]
 const METADATA_SESSION_TTL: Duration = Duration::from_secs(6 * 60 * 60);
+#[cfg(not(target_arch = "wasm32"))]
 const METADATA_SESSION_TTL_HEADER: &str = "x-origincloud-metadata-token-ttl-seconds";
+#[cfg(not(target_arch = "wasm32"))]
 const METADATA_SESSION_HEADER: &str = "x-origincloud-metadata-token";
 
 /// How long reaching the metadata service may take, and opening a session
 /// in all: off an instance, the chain's last step fails within them.
+#[cfg(not(target_arch = "wasm32"))]
 const METADATA_CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
+#[cfg(not(target_arch = "wasm32"))]
 const METADATA_SESSION_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// How long a credential request may take.
+#[cfg(not(target_arch = "wasm32"))]
 const METADATA_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// How long before its expiry the metadata service's credential, which
 /// lives five minutes, is replaced.
+#[cfg(not(target_arch = "wasm32"))]
 const METADATA_EXPIRY_MARGIN: Duration = Duration::from_secs(60);
 
 /// The waits before a request the metadata service answered with `503`
 /// (it can't sign right now) is sent again.
+#[cfg(not(target_arch = "wasm32"))]
 const METADATA_RETRY_DELAYS: [Duration; 2] =
     [Duration::from_millis(100), Duration::from_millis(200)];
 
 /// The OAuth client the CLI logs in as, which its refresh token belongs to.
+#[cfg(not(target_arch = "wasm32"))]
 const CLI_CLIENT_ID: &str = "origin-cli";
 
 /// How long before its expiry a token is replaced, so that it doesn't
 /// expire on the way.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 const EXPIRY_MARGIN: Duration = Duration::from_secs(30);
 
 /// The most of a token response that is read.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 const MAX_TOKEN_RESPONSE_BYTES: usize = 1 << 20;
 
 /// How long a token request may take.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 const TOKEN_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
-/// What [`Credentials::token`] returns.
-pub type TokenFuture<'a> = Pin<Box<dyn Future<Output = Result<String, Error>> + Send + 'a>>;
+/// What [`Credentials::token`] returns: `Send` natively; not in a
+/// browser, where a fetch is a JavaScript promise.
+pub type TokenFuture<'a> = MaybeSendFuture<'a, Result<String, Error>>;
 
-/// Credentials supply the access token each call is sent with.
+/// Credentials supply the access token each call is sent with. `Send +
+/// Sync` on every target, so a client can live in a UI framework's
+/// reactive state (Leptos 0.8 keeps memo values `Send + Sync` even in a
+/// browser); only the future [`token`](Self::token) returns is `!Send` there.
 pub trait Credentials: Send + Sync + fmt::Debug {
     /// A valid access token.
     fn token(&self) -> TokenFuture<'_>;
@@ -122,11 +172,13 @@ pub trait Credentials: Send + Sync + fmt::Debug {
 ///
 /// It fails with [`Error::NoCredentials`] when the metadata service is
 /// left out and there are no others.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn default_credentials() -> Result<Arc<dyn Credentials>, Error> {
     from_environment(&|name| std::env::var(name).ok())
 }
 
 /// [`default_credentials`] with the environment read through `env`.
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn from_environment(
     env: &dyn Fn(&str) -> Option<String>,
 ) -> Result<Arc<dyn Credentials>, Error> {
@@ -161,9 +213,20 @@ pub(crate) fn from_environment(
     }))
 }
 
+/// In a browser there is no environment, no file system and no metadata
+/// service, and a secret in a page is anybody's: the page supplies its own
+/// [`Credentials`] (an [`AccessToken`], or one that refreshes its session).
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn from_environment(
+    _env: &dyn Fn(&str) -> Option<String>,
+) -> Result<Arc<dyn Credentials>, Error> {
+    Err(Error::NoCredentials)
+}
+
 /// The federated step of the chain, when the environment holds a CI job's
 /// OIDC token: a token file, which can be rotated in place, before a token
 /// given as it is, before GitHub Actions.
+#[cfg(not(target_arch = "wasm32"))]
 fn federated_from(var: &dyn Fn(&str) -> Option<String>) -> Option<Federated> {
     if var(ENV_OIDC_DISABLED).is_some_and(|v| v.eq_ignore_ascii_case("true")) {
         return None;
@@ -217,6 +280,12 @@ impl Credentials for AccessToken {
 
 /// A service account's client ID and secret, exchanged for access tokens
 /// with the client credentials grant as they expire.
+///
+/// On `wasm32-unknown-unknown` it exists only with the feature
+/// `service-account-wasm`, for runtimes that aren't a browser: a web
+/// page, and a Web Worker too, is shipped to whoever loads it, secret and
+/// all.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 pub struct ServiceAccount {
     client_id: String,
     client_secret: String,
@@ -225,6 +294,7 @@ pub struct ServiceAccount {
     cache: Mutex<Cached>,
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 impl ServiceAccount {
     /// The service account `client_id` with the secret `client_secret`.
     pub fn new(client_id: impl Into<String>, client_secret: impl Into<String>) -> Self {
@@ -251,6 +321,7 @@ impl ServiceAccount {
     }
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 impl fmt::Debug for ServiceAccount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ServiceAccount")
@@ -260,6 +331,7 @@ impl fmt::Debug for ServiceAccount {
     }
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 impl Credentials for ServiceAccount {
     fn token(&self) -> TokenFuture<'_> {
         Box::pin(async move {
@@ -287,12 +359,14 @@ impl Credentials for ServiceAccount {
 /// The session the `origin` CLI stored at its last login, renewed from its
 /// refresh token when its access token has expired. The renewed session
 /// stays in memory: the CLI's file is never written.
+#[cfg(not(target_arch = "wasm32"))]
 pub struct CliSession {
     token_url: String,
     http: Option<reqwest::Client>,
     state: Mutex<SessionState>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 struct SessionState {
     cached: Cached,
     refresh_token: String,
@@ -300,6 +374,7 @@ struct SessionState {
 }
 
 /// The file the CLI stores its session in.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Deserialize)]
 struct StoredSession {
     #[serde(default)]
@@ -312,6 +387,7 @@ struct StoredSession {
     refresh_expires: Option<DateTime<Utc>>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl CliSession {
     /// The session the CLI stored, or `None` when it stored none: under
     /// `$XDG_DATA_HOME`, or `~/.local/share`, on every platform, at
@@ -362,6 +438,7 @@ impl CliSession {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl fmt::Debug for CliSession {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CliSession")
@@ -370,6 +447,7 @@ impl fmt::Debug for CliSession {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Credentials for CliSession {
     fn token(&self) -> TokenFuture<'_> {
         Box::pin(async move {
@@ -422,12 +500,14 @@ impl Credentials for CliSession {
 /// before the last one expires. The requests never go through a proxy,
 /// which the metadata service refuses, and one it can't answer right now
 /// (`503`) is sent again twice.
+#[cfg(not(target_arch = "wasm32"))]
 pub struct InstanceMetadata {
     endpoint: String,
     http: Option<reqwest::Client>,
     state: Mutex<MetadataState>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Default)]
 struct MetadataState {
     session: Cached,
@@ -435,12 +515,14 @@ struct MetadataState {
 }
 
 /// The metadata service's credential.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Deserialize)]
 struct Issued {
     access_token: String,
     expires_at: DateTime<Utc>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl InstanceMetadata {
     /// The metadata service at [`METADATA_ENDPOINT`].
     pub fn new() -> Self {
@@ -551,6 +633,7 @@ impl InstanceMetadata {
 
 /// Sends `request`, and again after each of `delays` while it is answered
 /// with `503`.
+#[cfg(not(target_arch = "wasm32"))]
 async fn send_retrying(
     request: reqwest::RequestBuilder,
     delays: &[Duration],
@@ -570,18 +653,21 @@ async fn send_retrying(
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn refused_through_a_proxy() -> Error {
     Error::Credentials(
         "the metadata service refused a request that came through a proxy".to_owned(),
     )
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Default for InstanceMetadata {
     fn default() -> Self {
         Self::new()
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl fmt::Debug for InstanceMetadata {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("InstanceMetadata")
@@ -590,6 +676,7 @@ impl fmt::Debug for InstanceMetadata {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Credentials for InstanceMetadata {
     fn token(&self) -> TokenFuture<'_> {
         Box::pin(async move {
@@ -634,6 +721,7 @@ impl Credentials for InstanceMetadata {
 /// expires; then a fresh job token is fetched and exchanged again, or a
 /// token given as it is ([`Federated::from_token`]) exchanged again. An
 /// exchange the STS can't check right now (`503`) is sent again twice.
+#[cfg(not(target_arch = "wasm32"))]
 pub struct Federated {
     source: JobToken,
     endpoint: String,
@@ -643,6 +731,7 @@ pub struct Federated {
 }
 
 /// Where the job's token comes from.
+#[cfg(not(target_arch = "wasm32"))]
 enum JobToken {
     File(PathBuf),
     /// A token given as it is, from the environment variable `variable`
@@ -658,17 +747,20 @@ enum JobToken {
 }
 
 /// The claims of a job token that are read before it is exchanged.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Deserialize)]
 struct JobTokenClaims {
     exp: Option<f64>,
 }
 
 /// GitHub's answer to a job token request.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Deserialize)]
 struct GitHubToken {
     value: String,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Federated {
     /// The token in the file at `path`, read again at every exchange, so
     /// that a rotated token is picked up: any CI provider's, or a
@@ -871,6 +963,7 @@ impl Federated {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl fmt::Debug for Federated {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_struct("Federated");
@@ -886,6 +979,7 @@ impl fmt::Debug for Federated {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Credentials for Federated {
     fn token(&self) -> TokenFuture<'_> {
         Box::pin(async move {
@@ -906,6 +1000,7 @@ impl Credentials for Federated {
 }
 
 /// ` in VARIABLE`, naming where a given job token came from, if anywhere.
+#[cfg(not(target_arch = "wasm32"))]
 fn in_variable(variable: Option<&str>) -> String {
     variable.map_or_else(String::new, |name| format!(" in {name}"))
 }
@@ -913,6 +1008,7 @@ fn in_variable(variable: Option<&str>) -> String {
 /// When a job token (a JWT) expires, as its unverified `exp` claim says:
 /// `None` when it has none, or isn't a JWT whose claims can be read, which
 /// is left to the STS to judge.
+#[cfg(not(target_arch = "wasm32"))]
 fn job_token_expiry(token: &str) -> Option<SystemTime> {
     use base64::Engine as _;
     use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
@@ -932,6 +1028,7 @@ fn job_token_expiry(token: &str) -> Option<SystemTime> {
 
 /// Where the CLI stores its session: under `XDG_DATA_HOME`, or
 /// `~/.local/share`, on every platform.
+#[cfg(not(target_arch = "wasm32"))]
 fn cli_session_path(env: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     let base = match env("XDG_DATA_HOME").filter(|v| !v.is_empty()) {
         Some(base) => PathBuf::from(base),
@@ -940,18 +1037,21 @@ fn cli_session_path(env: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     Some(base.join("origincloud").join("session.json"))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn home_dir(env: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     let name = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
     env(name).filter(|v| !v.is_empty()).map(PathBuf::from)
 }
 
 /// One access token, replaced once it is about to expire.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 #[derive(Default)]
 struct Cached {
     token: String,
     expiry: Option<SystemTime>,
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 impl Cached {
     fn valid(&self) -> Option<String> {
         self.valid_for(EXPIRY_MARGIN)
@@ -960,11 +1060,12 @@ impl Cached {
     /// The token, unless it expires within `margin`.
     fn valid_for(&self, margin: Duration) -> Option<String> {
         let expiry = self.expiry?;
-        (!self.token.is_empty() && SystemTime::now() + margin < expiry).then(|| self.token.clone())
+        (!self.token.is_empty() && now() + margin < expiry).then(|| self.token.clone())
     }
 }
 
 /// A token endpoint's answer.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 #[derive(Deserialize, Default)]
 #[serde(default)]
 struct Granted {
@@ -976,18 +1077,21 @@ struct Granted {
     error_description: String,
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 impl Granted {
     fn expiry(&self) -> SystemTime {
-        SystemTime::now() + seconds(self.expires_in)
+        now() + seconds(self.expires_in)
     }
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 fn seconds(n: i64) -> Duration {
     Duration::from_secs(u64::try_from(n).unwrap_or_default())
 }
 
 /// The HTTP client token requests are sent with unless the credentials
 /// name one: one for the process, created by the first request.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 fn default_http_client() -> Result<&'static reqwest::Client, &'static str> {
     static CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
     CLIENT
@@ -1000,6 +1104,7 @@ fn default_http_client() -> Result<&'static reqwest::Client, &'static str> {
         .map_err(String::as_str)
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 async fn request_token(
     http: Option<&reqwest::Client>,
     url: &str,
@@ -1041,18 +1146,12 @@ async fn request_token(
 
 /// A response's status and its body, up to the most of a token response
 /// that is read.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 async fn read_bounded(
-    mut response: reqwest::Response,
+    response: reqwest::Response,
 ) -> Result<(reqwest::StatusCode, Vec<u8>), reqwest::Error> {
     let status = response.status();
-    let mut body = Vec::new();
-    while let Some(chunk) = response.chunk().await? {
-        body.extend_from_slice(&chunk);
-        if body.len() > MAX_TOKEN_RESPONSE_BYTES {
-            body.truncate(MAX_TOKEN_RESPONSE_BYTES);
-            break;
-        }
-    }
+    let (body, _truncated) = read_capped(response, MAX_TOKEN_RESPONSE_BYTES).await?;
     Ok((status, body))
 }
 

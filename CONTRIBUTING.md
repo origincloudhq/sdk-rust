@@ -79,6 +79,7 @@ scripts/update.sh              # move to the newest API, and generate
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test                     # the live tests are ignored
+scripts/wasm.sh                # build for the browser, and run its tests in Node.js
 ORIGINCLOUD_LIVE_ZONE=projects/<project>/zones/<zone> \
   cargo test -p origincloud-pvs --test live -- --ignored --nocapture   # against the live API
 ```
