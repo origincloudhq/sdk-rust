@@ -9,9 +9,6 @@ pub struct HostedZone {
     /// The zone's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The zone's URN, the identifier access policies and the audit log use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
     /// The domain, such as `example.com`, without the final dot; answered in
     /// lowercase. A public zone's has at least two labels and at most 235
     /// characters, so its challenge name fits, and isn't a special-use domain
@@ -43,8 +40,10 @@ pub struct HostedZone {
     /// When the zone was created.
     #[prost(message, optional, tag = "8")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the zone, such as `user:<id>` or
-    /// `service_account:<id>`.
+    /// The principal that created the zone, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "9")]
     pub creator: ::prost::alloc::string::String,
     /// Labels of your own, at most 50. The `origin:name` tag is the name the
@@ -362,10 +361,6 @@ pub struct RecordSet {
     /// The record set's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The record set's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
     /// The name the records answer for: the zone's `dns_name` or a name below
     /// it, written in full, such as `www.example.com`, without the final dot;
     /// answered in lowercase. Labels may hold `_` (`_dmarc.example.com`), and
@@ -492,8 +487,8 @@ pub struct BasicRecordData {
 /// follows it as it changes.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct AliasRecordData {
-    /// The Floating IP whose address the record set answers with, in the
-    /// zone's project. A Floating IP's address is an IPv4 address, so the
+    /// The full name of the Floating IP whose address the record set answers
+    /// with, in the zone's project. A Floating IP's address is an IPv4 address, so the
     /// record set is of type `record_set::Type::A`; an `record_set::Type::Aaaa` alias is refused.
     #[prost(string, tag = "1")]
     pub floating_ip: ::prost::alloc::string::String,
@@ -586,7 +581,7 @@ pub struct BatchChangeRecordSetsRequest {
     /// `projects/{project}/hostedZones/{hosted_zone}`.
     #[prost(string, tag = "1")]
     pub parent: ::prost::alloc::string::String,
-    /// The record sets to delete, by name.
+    /// The record sets to delete, by their full names.
     #[prost(string, repeated, tag = "2")]
     pub deletions: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// The record sets to change, each with the fields to change, as
@@ -626,11 +621,7 @@ pub struct VpcAttachment {
     /// The attachment's resource name. Its last segment is the VPC's id.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The attachment's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
-    /// The VPC the zone answers in, in the zone's project.
+    /// The full name of the VPC the zone answers in, in the zone's project.
     #[prost(string, tag = "3")]
     pub vpc: ::prost::alloc::string::String,
     /// When the zone was attached.
@@ -659,7 +650,8 @@ pub struct ListVpcAttachmentsRequest {
     /// A previous response's `next_page_token`, for the page after it.
     #[prost(string, tag = "3")]
     pub page_token: ::prost::alloc::string::String,
-    /// Only the attachments to this VPC; every VPC's when left empty.
+    /// Only the attachments to this VPC, by its full name; every VPC's when
+    /// left empty.
     #[prost(string, tag = "4")]
     pub vpc: ::prost::alloc::string::String,
 }
@@ -2375,9 +2367,6 @@ impl serde::Serialize for HostedZone {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.dns_name.is_empty() {
             len += 1;
         }
@@ -2406,9 +2395,6 @@ impl serde::Serialize for HostedZone {
             .serialize_struct("origincloud.dns.v1beta1.HostedZone", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.dns_name.is_empty() {
             struct_ser.serialize_field("dnsName", &self.dns_name)?;
@@ -2453,7 +2439,6 @@ impl<'de> serde::Deserialize<'de> for HostedZone {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "dns_name",
             "dnsName",
             "visibility",
@@ -2469,7 +2454,6 @@ impl<'de> serde::Deserialize<'de> for HostedZone {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             DnsName,
             Visibility,
             State,
@@ -2506,7 +2490,6 @@ impl<'de> serde::Deserialize<'de> for HostedZone {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "dnsName" | "dns_name" => Ok(GeneratedField::DnsName),
                             "visibility" => Ok(GeneratedField::Visibility),
                             "state" => Ok(GeneratedField::State),
@@ -2543,7 +2526,6 @@ impl<'de> serde::Deserialize<'de> for HostedZone {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut dns_name__ = None;
                 let mut visibility__ = None;
                 let mut state__ = None;
@@ -2559,12 +2541,6 @@ impl<'de> serde::Deserialize<'de> for HostedZone {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::DnsName => {
                             if dns_name__.is_some() {
@@ -2629,7 +2605,6 @@ impl<'de> serde::Deserialize<'de> for HostedZone {
                 }
                 Ok(HostedZone {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     dns_name: dns_name__.unwrap_or_default(),
                     visibility: visibility__.unwrap_or_default(),
                     state: state__.unwrap_or_default(),
@@ -4199,9 +4174,6 @@ impl serde::Serialize for RecordSet {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.dns_name.is_empty() {
             len += 1;
         }
@@ -4224,9 +4196,6 @@ impl serde::Serialize for RecordSet {
             .serialize_struct("origincloud.dns.v1beta1.RecordSet", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.dns_name.is_empty() {
             struct_ser.serialize_field("dnsName", &self.dns_name)?;
@@ -4268,7 +4237,6 @@ impl<'de> serde::Deserialize<'de> for RecordSet {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "dns_name",
             "dnsName",
             "type",
@@ -4283,7 +4251,6 @@ impl<'de> serde::Deserialize<'de> for RecordSet {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             DnsName,
             Type,
             Ttl,
@@ -4319,7 +4286,6 @@ impl<'de> serde::Deserialize<'de> for RecordSet {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "dnsName" | "dns_name" => Ok(GeneratedField::DnsName),
                             "type" => Ok(GeneratedField::Type),
                             "ttl" => Ok(GeneratedField::Ttl),
@@ -4355,7 +4321,6 @@ impl<'de> serde::Deserialize<'de> for RecordSet {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut dns_name__ = None;
                 let mut r#type__ = None;
                 let mut ttl__ = None;
@@ -4369,12 +4334,6 @@ impl<'de> serde::Deserialize<'de> for RecordSet {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::DnsName => {
                             if dns_name__.is_some() {
@@ -4431,7 +4390,6 @@ impl<'de> serde::Deserialize<'de> for RecordSet {
                 }
                 Ok(RecordSet {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     dns_name: dns_name__.unwrap_or_default(),
                     r#type: r#type__.unwrap_or_default(),
                     ttl: ttl__,
@@ -5094,9 +5052,6 @@ impl serde::Serialize for VpcAttachment {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.vpc.is_empty() {
             len += 1;
         }
@@ -5107,9 +5062,6 @@ impl serde::Serialize for VpcAttachment {
             .serialize_struct("origincloud.dns.v1beta1.VpcAttachment", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.vpc.is_empty() {
             struct_ser.serialize_field("vpc", &self.vpc)?;
@@ -5126,11 +5078,10 @@ impl<'de> serde::Deserialize<'de> for VpcAttachment {
     where
         D: serde::Deserializer<'de>,
     {
-        const FIELDS: &[&str] = &["name", "urn", "vpc", "create_time", "createTime"];
+        const FIELDS: &[&str] = &["name", "vpc", "create_time", "createTime"];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Vpc,
             CreateTime,
             __SkipField__,
@@ -5161,7 +5112,6 @@ impl<'de> serde::Deserialize<'de> for VpcAttachment {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "vpc" => Ok(GeneratedField::Vpc),
                             "createTime" | "create_time" => {
                                 Ok(GeneratedField::CreateTime)
@@ -5190,7 +5140,6 @@ impl<'de> serde::Deserialize<'de> for VpcAttachment {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut vpc__ = None;
                 let mut create_time__ = None;
                 while let Some(k) = map_.next_key()? {
@@ -5200,12 +5149,6 @@ impl<'de> serde::Deserialize<'de> for VpcAttachment {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Vpc => {
                             if vpc__.is_some() {
@@ -5226,7 +5169,6 @@ impl<'de> serde::Deserialize<'de> for VpcAttachment {
                 }
                 Ok(VpcAttachment {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     vpc: vpc__.unwrap_or_default(),
                     create_time: create_time__,
                 })
