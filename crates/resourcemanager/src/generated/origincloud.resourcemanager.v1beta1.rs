@@ -111,10 +111,6 @@ pub struct Organization {
     /// The organization's resource name, `organizations/{organization}`.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The organization's URN, the identifier access policies and the audit
-    /// log use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
     /// The name the console shows, typically the company's name. Not empty.
     #[prost(string, tag = "3")]
     pub display_name: ::prost::alloc::string::String,
@@ -125,8 +121,10 @@ pub struct Organization {
     /// When the organization was created.
     #[prost(message, optional, tag = "5")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the organization, such as `user:<id>` or
-    /// `service_account:<id>`.
+    /// The principal that created the organization, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "6")]
     pub creator: ::prost::alloc::string::String,
 }
@@ -252,11 +250,8 @@ pub struct Project {
     /// again, not even after the project is deleted.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The project's URN, the identifier access policies and the audit log
-    /// use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
-    /// The organization the project belongs to, `organizations/{organization}`.
+    /// The full name of the organization the project belongs to,
+    /// `//resourcemanager.origincloudapis.eu/organizations/{organization}`.
     #[prost(string, tag = "3")]
     pub organization: ::prost::alloc::string::String,
     /// The name the console shows. Not empty.
@@ -265,8 +260,10 @@ pub struct Project {
     /// When the project was created.
     #[prost(message, optional, tag = "5")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the project, such as `user:<id>` or
-    /// `service_account:<id>`.
+    /// The principal that created the project, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "6")]
     pub creator: ::prost::alloc::string::String,
 }
@@ -280,7 +277,8 @@ pub struct GetProjectRequest {
 /// The request for ListProjects.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ListProjectsRequest {
-    /// The organization whose projects to list, `organizations/{organization}`.
+    /// The full name of the organization whose projects to list,
+    /// `//resourcemanager.origincloudapis.eu/organizations/{organization}`.
     #[prost(string, tag = "1")]
     pub organization: ::prost::alloc::string::String,
     /// The most projects to return; the server clamps it, and 0 means its
@@ -1881,9 +1879,6 @@ impl serde::Serialize for Organization {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.display_name.is_empty() {
             len += 1;
         }
@@ -1900,9 +1895,6 @@ impl serde::Serialize for Organization {
             .serialize_struct("origincloud.resourcemanager.v1beta1.Organization", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.display_name.is_empty() {
             struct_ser.serialize_field("displayName", &self.display_name)?;
@@ -1931,7 +1923,6 @@ impl<'de> serde::Deserialize<'de> for Organization {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "display_name",
             "displayName",
             "state",
@@ -1942,7 +1933,6 @@ impl<'de> serde::Deserialize<'de> for Organization {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             DisplayName,
             State,
             CreateTime,
@@ -1975,7 +1965,6 @@ impl<'de> serde::Deserialize<'de> for Organization {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "displayName" | "display_name" => {
                                 Ok(GeneratedField::DisplayName)
                             }
@@ -2009,7 +1998,6 @@ impl<'de> serde::Deserialize<'de> for Organization {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut display_name__ = None;
                 let mut state__ = None;
                 let mut create_time__ = None;
@@ -2021,12 +2009,6 @@ impl<'de> serde::Deserialize<'de> for Organization {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::DisplayName => {
                             if display_name__.is_some() {
@@ -2063,7 +2045,6 @@ impl<'de> serde::Deserialize<'de> for Organization {
                 }
                 Ok(Organization {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     display_name: display_name__.unwrap_or_default(),
                     state: state__.unwrap_or_default(),
                     create_time: create_time__,
@@ -2528,9 +2509,6 @@ impl serde::Serialize for Project {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.organization.is_empty() {
             len += 1;
         }
@@ -2547,9 +2525,6 @@ impl serde::Serialize for Project {
             .serialize_struct("origincloud.resourcemanager.v1beta1.Project", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.organization.is_empty() {
             struct_ser.serialize_field("organization", &self.organization)?;
@@ -2574,7 +2549,6 @@ impl<'de> serde::Deserialize<'de> for Project {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "organization",
             "display_name",
             "displayName",
@@ -2585,7 +2559,6 @@ impl<'de> serde::Deserialize<'de> for Project {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             Organization,
             DisplayName,
             CreateTime,
@@ -2618,7 +2591,6 @@ impl<'de> serde::Deserialize<'de> for Project {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "organization" => Ok(GeneratedField::Organization),
                             "displayName" | "display_name" => {
                                 Ok(GeneratedField::DisplayName)
@@ -2648,7 +2620,6 @@ impl<'de> serde::Deserialize<'de> for Project {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut organization__ = None;
                 let mut display_name__ = None;
                 let mut create_time__ = None;
@@ -2660,12 +2631,6 @@ impl<'de> serde::Deserialize<'de> for Project {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Organization => {
                             if organization__.is_some() {
@@ -2702,7 +2667,6 @@ impl<'de> serde::Deserialize<'de> for Project {
                 }
                 Ok(Project {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     organization: organization__.unwrap_or_default(),
                     display_name: display_name__.unwrap_or_default(),
                     create_time: create_time__,

@@ -7,11 +7,13 @@ pub struct QueryTimeSeriesRequest {
     /// The project the resource is in, `projects/{project}`.
     #[prost(string, tag = "1")]
     pub parent: ::prost::alloc::string::String,
-    /// The resource whose metrics to return, in `parent`: an instance,
-    /// `projects/{project}/zones/{zone}/instances/{instance}`, a volume,
-    /// `projects/{project}/zones/{zone}/volumes/{volume}`, or a network
-    /// interface,
-    /// `projects/{project}/zones/{zone}/networkInterfaces/{network_interface}`.
+    /// The full name of the resource whose metrics to return, in `parent`: an
+    /// instance,
+    /// `//compute.origincloudapis.eu/projects/{project}/zones/{zone}/instances/{instance}`,
+    /// a volume,
+    /// `//pvs.origincloudapis.eu/projects/{project}/zones/{zone}/volumes/{volume}`,
+    /// or a network interface,
+    /// `//network.origincloudapis.eu/projects/{project}/zones/{zone}/networkInterfaces/{network_interface}`.
     #[prost(string, tag = "2")]
     pub resource: ::prost::alloc::string::String,
     /// The metrics to return, such as `oc_compute_instance_cpu_seconds_total`,
@@ -95,7 +97,7 @@ pub struct TimeSeries {
     /// The metric, as asked.
     #[prost(string, tag = "1")]
     pub metric: ::prost::alloc::string::String,
-    /// The resource, as asked.
+    /// The resource's full name, as asked.
     #[prost(string, tag = "2")]
     pub resource: ::prost::alloc::string::String,
     /// The unit of the counter, such as `seconds` or `bytes`: a `query_time_series_request::Statistic::Rate` of a

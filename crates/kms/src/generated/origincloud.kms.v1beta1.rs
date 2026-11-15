@@ -160,7 +160,7 @@ pub struct Key {
     /// to `key::State::Enabled` or `key::State::Disabled`, and DeleteKey makes it `key::State::Deleted`.
     #[prost(enumeration = "key::State", tag = "3")]
     pub state: i32,
-    /// The version new ciphertexts and signatures use.
+    /// The full name of the version new ciphertexts and signatures use.
     #[prost(string, tag = "4")]
     pub primary_version: ::prost::alloc::string::String,
     /// Every version, oldest first. RotateKey adds one.
@@ -197,8 +197,8 @@ pub mod key {
     /// A version of the key: one generation of its material.
     #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
     pub struct Version {
-        /// The version's resource name,
-        /// `projects/{project}/regions/{region}/keys/{key}/versions/{version}`,
+        /// The version's full name,
+        /// `//kms.origincloudapis.eu/projects/{project}/regions/{region}/keys/{key}/versions/{version}`,
         /// numbered from 1.
         #[prost(string, tag = "1")]
         pub key_version: ::prost::alloc::string::String,
@@ -445,7 +445,7 @@ pub struct EncryptResponse {
     /// The ciphertext, to store and pass to Decrypt.
     #[prost(bytes = "vec", tag = "1")]
     pub ciphertext: ::prost::alloc::vec::Vec<u8>,
-    /// The key version that encrypted it.
+    /// The full name of the key version that encrypted it.
     #[prost(string, tag = "2")]
     pub key_version: ::prost::alloc::string::String,
 }
@@ -471,7 +471,7 @@ pub struct DecryptResponse {
     /// The decrypted data.
     #[prost(bytes = "vec", tag = "1")]
     pub plaintext: ::prost::alloc::vec::Vec<u8>,
-    /// The key version that decrypted it.
+    /// The full name of the key version that decrypted it.
     #[prost(string, tag = "2")]
     pub key_version: ::prost::alloc::string::String,
 }
@@ -498,7 +498,7 @@ pub struct GenerateDataKeyResponse {
     /// pass to Decrypt.
     #[prost(bytes = "vec", tag = "2")]
     pub ciphertext: ::prost::alloc::vec::Vec<u8>,
-    /// The key version that encrypted it.
+    /// The full name of the key version that encrypted it.
     #[prost(string, tag = "3")]
     pub key_version: ::prost::alloc::string::String,
 }
@@ -511,7 +511,8 @@ pub struct SignRequest {
     /// The data to sign, at most 64 KiB.
     #[prost(bytes = "vec", tag = "2")]
     pub data: ::prost::alloc::vec::Vec<u8>,
-    /// The version of `name` to sign with, `{name}/versions/{version}`.
+    /// The full name of the version of `name` to sign with,
+    /// `//kms.origincloudapis.eu/{name}/versions/{version}`.
     /// Without it, the key's primary version signs. Name it when the
     /// signature's verifiers must know the version before the signature
     /// exists, for example a token whose header names its key: the primary
@@ -526,7 +527,8 @@ pub struct SignResponse {
     /// The signature: ASN.1 DER for ECDSA, 64 bytes for Ed25519.
     #[prost(bytes = "vec", tag = "1")]
     pub signature: ::prost::alloc::vec::Vec<u8>,
-    /// The key version that signed, whose public key verifies it.
+    /// The full name of the key version that signed, whose public key
+    /// verifies it.
     #[prost(string, tag = "2")]
     pub key_version: ::prost::alloc::string::String,
 }

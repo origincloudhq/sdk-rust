@@ -25,12 +25,13 @@ pub struct LegalDocument {
     /// published only.
     #[prost(bool, tag = "3")]
     pub acceptance_required: bool,
-    /// The version in force today, by its resource name. Empty while the first
-    /// version has not taken effect yet.
+    /// The full name of the version in force today,
+    /// `//billing.origincloudapis.eu/legalDocuments/{legal_document}/versions/{version}`.
+    /// Empty while the first version has not taken effect yet.
     #[prost(string, tag = "4")]
     pub current_version: ::prost::alloc::string::String,
-    /// The latest version published, by its resource name: `current_version`,
-    /// or a version announced to take effect later.
+    /// The full name of the latest version published: `current_version`, or a
+    /// version announced to take effect later.
     #[prost(string, tag = "5")]
     pub latest_version: ::prost::alloc::string::String,
 }
@@ -135,7 +136,8 @@ pub mod legal_document_version {
 /// A version to accept, with the text it was shown as.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct LegalDocumentVersionToAccept {
-    /// The version, `legalDocuments/{legal_document}/versions/{version}`.
+    /// The version's full name,
+    /// `//billing.origincloudapis.eu/legalDocuments/{legal_document}/versions/{version}`.
     #[prost(string, tag = "1")]
     pub legal_document_version: ::prost::alloc::string::String,
     /// The version's `sha256`, as read with it: an acceptance is refused when
@@ -218,10 +220,6 @@ pub struct BillingAccount {
     /// The billing account's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The billing account's URN, the identifier access policies and the audit
-    /// log use.
-    #[prost(string, tag = "2")]
-    pub urn: ::prost::alloc::string::String,
     /// The name the console and spend-limit alerts show. Not empty. An
     /// organization's default account is called `default` until it is
     /// renamed.
@@ -255,8 +253,10 @@ pub struct BillingAccount {
     /// When the billing account was created.
     #[prost(message, optional, tag = "10")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the billing account, such as `user:<id>` or
-    /// `service_account:<id>`.
+    /// The principal that created the billing account, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "11")]
     pub creator: ::prost::alloc::string::String,
 }
@@ -353,8 +353,9 @@ pub struct ProjectBillingInfo {
     /// The billing info's resource name, `projects/{project}/billingInfo`.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The billing account that pays for the project's usage, one of its
-    /// organization's.
+    /// The full name of the billing account that pays for the project's usage,
+    /// one of its organization's:
+    /// `//billing.origincloudapis.eu/organizations/{organization}/billingAccounts/{billing_account}`.
     #[prost(string, tag = "3")]
     pub billing_account: ::prost::alloc::string::String,
 }
@@ -613,7 +614,8 @@ pub struct OrganizationCostReport {
 /// One project's cost in an organization's report, over every service.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ProjectCost {
-    /// The project, `projects/{project}`.
+    /// The project's full name,
+    /// `//resourcemanager.origincloudapis.eu/projects/{project}`.
     #[prost(string, tag = "1")]
     pub project: ::prost::alloc::string::String,
     /// The project's total.
@@ -649,8 +651,8 @@ pub struct UsageRecord {
     /// When the interval ends.
     #[prost(message, optional, tag = "7")]
     pub end_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The billing account the usage was charged to, the one the project was
-    /// linked to when it was recorded; empty if it had none.
+    /// The full name of the billing account the usage was charged to, the one
+    /// the project was linked to when it was recorded; empty if it had none.
     #[prost(string, tag = "8")]
     pub billing_account: ::prost::alloc::string::String,
 }
@@ -772,15 +774,17 @@ pub struct LegalAcceptance {
     /// The acceptance's resource name.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The version accepted,
-    /// `legalDocuments/{legal_document}/versions/{version}`.
+    /// The full name of the version accepted,
+    /// `//billing.origincloudapis.eu/legalDocuments/{legal_document}/versions/{version}`.
     #[prost(string, tag = "2")]
     pub legal_document_version: ::prost::alloc::string::String,
     /// The SHA-256 of the text accepted: the version's `sha256`.
     #[prost(string, tag = "3")]
     pub sha256: ::prost::alloc::string::String,
-    /// Who accepted: `user:{id}`, or `service_account:{id}` for a service
-    /// account.
+    /// Who accepted, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
     #[prost(string, tag = "4")]
     pub accepter: ::prost::alloc::string::String,
     /// When the version was accepted.
@@ -859,7 +863,8 @@ pub mod legal_acceptance {
 /// A legal document version a billing account has yet to accept.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct LegalRequirement {
-    /// The version, `legalDocuments/{legal_document}/versions/{version}`.
+    /// The version's full name,
+    /// `//billing.origincloudapis.eu/legalDocuments/{legal_document}/versions/{version}`.
     #[prost(string, tag = "1")]
     pub legal_document_version: ::prost::alloc::string::String,
     /// The version's title, such as `Terms of Service`.
@@ -1220,9 +1225,6 @@ impl serde::Serialize for BillingAccount {
         if !self.name.is_empty() {
             len += 1;
         }
-        if !self.urn.is_empty() {
-            len += 1;
-        }
         if !self.display_name.is_empty() {
             len += 1;
         }
@@ -1254,9 +1256,6 @@ impl serde::Serialize for BillingAccount {
             .serialize_struct("origincloud.billing.v1beta1.BillingAccount", len)?;
         if !self.name.is_empty() {
             struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.urn.is_empty() {
-            struct_ser.serialize_field("urn", &self.urn)?;
         }
         if !self.display_name.is_empty() {
             struct_ser.serialize_field("displayName", &self.display_name)?;
@@ -1296,7 +1295,6 @@ impl<'de> serde::Deserialize<'de> for BillingAccount {
     {
         const FIELDS: &[&str] = &[
             "name",
-            "urn",
             "display_name",
             "displayName",
             "default_account",
@@ -1318,7 +1316,6 @@ impl<'de> serde::Deserialize<'de> for BillingAccount {
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Name,
-            Urn,
             DisplayName,
             DefaultAccount,
             BillingAddress,
@@ -1356,7 +1353,6 @@ impl<'de> serde::Deserialize<'de> for BillingAccount {
                     {
                         match value {
                             "name" => Ok(GeneratedField::Name),
-                            "urn" => Ok(GeneratedField::Urn),
                             "displayName" | "display_name" => {
                                 Ok(GeneratedField::DisplayName)
                             }
@@ -1404,7 +1400,6 @@ impl<'de> serde::Deserialize<'de> for BillingAccount {
                 V: serde::de::MapAccess<'de>,
             {
                 let mut name__ = None;
-                let mut urn__ = None;
                 let mut display_name__ = None;
                 let mut default_account__ = None;
                 let mut billing_address__ = None;
@@ -1421,12 +1416,6 @@ impl<'de> serde::Deserialize<'de> for BillingAccount {
                                 return Err(serde::de::Error::duplicate_field("name"));
                             }
                             name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Urn => {
-                            if urn__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("urn"));
-                            }
-                            urn__ = Some(map_.next_value()?);
                         }
                         GeneratedField::DisplayName => {
                             if display_name__.is_some() {
@@ -1501,7 +1490,6 @@ impl<'de> serde::Deserialize<'de> for BillingAccount {
                 }
                 Ok(BillingAccount {
                     name: name__.unwrap_or_default(),
-                    urn: urn__.unwrap_or_default(),
                     display_name: display_name__.unwrap_or_default(),
                     default_account: default_account__.unwrap_or_default(),
                     billing_address: billing_address__,
