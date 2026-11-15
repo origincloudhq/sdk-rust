@@ -25,11 +25,33 @@ reqwest = { version = "0.13", features = ["form"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
-tokio = { version = "1", features = ["sync", "time"] }
 url = "2"
 uuid = { version = "1", features = ["v4"] }
 
+# Native only: the credential providers' locks and the retry sleep. In a
+# browser there is no Tokio timer driver (`tokio::time::sleep` panics on
+# `wasm32-unknown-unknown`), so the sleep is a browser timer there.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1", features = ["sync", "time"] }
+
+# In a browser: the retry sleep (`setTimeout`), the clock (`Date.now()`,
+# as `SystemTime::now` panics there), and the browser's random numbers for
+# request ids and retry jitter (without `js`, fastrand's seed is a
+# constant there, so every page would jitter alike). js-sys and getrandom
+# are already in the build through reqwest and uuid.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+fastrand = { version = "2", features = ["js"] }
+gloo-timers = { version = "0.3", features = ["futures"] }
+js-sys = "0.3"
+uuid = { version = "1", features = ["v4", "js"] }
+
 [dev-dependencies]
 chrono = { version = "0.4", default-features = false, features = ["std"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 fake-server = { path = "../../testing/fake-server" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-test = "0.3"

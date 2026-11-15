@@ -182,7 +182,7 @@ impl Service {
             let Some(delay) = retry_delay(&err, attempt) else {
                 return Err(err);
             };
-            tokio::time::sleep(delay).await;
+            crate::runtime::sleep(delay).await;
             attempt += 1;
         }
     }
@@ -222,7 +222,7 @@ impl Service {
         if !held.is_empty() {
             builder = builder.header(CONSISTENCY_TOKEN_HEADER, held);
         }
-        let mut response = builder.send().await.map_err(Error::Transport)?;
+        let response = builder.send().await.map_err(Error::Transport)?;
         // A failed mutation may still have applied a command: its token
         // comes back either way.
         if let Some(answered) = response
@@ -240,16 +240,9 @@ impl Service {
             .and_then(|v| v.to_str().ok())
             .unwrap_or_default()
             .to_owned();
-        let mut answer = Vec::new();
-        let mut truncated = false;
-        while let Some(chunk) = response.chunk().await.map_err(Error::Transport)? {
-            answer.extend_from_slice(&chunk);
-            if answer.len() > MAX_RESPONSE_BYTES {
-                answer.truncate(MAX_RESPONSE_BYTES);
-                truncated = true;
-                break;
-            }
-        }
+        let (answer, truncated) = read_capped(response, MAX_RESPONSE_BYTES)
+            .await
+            .map_err(Error::Transport)?;
         if status != reqwest::StatusCode::OK {
             return Err(ApiError::from_response(status.as_u16(), &answer).into());
         }
@@ -266,6 +259,35 @@ impl Service {
             content_type,
             body: answer,
         })
+    }
+}
+
+/// A response's body, up to `max` bytes, and whether it was longer.
+/// Natively it is read chunk by chunk, and reading stops at the cap; in a
+/// browser, where reqwest's fetch has no `chunk()`, it is read whole and
+/// cut afterwards.
+pub(crate) async fn read_capped(
+    #[cfg_attr(target_arch = "wasm32", allow(unused_mut))] mut response: reqwest::Response,
+    max: usize,
+) -> Result<(Vec<u8>, bool), reqwest::Error> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut body = Vec::new();
+        while let Some(chunk) = response.chunk().await? {
+            body.extend_from_slice(&chunk);
+            if body.len() > max {
+                body.truncate(max);
+                return Ok((body, true));
+            }
+        }
+        Ok((body, false))
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let mut body = Vec::from(response.bytes().await?);
+        let truncated = body.len() > max;
+        body.truncate(max);
+        Ok((body, truncated))
     }
 }
 

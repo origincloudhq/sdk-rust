@@ -80,6 +80,15 @@
 //!
 //! The clients are `async` and send their calls with
 //! [reqwest](https://docs.rs/reqwest), on [Tokio](https://tokio.rs).
+//!
+//! They also build for the browser, `wasm32-unknown-unknown`, where
+//! reqwest sends calls with the browser's `fetch`, retries wait on
+//! `setTimeout`, and no Tokio runtime is needed: run the futures with the
+//! UI framework's executor, such as `wasm-bindgen-futures`. There, the
+//! futures the SDK returns aren't `Send` ([`MaybeSend`]), the credentials
+//! are the page's own (see [`credentials`]), and the per-call
+//! [`ClientBuilder::timeout`] is the only one, as a browser's `fetch` has
+//! no connect timeout.
 
 #![warn(missing_docs)]
 
@@ -92,18 +101,19 @@ mod operation;
 mod pages;
 pub mod protobuf;
 pub mod rpc;
+mod runtime;
 mod transport;
 pub mod types;
 
 pub use client::{Client, ClientBuilder, Service, VERSION};
-pub use credentials::{
-    AccessToken, CliSession, Credentials, Federated, InstanceMetadata, ServiceAccount,
-    default_credentials,
-};
+pub use credentials::{AccessToken, Credentials, ServiceAccount};
+#[cfg(not(target_arch = "wasm32"))]
+pub use credentials::{CliSession, Federated, InstanceMetadata, default_credentials};
 pub use error::{ApiError, Error, FieldViolation};
 pub use names::{FullName, FullNameError};
 pub use operation::Operation;
 pub use pages::Pages;
+pub use runtime::{BoxFuture, MaybeSend};
 pub use transport::{
     CONSISTENCY_TOKEN_HEADER, HttpBody, Method, Query, Request, json_body, new_request_id,
     path_value, query,
