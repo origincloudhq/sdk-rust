@@ -1,7 +1,9 @@
 # Checks every pull request and every push to main: the generated code is
 # what the pinned API definitions generate (scripts/generate.sh --check),
 # the code is formatted and lint-free, the tests pass (the live tests are
-# ignored), the documentation builds, and the crates package.
+# ignored), the documentation builds, and the crates package; and that
+# the published crates build for the browser, wasm32-unknown-unknown, and
+# the core crate's wasm tests pass in Node.js (scripts/wasm.sh).
 #
 # The regeneration pull request is opened with the workflow token, which
 # starts no pull_request run, so regenerate.yml dispatches this workflow on
@@ -62,3 +64,22 @@ jobs:
         run: |
           shellcheck scripts/*.sh
           scripts/version.test.sh
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: 'actions/checkout@v4'
+
+      - name: Rust
+        run: |
+          rustup toolchain install
+          rustup target add wasm32-unknown-unknown
+
+      - name: Cache
+        uses: 'Swatinem/rust-cache@v2'
+
+      # The runner image's Node.js runs the tests; the script downloads the
+      # wasm-bindgen-test-runner Cargo.lock's wasm-bindgen needs.
+      - name: Browser build and tests
+        run: scripts/wasm.sh
