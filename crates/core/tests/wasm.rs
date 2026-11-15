@@ -125,15 +125,21 @@ async fn a_retry_delay_longer_than_a_browser_timer_still_waits() {
         .max_attempts(2)
         .build()
         .unwrap();
-    wasm_bindgen_futures::spawn_local(async move {
+    let (call, waiting) = futures_util::future::abortable(async move {
         let _: Result<Value, Error> = client
             .service("pvs", true)
             .call(Request::new(Method::GET, "/v1beta1/projects/p").idempotent())
             .await;
     });
+    wasm_bindgen_futures::spawn_local(async {
+        let _ = call.await;
+    });
     gloo_timers::future::sleep(Duration::from_millis(200)).await;
+    let requests = stub.requests();
+    // Dropping the call clears its timer, which would outlive the test.
+    waiting.abort();
 
-    assert_eq!(stub.requests(), 1.0);
+    assert_eq!(requests, 1.0);
 }
 
 #[cfg(feature = "service-account-wasm")]

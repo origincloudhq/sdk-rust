@@ -3,7 +3,8 @@
 # Checks the SDK for the browser, wasm32-unknown-unknown: the published
 # crates build, are lint-free and document without broken links there,
 # with and without the core crate's feature service-account-wasm, and the
-# core crate's wasm tests (crates/core/tests/wasm.rs) pass, run by
+# core crate's wasm tests (crates/core/tests/wasm.rs) pass, with and
+# without it, run by
 # wasm-bindgen-test in Node.js, whose fetch, setTimeout and Date stand in
 # for a browser's.
 #
@@ -32,6 +33,7 @@ check() {
 }
 check
 check "${FEATURE[@]}"
+cargo clippy --locked --target "${TARGET}" -p origincloud-core --test wasm -- -D warnings
 cargo clippy --locked --target "${TARGET}" -p origincloud-core "${FEATURE[@]}" --test wasm -- -D warnings
 
 # The version of wasm-bindgen the lockfile pins: the line after its name.
@@ -47,5 +49,10 @@ if [[ "$(wasm-bindgen-test-runner --version 2>/dev/null || true)" != "${want}" ]
   PATH="${root}/bin:${PATH}"
 fi
 
-CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner \
-  cargo test --locked --target "${TARGET}" -p origincloud-core "${FEATURE[@]}" --test wasm
+# Without the feature, as a browser app builds it, and with it, for the
+# tests of ServiceAccount.
+for features in "" "${FEATURE[*]}"; do
+  # shellcheck disable=SC2086 # no words, or the two of FEATURE
+  CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner \
+    cargo test --locked --target "${TARGET}" -p origincloud-core ${features} --test wasm
+done
