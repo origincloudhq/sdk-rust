@@ -469,11 +469,9 @@ impl OperationClient {
         &self,
         request: GetOperationRequest,
     ) -> ::core::result::Result<crate::longrunning::Operation, crate::Error> {
-        let p0 = crate::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/operations/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/zones/*/operations/*")?;
         let query = crate::query(&request, &["name"])?;
         let call = crate::Request::new(crate::Method::GET, format!("/v1beta1/{p0}"))
             .with_query(query)
@@ -487,11 +485,9 @@ impl OperationClient {
         &self,
         request: WaitOperationRequest,
     ) -> ::core::result::Result<crate::longrunning::Operation, crate::Error> {
-        let p0 = crate::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/operations/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/zones/*/operations/*")?;
         let body = crate::json_body(&request)?;
         let call = crate::Request::new(
                 crate::Method::POST,

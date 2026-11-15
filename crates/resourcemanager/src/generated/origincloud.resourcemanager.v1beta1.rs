@@ -3763,11 +3763,7 @@ impl OrganizationClient {
         &self,
         request: GetOrganizationRequest,
     ) -> ::core::result::Result<Organization, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "organizations/*",
-        )?;
+        let p0 = self.service.path_value("name", &request.name, "organizations/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -3842,11 +3838,13 @@ impl OrganizationClient {
         &self,
         request: UpdateOrganizationRequest,
     ) -> ::core::result::Result<Organization, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "organization.name",
-            request.organization.as_ref().map_or("", |m| m.name.as_str()),
-            "organizations/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "organization.name",
+                request.organization.as_ref().map_or("", |m| m.name.as_str()),
+                "organizations/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.organization.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -3875,11 +3873,7 @@ impl OrganizationClient {
         ::origincloud_core::protobuf::Empty,
         ::origincloud_core::Error,
     > {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "organizations/*",
-        )?;
+        let p0 = self.service.path_value("name", &request.name, "organizations/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -3895,11 +3889,9 @@ impl OrganizationClient {
         &self,
         request: GetOrganizationQuotaRequest,
     ) -> ::core::result::Result<OrganizationQuota, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "organizations/*/quota",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "organizations/*/quota")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -3935,7 +3927,7 @@ impl ProjectClient {
         &self,
         request: GetProjectRequest,
     ) -> ::core::result::Result<Project, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value("name", &request.name, "projects/*")?;
+        let p0 = self.service.path_value("name", &request.name, "projects/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -4008,11 +4000,13 @@ impl ProjectClient {
         &self,
         request: UpdateProjectRequest,
     ) -> ::core::result::Result<Project, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "project.name",
-            request.project.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "project.name",
+                request.project.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.project.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -4040,7 +4034,7 @@ impl ProjectClient {
         ::origincloud_core::protobuf::Empty,
         ::origincloud_core::Error,
     > {
-        let p0 = ::origincloud_core::path_value("name", &request.name, "projects/*")?;
+        let p0 = self.service.path_value("name", &request.name, "projects/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -4055,11 +4049,7 @@ impl ProjectClient {
         &self,
         request: GetProjectQuotaRequest,
     ) -> ::core::result::Result<ProjectQuota, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/quota",
-        )?;
+        let p0 = self.service.path_value("name", &request.name, "projects/*/quota")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -4075,11 +4065,13 @@ impl ProjectClient {
         &self,
         request: UpdateProjectQuotaRequest,
     ) -> ::core::result::Result<ProjectQuota, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "projectQuota.name",
-            request.project_quota.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/quota",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "projectQuota.name",
+                request.project_quota.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/quota",
+            )?;
         let body = ::origincloud_core::json_body(
             request
                 .project_quota

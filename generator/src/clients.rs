@@ -8,7 +8,9 @@
 //! with a `request_id` gets one filled in when it is empty, so that it is
 //! safe to retry. A method answering with a `google.api.HttpBody`, a file
 //! rather than JSON, returns the core crate's `HttpBody`: the file's bytes
-//! and media type, as the server sent them.
+//! and media type, as the server sent them. A path variable's field is
+//! checked by the service's `path_value`, which also takes a full resource
+//! name of the client's own service and sends its relative name.
 
 use std::fmt::Write as _;
 
@@ -334,7 +336,7 @@ fn generate_method(cx: &Generation<'_>, m: &MethodDescriptor, out: &mut String) 
                     .join(".");
                 writeln!(
                     out,
-                    "let p{variable} = {core}::path_value({json_path:?}, {}, {pattern:?})?;",
+                    "let p{variable} = self.service.path_value({json_path:?}, {}, {pattern:?})?;",
                     field_access(fields)
                 )?;
                 write!(path, "{{p{variable}}}")?;

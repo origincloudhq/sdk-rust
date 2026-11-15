@@ -872,11 +872,7 @@ impl MetricClient {
         &self,
         request: QueryTimeSeriesRequest,
     ) -> ::core::result::Result<QueryTimeSeriesResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*",
-        )?;
+        let p0 = self.service.path_value("parent", &request.parent, "projects/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,

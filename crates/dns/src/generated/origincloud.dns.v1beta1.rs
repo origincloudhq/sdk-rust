@@ -5288,11 +5288,9 @@ impl HostedZoneClient {
         &self,
         request: GetHostedZoneRequest,
     ) -> ::core::result::Result<HostedZone, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/hostedZones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/hostedZones/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -5307,11 +5305,7 @@ impl HostedZoneClient {
         &self,
         request: ListHostedZonesRequest,
     ) -> ::core::result::Result<ListHostedZonesResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*",
-        )?;
+        let p0 = self.service.path_value("parent", &request.parent, "projects/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -5354,11 +5348,7 @@ impl HostedZoneClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*",
-        )?;
+        let p0 = self.service.path_value("parent", &request.parent, "projects/*")?;
         let body = ::origincloud_core::json_body(
             request.hosted_zone.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -5380,11 +5370,13 @@ impl HostedZoneClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "hostedZone.name",
-            request.hosted_zone.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/hostedZones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "hostedZone.name",
+                request.hosted_zone.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/hostedZones/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.hosted_zone.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -5413,11 +5405,9 @@ impl HostedZoneClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/hostedZones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/hostedZones/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -5444,11 +5434,9 @@ impl HostedZoneClient {
         &self,
         request: VerifyHostedZoneRequest,
     ) -> ::core::result::Result<HostedZone, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/hostedZones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/hostedZones/*")?;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -5489,11 +5477,9 @@ impl RecordSetClient {
         &self,
         request: GetRecordSetRequest,
     ) -> ::core::result::Result<RecordSet, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/hostedZones/*/recordSets/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/hostedZones/*/recordSets/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -5508,11 +5494,9 @@ impl RecordSetClient {
         &self,
         request: ListRecordSetsRequest,
     ) -> ::core::result::Result<ListRecordSetsResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/hostedZones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/hostedZones/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -5556,11 +5540,9 @@ impl RecordSetClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/hostedZones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/hostedZones/*")?;
         let body = ::origincloud_core::json_body(
             request.record_set.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -5586,11 +5568,13 @@ impl RecordSetClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "recordSet.name",
-            request.record_set.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/hostedZones/*/recordSets/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "recordSet.name",
+                request.record_set.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/hostedZones/*/recordSets/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.record_set.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -5618,11 +5602,9 @@ impl RecordSetClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/hostedZones/*/recordSets/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/hostedZones/*/recordSets/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -5649,11 +5631,9 @@ impl RecordSetClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/hostedZones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/hostedZones/*")?;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -5694,11 +5674,13 @@ impl VpcAttachmentClient {
         &self,
         request: GetVpcAttachmentRequest,
     ) -> ::core::result::Result<VpcAttachment, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/hostedZones/*/vpcAttachments/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/hostedZones/*/vpcAttachments/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -5715,11 +5697,9 @@ impl VpcAttachmentClient {
         &self,
         request: ListVpcAttachmentsRequest,
     ) -> ::core::result::Result<ListVpcAttachmentsResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/hostedZones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/hostedZones/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -5763,11 +5743,9 @@ impl VpcAttachmentClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/hostedZones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/hostedZones/*")?;
         let body = ::origincloud_core::json_body(
             request
                 .vpc_attachment
@@ -5796,11 +5774,13 @@ impl VpcAttachmentClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/hostedZones/*/vpcAttachments/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/hostedZones/*/vpcAttachments/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,

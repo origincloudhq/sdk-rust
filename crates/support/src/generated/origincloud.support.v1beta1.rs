@@ -2067,11 +2067,9 @@ impl CaseClient {
         &self,
         request: GetCaseRequest,
     ) -> ::core::result::Result<Case, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "organizations/*/cases/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "organizations/*/cases/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -2087,11 +2085,7 @@ impl CaseClient {
         &self,
         request: ListCasesRequest,
     ) -> ::core::result::Result<ListCasesResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "organizations/*",
-        )?;
+        let p0 = self.service.path_value("parent", &request.parent, "organizations/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -2130,11 +2124,7 @@ impl CaseClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "organizations/*",
-        )?;
+        let p0 = self.service.path_value("parent", &request.parent, "organizations/*")?;
         let body = ::origincloud_core::json_body(
             request.case.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -2155,11 +2145,9 @@ impl CaseClient {
         &self,
         request: CloseCaseRequest,
     ) -> ::core::result::Result<Case, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "organizations/*/cases/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "organizations/*/cases/*")?;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -2176,11 +2164,9 @@ impl CaseClient {
         &self,
         request: ReopenCaseRequest,
     ) -> ::core::result::Result<Case, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "organizations/*/cases/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "organizations/*/cases/*")?;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -2215,11 +2201,9 @@ impl CaseMessageClient {
         &self,
         request: GetCaseMessageRequest,
     ) -> ::core::result::Result<CaseMessage, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "organizations/*/cases/*/messages/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "organizations/*/cases/*/messages/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -2235,11 +2219,9 @@ impl CaseMessageClient {
         &self,
         request: ListCaseMessagesRequest,
     ) -> ::core::result::Result<ListCaseMessagesResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "organizations/*/cases/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "organizations/*/cases/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -2280,11 +2262,9 @@ impl CaseMessageClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "organizations/*/cases/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "organizations/*/cases/*")?;
         let body = ::origincloud_core::json_body(
             request.case_message.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;

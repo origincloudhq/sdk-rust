@@ -113,6 +113,15 @@ async fn main() -> Result<(), origincloud_core::Error> {
   `ORIGINCLOUD_REGION`, picks a region's front door instead,
   `{service}.{region}.origincloudapis.eu`, for the services that have one;
   a global service, such as location, keeps its regionless host.
+- **Names.** A resource's `name` is its relative name; its full resource
+  name, `//{service}.origincloudapis.eu/{name}`, is what references carry.
+  `origincloud_core::FullName` parses one (refusing a URN, a relative name,
+  a regional or zonal host, a version), builds one with `from_relative`,
+  and gives its `service`, `host`, `relative` name and `url`; principals
+  and roles are iam names (`principal`, `role`). A request's `name` or
+  `parent` takes either form: a full name of the client's own service is
+  sent as its relative name, and one of another service is refused before
+  anything is sent.
 - **Operations.** A create, update or delete returns an `Operation`; its
   `wait` returns the resource once the change is complete, or the error the
   change failed with.

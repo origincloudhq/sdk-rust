@@ -77,6 +77,7 @@ impl Client {
         Service {
             client: self.clone(),
             base,
+            shortcode: shortcode.to_owned(),
         }
     }
 
@@ -294,6 +295,9 @@ pub struct Service {
     pub(crate) client: Client,
     /// The base URL, or why there is none.
     pub(crate) base: Result<Url, String>,
+    /// The service's shortcode, such as `pvs`: its host's first label, and
+    /// the service a full resource name in a path field must name.
+    pub(crate) shortcode: String,
 }
 
 impl Service {

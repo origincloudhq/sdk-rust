@@ -10,7 +10,9 @@
 //! `<out-dir>` at their paths in this repository: for each proto package,
 //! one file with its messages (prost-build), their proto3 JSON mapping
 //! (pbjson-build) and its clients (this generator), and per crate a
-//! `generated/mod.rs` declaring a module per version.
+//! `generated/mod.rs` declaring a module per version. The core crate's
+//! `names/generated/services.rs` lists the services that have resources,
+//! the hosts a full resource name may name (see `services`).
 //!
 //! `origincloud.longrunning.{version}` goes to the core crate, as
 //! `origincloud_core::longrunning::{version}`; every other
@@ -29,6 +31,7 @@ mod describe;
 mod docs;
 mod names;
 mod scaffold;
+mod services;
 mod support;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -114,6 +117,15 @@ fn main() -> Result<()> {
             code,
         );
     }
+    let resource_services = services::resource_services(&pool)?;
+    ensure!(
+        !resource_services.is_empty(),
+        "the API declares no resource types"
+    );
+    files.insert(
+        PathBuf::from("crates/core/src/names/generated/services.rs"),
+        format!("{HEADER}\n{}", services::generate(&resource_services)),
+    );
     let mut modules: BTreeMap<PathBuf, Vec<&Target>> = BTreeMap::new();
     for target in &targets {
         modules

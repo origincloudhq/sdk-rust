@@ -9259,11 +9259,7 @@ impl InstanceTypeClient {
         &self,
         request: GetInstanceTypeRequest,
     ) -> ::core::result::Result<InstanceType, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "instanceTypes/*",
-        )?;
+        let p0 = self.service.path_value("name", &request.name, "instanceTypes/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -9316,11 +9312,7 @@ impl ImageFamilyClient {
         &self,
         request: GetImageFamilyRequest,
     ) -> ::core::result::Result<ImageFamily, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "imageFamilies/*",
-        )?;
+        let p0 = self.service.path_value("name", &request.name, "imageFamilies/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -9371,11 +9363,9 @@ impl ImageClient {
         &self,
         request: GetImageRequest,
     ) -> ::core::result::Result<Image, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/images/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/zones/*/images/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -9391,11 +9381,9 @@ impl ImageClient {
         &self,
         request: ListImagesRequest,
     ) -> ::core::result::Result<ListImagesResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -9434,11 +9422,9 @@ impl ImageClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*")?;
         let body = ::origincloud_core::json_body(
             request.image.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -9457,11 +9443,13 @@ impl ImageClient {
         &self,
         request: UpdateImageRequest,
     ) -> ::core::result::Result<Image, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "image.name",
-            request.image.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/zones/*/images/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "image.name",
+                request.image.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/zones/*/images/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.image.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -9482,11 +9470,9 @@ impl ImageClient {
         ::origincloud_core::protobuf::Empty,
         ::origincloud_core::Error,
     > {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/images/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/zones/*/images/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -9522,11 +9508,9 @@ impl InstanceClient {
         &self,
         request: GetInstanceRequest,
     ) -> ::core::result::Result<Instance, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/instances/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/zones/*/instances/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -9545,11 +9529,9 @@ impl InstanceClient {
         &self,
         request: ListInstancesRequest,
     ) -> ::core::result::Result<ListInstancesResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -9595,11 +9577,9 @@ impl InstanceClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*")?;
         let body = ::origincloud_core::json_body(
             request.instance.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -9638,11 +9618,13 @@ impl InstanceClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "instance.name",
-            request.instance.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/zones/*/instances/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "instance.name",
+                request.instance.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/zones/*/instances/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.instance.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -9682,11 +9664,9 @@ impl InstanceClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/instances/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/zones/*/instances/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -9721,11 +9701,9 @@ impl InstanceClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/instances/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/zones/*/instances/*")?;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -9758,11 +9736,9 @@ impl InstanceClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/instances/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/zones/*/instances/*")?;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -9806,11 +9782,9 @@ impl KeyPairClient {
         &self,
         request: GetKeyPairRequest,
     ) -> ::core::result::Result<KeyPair, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/keyPairs/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/keyPairs/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -9825,11 +9799,7 @@ impl KeyPairClient {
         &self,
         request: ListKeyPairsRequest,
     ) -> ::core::result::Result<ListKeyPairsResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*",
-        )?;
+        let p0 = self.service.path_value("parent", &request.parent, "projects/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -9872,11 +9842,7 @@ impl KeyPairClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*",
-        )?;
+        let p0 = self.service.path_value("parent", &request.parent, "projects/*")?;
         let body = ::origincloud_core::json_body(
             request.key_pair.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -9895,11 +9861,13 @@ impl KeyPairClient {
         &self,
         request: UpdateKeyPairRequest,
     ) -> ::core::result::Result<KeyPair, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "keyPair.name",
-            request.key_pair.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/keyPairs/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "keyPair.name",
+                request.key_pair.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/keyPairs/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.key_pair.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -9920,11 +9888,9 @@ impl KeyPairClient {
         ::origincloud_core::protobuf::Empty,
         ::origincloud_core::Error,
     > {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/keyPairs/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/keyPairs/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -9959,11 +9925,7 @@ impl PublicImageClient {
         &self,
         request: GetPublicImageRequest,
     ) -> ::core::result::Result<PublicImage, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "zones/*/images/*",
-        )?;
+        let p0 = self.service.path_value("name", &request.name, "zones/*/images/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -9978,7 +9940,7 @@ impl PublicImageClient {
         &self,
         request: ListPublicImagesRequest,
     ) -> ::core::result::Result<ListPublicImagesResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value("parent", &request.parent, "zones/*")?;
+        let p0 = self.service.path_value("parent", &request.parent, "zones/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10034,11 +9996,13 @@ impl VolumeAttachmentClient {
         &self,
         request: GetVolumeAttachmentRequest,
     ) -> ::core::result::Result<VolumeAttachment, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/instances/*/volumeAttachments/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/zones/*/instances/*/volumeAttachments/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10059,11 +10023,9 @@ impl VolumeAttachmentClient {
         ListVolumeAttachmentsResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*/instances/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*/instances/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -10110,11 +10072,9 @@ impl VolumeAttachmentClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*/instances/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*/instances/*")?;
         let body = ::origincloud_core::json_body(
             request
                 .volume_attachment
@@ -10157,11 +10117,13 @@ impl VolumeAttachmentClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/instances/*/volumeAttachments/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/zones/*/instances/*/volumeAttachments/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,

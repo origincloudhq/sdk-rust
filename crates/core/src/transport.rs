@@ -102,6 +102,22 @@ impl Request {
 }
 
 impl Service {
+    /// `value`, the path field `field` of a call to this service, as the
+    /// path segments of the request, checked against `pattern` as
+    /// [`path_value`] checks it. The generated clients call it.
+    ///
+    /// A full resource name of this service, such as
+    /// `//pvs.origincloudapis.eu/projects/p/zones/z/volumes/vol-1` given to
+    /// a PVS client, is sent as its relative name, the path every call
+    /// takes. A full name of another service, one with a regional or zonal
+    /// host or an API version, a URN, a URL or a malformed full name is
+    /// refused before anything is sent; see [`FullName`](crate::names::FullName).
+    pub fn path_value(&self, field: &str, value: &str, pattern: &str) -> Result<String, Error> {
+        let relative = crate::names::path_name(&self.shortcode, field, value)
+            .map_err(Error::InvalidRequest)?;
+        path_value(field, relative, pattern)
+    }
+
     /// Sends `request`, retrying it while that is safe and the answer
     /// allows it, and reads the answer as `T`.
     pub async fn call<T: DeserializeOwned>(&self, request: Request) -> Result<T, Error> {
@@ -267,9 +283,11 @@ const PATH_SEGMENT: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'=')
     .remove(b'@');
 
-/// `value` as the path segments of a request, checking it has the form
-/// `pattern`, such as `projects/*/zones/*/volumes/*`, gives it. `field`
-/// names it in the error. The generated clients call it.
+/// `value`, a relative resource name, as the path segments of a request,
+/// checking it has the form `pattern`, such as
+/// `projects/*/zones/*/volumes/*`, gives it. `field` names it in the
+/// error. [`Service::path_value`] also takes a full resource name of its
+/// service.
 pub fn path_value(field: &str, value: &str, pattern: &str) -> Result<String, Error> {
     let got: Vec<&str> = value.split('/').collect();
     let want: Vec<&str> = pattern.split('/').collect();

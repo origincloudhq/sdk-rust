@@ -1002,7 +1002,7 @@ impl LocationClient {
         &self,
         request: GetRegionRequest,
     ) -> ::core::result::Result<Region, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value("name", &request.name, "regions/*")?;
+        let p0 = self.service.path_value("name", &request.name, "regions/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -1031,7 +1031,7 @@ impl LocationClient {
         &self,
         request: GetZoneRequest,
     ) -> ::core::result::Result<Zone, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value("name", &request.name, "zones/*")?;
+        let p0 = self.service.path_value("name", &request.name, "zones/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,

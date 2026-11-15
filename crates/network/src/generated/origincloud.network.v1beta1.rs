@@ -20761,11 +20761,9 @@ impl AclClient {
         &self,
         request: GetAclRequest,
     ) -> ::core::result::Result<Acl, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/acls/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/regions/*/acls/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -20780,11 +20778,9 @@ impl AclClient {
         &self,
         request: ListAclsRequest,
     ) -> ::core::result::Result<ListAclsResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -20825,11 +20821,9 @@ impl AclClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*")?;
         let body = ::origincloud_core::json_body(
             request.acl.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -20864,11 +20858,13 @@ impl AclClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "acl.name",
-            request.acl.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/regions/*/acls/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "acl.name",
+                request.acl.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/regions/*/acls/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.acl.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -20905,11 +20901,9 @@ impl AclClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/acls/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/regions/*/acls/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -20955,11 +20949,13 @@ impl AclAssociationClient {
         &self,
         request: GetAclAssociationRequest,
     ) -> ::core::result::Result<AclAssociation, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/subnets/*/aclAssociations/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/zones/*/subnets/*/aclAssociations/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -20974,11 +20970,9 @@ impl AclAssociationClient {
         &self,
         request: ListAclAssociationsRequest,
     ) -> ::core::result::Result<ListAclAssociationsResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*/subnets/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*/subnets/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -21023,11 +21017,9 @@ impl AclAssociationClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*/subnets/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*/subnets/*")?;
         let body = ::origincloud_core::json_body(
             request
                 .acl_association
@@ -21066,11 +21058,13 @@ impl AclAssociationClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/subnets/*/aclAssociations/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/zones/*/subnets/*/aclAssociations/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -21116,11 +21110,9 @@ impl AclRuleClient {
         &self,
         request: GetAclRuleRequest,
     ) -> ::core::result::Result<AclRule, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/acls/*/rules/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/regions/*/acls/*/rules/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -21135,11 +21127,9 @@ impl AclRuleClient {
         &self,
         request: ListAclRulesRequest,
     ) -> ::core::result::Result<ListAclRulesResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*/acls/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*/acls/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -21186,11 +21176,9 @@ impl AclRuleClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*/acls/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*/acls/*")?;
         let body = ::origincloud_core::json_body(
             request.acl_rule.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -21225,11 +21213,9 @@ impl AclRuleClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/acls/*/rules/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/regions/*/acls/*/rules/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -21273,11 +21259,9 @@ impl DnsPolicyClient {
         &self,
         request: GetDnsPolicyRequest,
     ) -> ::core::result::Result<DnsPolicy, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/dnsPolicies/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/regions/*/dnsPolicies/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -21293,11 +21277,9 @@ impl DnsPolicyClient {
         &self,
         request: ListDnsPoliciesRequest,
     ) -> ::core::result::Result<ListDnsPoliciesResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -21342,11 +21324,9 @@ impl DnsPolicyClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*")?;
         let body = ::origincloud_core::json_body(
             request.dns_policy.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -21382,11 +21362,13 @@ impl DnsPolicyClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "dnsPolicy.name",
-            request.dns_policy.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/regions/*/dnsPolicies/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "dnsPolicy.name",
+                request.dns_policy.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/regions/*/dnsPolicies/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.dns_policy.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -21425,11 +21407,9 @@ impl DnsPolicyClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/dnsPolicies/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/regions/*/dnsPolicies/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -21463,11 +21443,9 @@ impl DnsPolicyClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/dnsPolicies/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/regions/*/dnsPolicies/*")?;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -21513,11 +21491,13 @@ impl DnsPolicyAssociationClient {
         &self,
         request: GetDnsPolicyAssociationRequest,
     ) -> ::core::result::Result<DnsPolicyAssociation, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/vpcs/*/dnsPolicyAssociations/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/regions/*/vpcs/*/dnsPolicyAssociations/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -21535,11 +21515,9 @@ impl DnsPolicyAssociationClient {
         ListDnsPolicyAssociationsResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*/vpcs/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*/vpcs/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -21585,11 +21563,9 @@ impl DnsPolicyAssociationClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*/vpcs/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*/vpcs/*")?;
         let body = ::origincloud_core::json_body(
             request
                 .dns_policy_association
@@ -21632,11 +21608,13 @@ impl DnsPolicyAssociationClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/vpcs/*/dnsPolicyAssociations/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/regions/*/vpcs/*/dnsPolicyAssociations/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -21682,11 +21660,9 @@ impl FloatingIpClient {
         &self,
         request: GetFloatingIpRequest,
     ) -> ::core::result::Result<FloatingIp, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/floatingIps/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/zones/*/floatingIps/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -21702,11 +21678,9 @@ impl FloatingIpClient {
         &self,
         request: ListFloatingIpsRequest,
     ) -> ::core::result::Result<ListFloatingIpsResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -21751,11 +21725,9 @@ impl FloatingIpClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*")?;
         let body = ::origincloud_core::json_body(
             request.floating_ip.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -21790,11 +21762,13 @@ impl FloatingIpClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "floatingIp.name",
-            request.floating_ip.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/zones/*/floatingIps/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "floatingIp.name",
+                request.floating_ip.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/zones/*/floatingIps/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.floating_ip.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -21833,11 +21807,9 @@ impl FloatingIpClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/floatingIps/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/zones/*/floatingIps/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -21883,11 +21855,13 @@ impl FloatingIpAssociationClient {
         &self,
         request: GetFloatingIpAssociationRequest,
     ) -> ::core::result::Result<FloatingIpAssociation, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/floatingIps/*/associations/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/zones/*/floatingIps/*/associations/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -21905,11 +21879,9 @@ impl FloatingIpAssociationClient {
         ListFloatingIpAssociationsResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*/floatingIps/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*/floatingIps/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -21956,11 +21928,9 @@ impl FloatingIpAssociationClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*/floatingIps/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*/floatingIps/*")?;
         let body = ::origincloud_core::json_body(
             request
                 .floating_ip_association
@@ -22004,11 +21974,13 @@ impl FloatingIpAssociationClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/floatingIps/*/associations/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/zones/*/floatingIps/*/associations/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -22053,11 +22025,13 @@ impl InternetGatewayClient {
         &self,
         request: GetInternetGatewayRequest,
     ) -> ::core::result::Result<InternetGateway, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/internetGateways/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/regions/*/internetGateways/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -22075,11 +22049,9 @@ impl InternetGatewayClient {
         ListInternetGatewaysResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -22124,11 +22096,9 @@ impl InternetGatewayClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*")?;
         let body = ::origincloud_core::json_body(
             request
                 .internet_gateway
@@ -22166,11 +22136,13 @@ impl InternetGatewayClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "internetGateway.name",
-            request.internet_gateway.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/regions/*/internetGateways/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "internetGateway.name",
+                request.internet_gateway.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/regions/*/internetGateways/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request
                 .internet_gateway
@@ -22212,11 +22184,13 @@ impl InternetGatewayClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/internetGateways/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/regions/*/internetGateways/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -22260,11 +22234,9 @@ impl NatGatewayClient {
         &self,
         request: GetNatGatewayRequest,
     ) -> ::core::result::Result<NatGateway, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/natGateways/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/zones/*/natGateways/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -22279,11 +22251,9 @@ impl NatGatewayClient {
         &self,
         request: ListNatGatewaysRequest,
     ) -> ::core::result::Result<ListNatGatewaysResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -22330,11 +22300,9 @@ impl NatGatewayClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*")?;
         let body = ::origincloud_core::json_body(
             request.nat_gateway.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -22369,11 +22337,13 @@ impl NatGatewayClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "natGateway.name",
-            request.nat_gateway.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/zones/*/natGateways/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "natGateway.name",
+                request.nat_gateway.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/zones/*/natGateways/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.nat_gateway.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -22412,11 +22382,9 @@ impl NatGatewayClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/natGateways/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/zones/*/natGateways/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -22460,11 +22428,13 @@ impl NetworkInterfaceClient {
         &self,
         request: GetNetworkInterfaceRequest,
     ) -> ::core::result::Result<NetworkInterface, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/networkInterfaces/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/zones/*/networkInterfaces/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -22482,11 +22452,9 @@ impl NetworkInterfaceClient {
         ListNetworkInterfacesResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -22532,11 +22500,9 @@ impl NetworkInterfaceClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*")?;
         let body = ::origincloud_core::json_body(
             request
                 .network_interface
@@ -22578,11 +22544,13 @@ impl NetworkInterfaceClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "networkInterface.name",
-            request.network_interface.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/zones/*/networkInterfaces/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "networkInterface.name",
+                request.network_interface.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/zones/*/networkInterfaces/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request
                 .network_interface
@@ -22625,11 +22593,13 @@ impl NetworkInterfaceClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/networkInterfaces/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/zones/*/networkInterfaces/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -22675,11 +22645,13 @@ impl RouteClient {
         &self,
         request: GetRouteRequest,
     ) -> ::core::result::Result<Route, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/routeTables/*/routes/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/regions/*/routeTables/*/routes/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -22695,11 +22667,13 @@ impl RouteClient {
         &self,
         request: ListRoutesRequest,
     ) -> ::core::result::Result<ListRoutesResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*/routeTables/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "parent",
+                &request.parent,
+                "projects/*/regions/*/routeTables/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -22744,11 +22718,13 @@ impl RouteClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*/routeTables/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "parent",
+                &request.parent,
+                "projects/*/regions/*/routeTables/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.route.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -22783,11 +22759,13 @@ impl RouteClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/routeTables/*/routes/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/regions/*/routeTables/*/routes/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -22830,11 +22808,9 @@ impl RouteTableClient {
         &self,
         request: GetRouteTableRequest,
     ) -> ::core::result::Result<RouteTable, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/routeTables/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/regions/*/routeTables/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -22849,11 +22825,9 @@ impl RouteTableClient {
         &self,
         request: ListRouteTablesRequest,
     ) -> ::core::result::Result<ListRouteTablesResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -22897,11 +22871,9 @@ impl RouteTableClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*")?;
         let body = ::origincloud_core::json_body(
             request.route_table.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -22936,11 +22908,13 @@ impl RouteTableClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "routeTable.name",
-            request.route_table.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/regions/*/routeTables/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "routeTable.name",
+                request.route_table.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/regions/*/routeTables/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.route_table.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -22980,11 +22954,9 @@ impl RouteTableClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/routeTables/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/regions/*/routeTables/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -23033,11 +23005,13 @@ impl RouteTableAssociationClient {
         &self,
         request: GetRouteTableAssociationRequest,
     ) -> ::core::result::Result<RouteTableAssociation, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/subnets/*/routeTableAssociations/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/zones/*/subnets/*/routeTableAssociations/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -23055,11 +23029,9 @@ impl RouteTableAssociationClient {
         ListRouteTableAssociationsResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*/subnets/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*/subnets/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -23105,11 +23077,9 @@ impl RouteTableAssociationClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*/subnets/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*/subnets/*")?;
         let body = ::origincloud_core::json_body(
             request
                 .route_table_association
@@ -23152,11 +23122,13 @@ impl RouteTableAssociationClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/subnets/*/routeTableAssociations/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/zones/*/subnets/*/routeTableAssociations/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -23202,11 +23174,9 @@ impl SecurityGroupClient {
         &self,
         request: GetSecurityGroupRequest,
     ) -> ::core::result::Result<SecurityGroup, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/securityGroups/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/regions/*/securityGroups/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -23221,11 +23191,9 @@ impl SecurityGroupClient {
         &self,
         request: ListSecurityGroupsRequest,
     ) -> ::core::result::Result<ListSecurityGroupsResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -23270,11 +23238,9 @@ impl SecurityGroupClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*")?;
         let body = ::origincloud_core::json_body(
             request
                 .security_group
@@ -23312,11 +23278,13 @@ impl SecurityGroupClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "securityGroup.name",
-            request.security_group.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/regions/*/securityGroups/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "securityGroup.name",
+                request.security_group.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/regions/*/securityGroups/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request
                 .security_group
@@ -23359,11 +23327,9 @@ impl SecurityGroupClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/securityGroups/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/regions/*/securityGroups/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -23409,11 +23375,13 @@ impl SecurityGroupAssociationClient {
         &self,
         request: GetSecurityGroupAssociationRequest,
     ) -> ::core::result::Result<SecurityGroupAssociation, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/networkInterfaces/*/securityGroupAssociations/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/zones/*/networkInterfaces/*/securityGroupAssociations/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -23431,11 +23399,13 @@ impl SecurityGroupAssociationClient {
         ListSecurityGroupAssociationsResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*/networkInterfaces/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "parent",
+                &request.parent,
+                "projects/*/zones/*/networkInterfaces/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -23482,11 +23452,13 @@ impl SecurityGroupAssociationClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*/networkInterfaces/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "parent",
+                &request.parent,
+                "projects/*/zones/*/networkInterfaces/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request
                 .security_group_association
@@ -23529,11 +23501,13 @@ impl SecurityGroupAssociationClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/networkInterfaces/*/securityGroupAssociations/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/zones/*/networkInterfaces/*/securityGroupAssociations/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -23578,11 +23552,13 @@ impl SecurityGroupRuleClient {
         &self,
         request: GetSecurityGroupRuleRequest,
     ) -> ::core::result::Result<SecurityGroupRule, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/securityGroups/*/rules/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/regions/*/securityGroups/*/rules/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -23600,11 +23576,13 @@ impl SecurityGroupRuleClient {
         ListSecurityGroupRulesResponse,
         ::origincloud_core::Error,
     > {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*/securityGroups/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "parent",
+                &request.parent,
+                "projects/*/regions/*/securityGroups/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -23651,11 +23629,13 @@ impl SecurityGroupRuleClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*/securityGroups/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "parent",
+                &request.parent,
+                "projects/*/regions/*/securityGroups/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request
                 .security_group_rule
@@ -23696,11 +23676,13 @@ impl SecurityGroupRuleClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/securityGroups/*/rules/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "name",
+                &request.name,
+                "projects/*/regions/*/securityGroups/*/rules/*",
+            )?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -23743,11 +23725,9 @@ impl SubnetClient {
         &self,
         request: GetSubnetRequest,
     ) -> ::core::result::Result<Subnet, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/subnets/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/zones/*/subnets/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -23764,11 +23744,9 @@ impl SubnetClient {
         &self,
         request: ListSubnetsRequest,
     ) -> ::core::result::Result<ListSubnetsResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -23814,11 +23792,9 @@ impl SubnetClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/zones/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/zones/*")?;
         let body = ::origincloud_core::json_body(
             request.subnet.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -23854,11 +23830,13 @@ impl SubnetClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "subnet.name",
-            request.subnet.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/zones/*/subnets/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "subnet.name",
+                request.subnet.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/zones/*/subnets/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.subnet.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -23895,11 +23873,9 @@ impl SubnetClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/subnets/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/zones/*/subnets/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -23943,11 +23919,9 @@ impl VpcClient {
         &self,
         request: GetVpcRequest,
     ) -> ::core::result::Result<Vpc, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/vpcs/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/regions/*/vpcs/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -23962,11 +23936,9 @@ impl VpcClient {
         &self,
         request: ListVpcsRequest,
     ) -> ::core::result::Result<ListVpcsResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*")?;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -24009,11 +23981,9 @@ impl VpcClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "projects/*/regions/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("parent", &request.parent, "projects/*/regions/*")?;
         let body = ::origincloud_core::json_body(
             request.vpc.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -24048,11 +24018,13 @@ impl VpcClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "vpc.name",
-            request.vpc.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*/regions/*/vpcs/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value(
+                "vpc.name",
+                request.vpc.as_ref().map_or("", |m| m.name.as_str()),
+                "projects/*/regions/*/vpcs/*",
+            )?;
         let body = ::origincloud_core::json_body(
             request.vpc.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -24090,11 +24062,9 @@ impl VpcClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/regions/*/vpcs/*",
-        )?;
+        let p0 = self
+            .service
+            .path_value("name", &request.name, "projects/*/regions/*/vpcs/*")?;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
