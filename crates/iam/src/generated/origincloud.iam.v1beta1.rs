@@ -117,9 +117,9 @@ pub struct ListAuditLogEntriesRequest {
     /// `projects/{project}`. Every entry when empty.
     #[prost(string, tag = "2")]
     pub project: ::prost::alloc::string::String,
-    /// Only the entries of changes made by this member's account,
-    /// `user:{email}`, `serviceAccount:{service_account}` or
-    /// `serviceAgent:{service_agent}`. Every actor's when empty.
+    /// Only the entries of changes made by this member, named by its full
+    /// name as a role binding's member is, or as an entry's `actor` shows it.
+    /// Every actor's when empty.
     #[prost(string, tag = "3")]
     pub actor: ::prost::alloc::string::String,
     /// Only the entries of this action, such as `iam.role.assign`. Every
@@ -406,10 +406,12 @@ pub struct RoleBinding {
     /// use.
     #[prost(string, tag = "2")]
     pub urn: ::prost::alloc::string::String,
-    /// Who holds the role: `user:{email}`, `serviceAccount:{service_account}`
-    /// or `serviceAgent:{service_agent}`. A user is shown with their
-    /// account's current verified address, as `userId:{user}` when it has
-    /// none, or as `deleted:user:{user}` once the account is gone.
+    /// Who holds the role: given as a member's full name, such as
+    /// `//iam.origincloudapis.eu/users/{user}`, or in the form shown here.
+    /// Shown as `user:{email}`, `serviceAccount:{service_account}` or
+    /// `serviceAgent:{service_agent}`: a user with their account's current
+    /// verified address, as `userId:{user}` when it has none, or as
+    /// `deleted:user:{user}` once the account is gone.
     #[prost(string, tag = "3")]
     pub member: ::prost::alloc::string::String,
     /// The role granted, `roles/{role}`.
@@ -444,9 +446,9 @@ pub struct ListRoleBindingsRequest {
     /// organization.
     #[prost(string, tag = "1")]
     pub parent: ::prost::alloc::string::String,
-    /// Only the bindings of this member, `user:{email}`,
-    /// `serviceAccount:{service_account}` or `serviceAgent:{service_agent}`.
-    /// Every member's when empty.
+    /// Only the bindings of this member, by its full name, such as
+    /// `//iam.origincloudapis.eu/users/{user}`, or as a binding's `member`
+    /// shows it. Every member's when empty.
     #[prost(string, tag = "2")]
     pub member: ::prost::alloc::string::String,
     /// Only the bindings limited to this project, `projects/{project}`. Every
@@ -6802,7 +6804,21 @@ impl RoleClient {
 /// of its bindings. Each binding is managed on its own, so creating or
 /// deleting one never touches another, whoever made it.
 ///
-/// A member is written as one of:
+/// A member is named by its full name, one of:
+/// - `//iam.origincloudapis.eu/users/{user}`: a user, by the id of their
+///    account, which must exist and be enabled.
+/// - `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`:
+///    one of the organization's own service accounts.
+/// - `//iam.origincloudapis.eu/serviceAgents/{service_agent}`: a platform
+///    service agent, such as `//iam.origincloudapis.eu/serviceAgents/compute`.
+///    A service agent is the identity one of the platform's services acts as
+///    in an organization. Any organization can bind one, but only to a role
+///    its service needs; nobody outside the platform can act as one or get a
+///    credential for it. Every organization is created with compute's service
+///    agent bound to `roles/kms.grant-delegate`; delete that binding and
+///    compute makes no new grants on the organization's keys.
+///
+/// A member is also accepted in the form responses show it in:
 /// - `user:{email}`: a user, by the verified email address of their
 ///    account. A binding holds on to the account, not the address: it
 ///    follows a later change of address, and is always shown with the
@@ -6810,13 +6826,7 @@ impl RoleClient {
 /// - `serviceAccount:{service_account}`: a service account of the same
 ///    organization, by its id.
 /// - `serviceAgent:{service_agent}`: a platform service agent, by its name,
-///    such as `serviceAgent:compute`. A service agent is the identity one of
-///    the platform's services acts as in an organization. Any organization
-///    can bind one, but only to a role its service needs; nobody outside the
-///    platform can act as one or get a credential for it. Every organization
-///    is created with `serviceAgent:compute` bound to
-///    `roles/kms.grant-delegate`; delete that binding and compute makes no
-///    new grants on the organization's keys.
+///    such as `serviceAgent:compute`.
 ///
 /// and shown, never accepted, as:
 /// - `userId:{user}`: a user by the id of their account, when no verified
@@ -6912,12 +6922,14 @@ impl RoleBindingClient {
     /// organization, for a project binding as well, and every permission of
     /// the role at the binding's scope: a permission held on the organization
     /// counts for any scope, one held on a project only for that project.
-    /// Refused with `NOT_FOUND` when no account has `member`'s address as its
-    /// verified email: nothing is held for an address until its account
-    /// exists. Refused with `CONFLICT` when the member already holds the role
-    /// at that scope, and with `BAD_REQUEST` when the member is a deleted
-    /// service account, names no service agent the platform has, or is a
-    /// service agent and the role isn't one its service needs.
+    /// Refused with `NOT_FOUND` when `member` names a user without an enabled
+    /// account, a service account of another organization, or an address no
+    /// enabled account has verified: nothing is held for an address until its
+    /// account exists.
+    /// Refused with `CONFLICT` when the member already holds the role at that
+    /// scope, and with `BAD_REQUEST` when the member is a deleted service
+    /// account, names no service agent the platform has, or is a service
+    /// agent and the role isn't one its service needs.
     pub async fn create_role_binding(
         &self,
         mut request: CreateRoleBindingRequest,
