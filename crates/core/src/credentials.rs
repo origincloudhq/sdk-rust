@@ -1,25 +1,34 @@
 //! Credentials: where the access token each call is sent with comes from.
 //!
-//! In a browser (`wasm32-unknown-unknown`) there are [`AccessToken`],
-//! [`ServiceAccount`] and the [`Credentials`] trait, for credentials of the
-//! page's own. The providers that read the environment, files, a CI job's
-//! token or an instance's metadata service, and [`default_credentials`]
-//! which chains them, are native only: a browser has none of these, and
+//! In a browser (`wasm32-unknown-unknown`) there are [`AccessToken`] and
+//! the [`Credentials`] trait, for credentials of the page's own. The
+//! providers that read the environment, files, a CI job's token or an
+//! instance's metadata service, and `default_credentials`, which chains
+//! them, are native only: a browser has none of these, and
 //! [`ClientBuilder::build`](crate::ClientBuilder::build) without
-//! credentials fails with [`Error::NoCredentials`] there.
+//! credentials fails with [`Error::NoCredentials`] there. `ServiceAccount`
+//! is there only with the feature `service-account-wasm`, for runtimes
+//! that aren't a browser.
 
 use std::fmt;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+use std::sync::OnceLock;
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 use std::time::{Duration, SystemTime};
 
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::{DateTime, Utc};
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 use serde::Deserialize;
 
 use crate::Error;
-use crate::runtime::{BoxFuture, Mutex, now};
+use crate::runtime::MaybeSendFuture;
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+use crate::runtime::{Mutex, now};
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 use crate::transport::read_capped;
 
 /// The identity provider's token endpoint, where service account
@@ -113,17 +122,20 @@ const CLI_CLIENT_ID: &str = "origin-cli";
 
 /// How long before its expiry a token is replaced, so that it doesn't
 /// expire on the way.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 const EXPIRY_MARGIN: Duration = Duration::from_secs(30);
 
 /// The most of a token response that is read.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 const MAX_TOKEN_RESPONSE_BYTES: usize = 1 << 20;
 
 /// How long a token request may take.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 const TOKEN_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// What [`Credentials::token`] returns: `Send` natively; not in a
 /// browser, where a fetch is a JavaScript promise.
-pub type TokenFuture<'a> = BoxFuture<'a, Result<String, Error>>;
+pub type TokenFuture<'a> = MaybeSendFuture<'a, Result<String, Error>>;
 
 /// Credentials supply the access token each call is sent with. `Send +
 /// Sync` on every target, so a client can live in a UI framework's
@@ -269,9 +281,11 @@ impl Credentials for AccessToken {
 /// A service account's client ID and secret, exchanged for access tokens
 /// with the client credentials grant as they expire.
 ///
-/// It works on `wasm32-unknown-unknown` too, for code that runs outside a
-/// page, such as in a worker; in a page, the secret is anybody's who loads
-/// it.
+/// On `wasm32-unknown-unknown` it exists only with the feature
+/// `service-account-wasm`, for runtimes that aren't a browser: a web
+/// page, and a Web Worker too, is shipped to whoever loads it, secret and
+/// all.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 pub struct ServiceAccount {
     client_id: String,
     client_secret: String,
@@ -280,6 +294,7 @@ pub struct ServiceAccount {
     cache: Mutex<Cached>,
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 impl ServiceAccount {
     /// The service account `client_id` with the secret `client_secret`.
     pub fn new(client_id: impl Into<String>, client_secret: impl Into<String>) -> Self {
@@ -306,6 +321,7 @@ impl ServiceAccount {
     }
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 impl fmt::Debug for ServiceAccount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ServiceAccount")
@@ -315,6 +331,7 @@ impl fmt::Debug for ServiceAccount {
     }
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 impl Credentials for ServiceAccount {
     fn token(&self) -> TokenFuture<'_> {
         Box::pin(async move {
@@ -1027,12 +1044,14 @@ fn home_dir(env: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
 }
 
 /// One access token, replaced once it is about to expire.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 #[derive(Default)]
 struct Cached {
     token: String,
     expiry: Option<SystemTime>,
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 impl Cached {
     fn valid(&self) -> Option<String> {
         self.valid_for(EXPIRY_MARGIN)
@@ -1046,6 +1065,7 @@ impl Cached {
 }
 
 /// A token endpoint's answer.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 #[derive(Deserialize, Default)]
 #[serde(default)]
 struct Granted {
@@ -1057,18 +1077,21 @@ struct Granted {
     error_description: String,
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 impl Granted {
     fn expiry(&self) -> SystemTime {
         now() + seconds(self.expires_in)
     }
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 fn seconds(n: i64) -> Duration {
     Duration::from_secs(u64::try_from(n).unwrap_or_default())
 }
 
 /// The HTTP client token requests are sent with unless the credentials
 /// name one: one for the process, created by the first request.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 fn default_http_client() -> Result<&'static reqwest::Client, &'static str> {
     static CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
     CLIENT
@@ -1081,6 +1104,7 @@ fn default_http_client() -> Result<&'static reqwest::Client, &'static str> {
         .map_err(String::as_str)
 }
 
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 async fn request_token(
     http: Option<&reqwest::Client>,
     url: &str,
@@ -1122,6 +1146,7 @@ async fn request_token(
 
 /// A response's status and its body, up to the most of a token response
 /// that is read.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 async fn read_bounded(
     response: reqwest::Response,
 ) -> Result<(reqwest::StatusCode, Vec<u8>), reqwest::Error> {

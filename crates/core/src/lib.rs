@@ -16,13 +16,17 @@
 //! # Credentials
 //!
 //! Unless [`ClientBuilder::credentials`] names them, [`Client::new`] takes
-//! the first of:
+//! the first of (natively; in a browser there are none of these, see
+//! [`credentials`]):
 //!
 //! 1. `ORIGINCLOUD_ACCESS_TOKEN`: an access token, sent as it is.
 //! 2. `ORIGINCLOUD_CLIENT_ID` and `ORIGINCLOUD_CLIENT_SECRET`: a service
 //!    account's credential, exchanged for access tokens as they expire.
 //! 3. A CI job's OIDC token, exchanged at the security token service for a
-//!    `WORKLOAD` service account's access tokens ([`Federated`]): from the
+//!    `WORKLOAD` service account's access tokens
+#![cfg_attr(not(target_arch = "wasm32"), doc = "   ([`Federated`]):")]
+#![cfg_attr(target_arch = "wasm32", doc = "   (`Federated`):")]
+//!    from the
 //!    file `ORIGINCLOUD_OIDC_TOKEN_FILE` names, from `ORIGINCLOUD_OIDC_TOKEN`,
 //!    which holds the token itself, or in a GitHub Actions job granted
 //!    `permissions: id-token: write`. `ORIGINCLOUD_OIDC_DISABLED=true`
@@ -106,14 +110,16 @@ mod transport;
 pub mod types;
 
 pub use client::{Client, ClientBuilder, Service, VERSION};
-pub use credentials::{AccessToken, Credentials, ServiceAccount};
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+pub use credentials::ServiceAccount;
+pub use credentials::{AccessToken, Credentials};
 #[cfg(not(target_arch = "wasm32"))]
 pub use credentials::{CliSession, Federated, InstanceMetadata, default_credentials};
 pub use error::{ApiError, Error, FieldViolation};
 pub use names::{FullName, FullNameError};
 pub use operation::Operation;
 pub use pages::Pages;
-pub use runtime::{BoxFuture, MaybeSend};
+pub use runtime::{MaybeSend, MaybeSendFuture};
 pub use transport::{
     CONSISTENCY_TOKEN_HEADER, HttpBody, Method, Query, Request, json_body, new_request_id,
     path_value, query,

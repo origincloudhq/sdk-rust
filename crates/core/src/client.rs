@@ -39,7 +39,14 @@ pub(crate) struct Inner {
 
 impl Client {
     /// A client configured by the environment: the credentials
-    /// [`default_credentials`](crate::default_credentials) finds, and the
+    #[cfg_attr(
+        not(target_arch = "wasm32"),
+        doc = "[`default_credentials`](crate::default_credentials) finds, and the"
+    )]
+    #[cfg_attr(
+        target_arch = "wasm32",
+        doc = "`default_credentials` finds natively (in a browser, none), and the"
+    )]
     /// region `ORIGINCLOUD_REGION` names, if any.
     pub fn new() -> Result<Self, Error> {
         Self::builder().build()

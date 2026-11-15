@@ -9,7 +9,9 @@
 
 use std::future::Future;
 use std::pin::Pin;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+use std::time::SystemTime;
 
 use futures_core::Stream;
 
@@ -33,12 +35,14 @@ mod bounds {
 
 pub use bounds::MaybeSend;
 
-/// A boxed future: `Send` natively, not in a browser.
+/// A boxed future: `Send` natively, not in a browser. (Named apart from
+/// `futures::future::BoxFuture`, which is always `Send`.)
 #[cfg(not(target_arch = "wasm32"))]
-pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
-/// A boxed future: `Send` natively, not in a browser.
+pub type MaybeSendFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+/// A boxed future: `Send` natively, not in a browser. (Named apart from
+/// `futures::future::BoxFuture`, which is always `Send`.)
 #[cfg(target_arch = "wasm32")]
-pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+pub type MaybeSendFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
 /// A boxed stream: `Send` natively, not in a browser.
 #[cfg(not(target_arch = "wasm32"))]
@@ -49,24 +53,37 @@ pub(crate) type BoxStream<T> = Pin<Box<dyn Stream<Item = T>>>;
 
 /// A lock held across an `.await`: Tokio's natively, as before; in a
 /// browser, where Tokio isn't a dependency, `futures-util`'s.
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", feature = "service-account-wasm"))]
 pub(crate) use futures_util::lock::Mutex;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use tokio::sync::Mutex;
 
+/// The longest a browser timer waits: `setTimeout` takes a signed 32-bit
+/// number of milliseconds, and fires at once for a longer one.
+const MAX_BROWSER_TIMER: Duration = Duration::from_millis(i32::MAX as u64);
+
 /// Waits `delay`: on Tokio's timer natively; on the browser's
 /// (`setTimeout`) in a browser, which has no Tokio timer driver, so
-/// `tokio::time::sleep` would panic there.
+/// `tokio::time::sleep` would panic there. A browser waits at most
+/// [`MAX_BROWSER_TIMER`] (about 24.8 days), as a longer delay, such as a
+/// server's retry delay, would otherwise fire at once or panic.
 pub(crate) async fn sleep(delay: Duration) {
     #[cfg(not(target_arch = "wasm32"))]
     tokio::time::sleep(delay).await;
     #[cfg(target_arch = "wasm32")]
-    gloo_timers::future::sleep(delay).await;
+    gloo_timers::future::sleep(browser_timer(delay)).await;
+}
+
+/// `delay`, at most as long as a browser timer can wait.
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+fn browser_timer(delay: Duration) -> Duration {
+    delay.min(MAX_BROWSER_TIMER)
 }
 
 /// The current time. In a browser `SystemTime::now` panics (the standard
 /// library has no clock on `wasm32-unknown-unknown`), so it is read from
 /// JavaScript's `Date.now()` there, in milliseconds since the Unix epoch.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 pub(crate) fn now() -> SystemTime {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -77,5 +94,26 @@ pub(crate) fn now() -> SystemTime {
         // A whole, non-negative number of milliseconds; `as` saturates.
         let millis = js_sys::Date::now() as u64;
         SystemTime::UNIX_EPOCH + Duration::from_millis(millis)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_browser_timer_waits_at_most_what_set_timeout_takes() {
+        let max = Duration::from_millis(2_147_483_647);
+        assert_eq!(
+            browser_timer(Duration::from_millis(200)),
+            Duration::from_millis(200)
+        );
+        assert_eq!(browser_timer(max), max);
+        assert_eq!(browser_timer(max + Duration::from_millis(1)), max);
+        assert_eq!(
+            browser_timer(Duration::from_secs(10 * 365 * 24 * 60 * 60)),
+            max
+        );
+        assert_eq!(browser_timer(Duration::MAX), max);
     }
 }

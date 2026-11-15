@@ -28,6 +28,13 @@ thiserror = "2"
 url = "2"
 uuid = { version = "1", features = ["v4"] }
 
+[features]
+# `ServiceAccount` on wasm32, for a runtime that isn't a browser (Node.js,
+# Deno, an edge worker). Left out by default: a browser app, its Web
+# Workers included, is downloaded by whoever loads it, so a client secret
+# in it is anybody's. Natively `ServiceAccount` is always there.
+service-account-wasm = []
+
 # Native only: the credential providers' locks and the retry sleep. In a
 # browser there is no Tokio timer driver (`tokio::time::sleep` panics on
 # `wasm32-unknown-unknown`), so the sleep is a browser timer there.
@@ -54,4 +61,5 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
 wasm-bindgen-test = "0.3"

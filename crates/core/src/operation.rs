@@ -66,7 +66,9 @@ impl<T: DeserializeOwned> Operation<T> {
     /// sent, without using up the call's retries.
     ///
     /// It waits as long as the operation takes; to bound that, wrap it in a
-    /// timeout such as `tokio::time::timeout`, which stops waiting, not the
+    /// timeout such as `tokio::time::timeout`, or in a browser a race
+    /// against a timer (`futures::future::select` with
+    /// `gloo_timers::future::sleep`), which stops waiting, not the
     /// operation.
     pub async fn wait(&mut self) -> Result<T, Error> {
         let body = serde_json::json!({ "timeout": format!("{}s", self.wait_per_call().as_secs()) });

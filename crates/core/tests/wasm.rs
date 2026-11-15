@@ -4,8 +4,11 @@
 //!
 //! ```sh
 //! CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner \
-//!   cargo test --target wasm32-unknown-unknown -p origincloud-core --test wasm
+//!   cargo test --target wasm32-unknown-unknown -p origincloud-core \
+//!   --features service-account-wasm --test wasm
 //! ```
+//!
+//! (`scripts/wasm.sh` runs them so.)
 //!
 //! There is no Tokio there: a retry that waited on Tokio's timer, or a
 //! credential cache that read `SystemTime::now`, would panic.
@@ -14,10 +17,13 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::time::Duration;
 
 use js_sys::{Function, Reflect};
+#[cfg(feature = "service-account-wasm")]
+use origincloud_core::ServiceAccount;
 use origincloud_core::credentials::TokenFuture;
-use origincloud_core::{Client, Credentials, Error, Method, Request, ServiceAccount};
+use origincloud_core::{AccessToken, Client, Credentials, Error, Method, Request};
 use serde_json::Value;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_test::wasm_bindgen_test;
@@ -57,20 +63,21 @@ async fn a_read_that_cannot_connect_is_sent_again_after_waiting() {
     assert!(waited >= 300.0, "waited {waited} ms");
 }
 
-#[wasm_bindgen_test]
-async fn a_service_account_token_is_cached_by_the_javascript_clock() {
-    // Answers every fetch with a token for five minutes, counting them, in
-    // place of the identity provider; reqwest calls the global `fetch`.
-    let install = Function::new_no_args(
+/// Replaces the global `fetch`, which reqwest calls, with one answering
+/// every request with `status` and the JSON `body`, until the returned
+/// [`Stub`] is dropped; [`Stub::requests`] counts what it answered.
+fn stub_fetch(status: u16, body: &str) -> Stub {
+    let install = Function::new_with_args(
+        "status, body",
         r#"
         const original = globalThis.fetch;
-        globalThis.tokenRequests = 0;
+        globalThis.stubbedRequests = 0;
         globalThis.fetch = (request) => {
-            globalThis.tokenRequests += 1;
-            const response = new Response(
-                '{"access_token":"granted","expires_in":300}',
-                { status: 200, headers: { "content-type": "application/json" } },
-            );
+            globalThis.stubbedRequests += 1;
+            const response = new Response(body, {
+                status,
+                headers: { "content-type": "application/json" },
+            });
             // A constructed response has no URL, which reqwest reads.
             Object.defineProperty(response, "url", { value: request.url });
             return Promise.resolve(response);
@@ -78,19 +85,69 @@ async fn a_service_account_token_is_cached_by_the_javascript_clock() {
         return () => { globalThis.fetch = original; };
         "#,
     );
-    let restore = Function::from(install.call0(&JsValue::NULL).unwrap());
+    let restore = install
+        .call2(&JsValue::NULL, &status.into(), &body.into())
+        .unwrap();
+    Stub(Function::from(restore))
+}
+
+struct Stub(Function);
+
+impl Stub {
+    fn requests(&self) -> f64 {
+        Reflect::get(&js_sys::global(), &"stubbedRequests".into())
+            .unwrap()
+            .as_f64()
+            .unwrap()
+    }
+}
+
+impl Drop for Stub {
+    fn drop(&mut self) {
+        self.0.call0(&JsValue::NULL).unwrap();
+    }
+}
+
+#[wasm_bindgen_test]
+async fn a_retry_delay_longer_than_a_browser_timer_still_waits() {
+    // setTimeout fires at once for more than 2^31 - 1 ms (about 24.8
+    // days), and gloo-timers panics past u32: ten years must wait the
+    // longest a timer can, not retry at once.
+    let stub = stub_fetch(
+        503,
+        r#"{"error":{"code":503,"status":"UNAVAILABLE","message":"down","details":[
+            {"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"SERVICE_UNAVAILABLE","domain":"origincloudapis.eu"},
+            {"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"315360000s"}]}}"#,
+    );
+    let client = Client::builder()
+        .endpoint("http://127.0.0.1:9")
+        .credentials(AccessToken::new("test-token"))
+        .max_attempts(2)
+        .build()
+        .unwrap();
+    wasm_bindgen_futures::spawn_local(async move {
+        let _: Result<Value, Error> = client
+            .service("pvs", true)
+            .call(Request::new(Method::GET, "/v1beta1/projects/p").idempotent())
+            .await;
+    });
+    gloo_timers::future::sleep(Duration::from_millis(200)).await;
+
+    assert_eq!(stub.requests(), 1.0);
+}
+
+#[cfg(feature = "service-account-wasm")]
+#[wasm_bindgen_test]
+async fn a_service_account_token_is_cached_by_the_javascript_clock() {
+    // The identity provider answers with a token for five minutes.
+    let stub = stub_fetch(200, r#"{"access_token":"granted","expires_in":300}"#);
     let account = ServiceAccount::new("client", "secret");
 
     // The first token is requested, and its expiry set from the clock; the
     // second is the first, which the clock says is still valid.
-    let first = account.token().await;
-    let second = account.token().await;
-    let requests = Reflect::get(&js_sys::global(), &"tokenRequests".into()).unwrap();
-    restore.call0(&JsValue::NULL).unwrap();
-
-    assert_eq!(first.unwrap(), "granted");
-    assert_eq!(second.unwrap(), "granted");
-    assert_eq!(requests.as_f64(), Some(1.0));
+    assert_eq!(account.token().await.unwrap(), "granted");
+    assert_eq!(account.token().await.unwrap(), "granted");
+    assert_eq!(stub.requests(), 1.0);
 }
 
 #[wasm_bindgen_test]
@@ -105,5 +162,6 @@ fn a_client_can_be_shared_by_reactive_state() {
     fn shareable<T: Send + Sync>() {}
     shareable::<Client>();
     shareable::<origincloud_core::Service>();
+    #[cfg(feature = "service-account-wasm")]
     shareable::<ServiceAccount>();
 }

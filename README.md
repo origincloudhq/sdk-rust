@@ -149,7 +149,8 @@ The crates build for `wasm32-unknown-unknown`, for a web app written in Rust
 (Leptos, Yew, Dioxus, ...). There is no Tokio there: calls go out through the
 browser's `fetch`, retries wait on `setTimeout`, and the futures run on the
 app's executor, such as `wasm_bindgen_futures::spawn_local`. They aren't
-`Send` there (the bound is `origincloud_core::MaybeSend`), but `Client` and
+`Send` there (the bound is `origincloud_core::MaybeSend`, the boxed future
+`MaybeSendFuture`), but `Client` and
 the `Credentials` it holds still are `Send + Sync`, so a client can live in
 the framework's reactive state.
 
@@ -160,8 +161,10 @@ these credentials exist there, and `Client::new` without them fails with
 - `AccessToken`: a token the page already holds, such as the user's from its
   OIDC login.
 - Your own `Credentials`, for a token the page renews itself.
-- `ServiceAccount`, for code that runs outside a page (a worker, Node.js):
-  its secret would be readable by anyone who loads the page.
+- `ServiceAccount` only with the feature `service-account-wasm`, for a
+  wasm runtime that isn't a browser (Node.js, Deno, an edge worker). It is
+  left out by default because a browser app, its Web Workers included, is
+  downloaded by whoever loads it, and a client secret in it with it.
 
 ```rust,ignore
 let client = Client::builder()
@@ -172,7 +175,9 @@ let client = Client::builder()
 `ClientBuilder::timeout` bounds each attempt there too; a `reqwest::Client`
 set with `ClientBuilder::http_client` has no connect timeout or proxy
 settings in a browser, which leaves them to the browser. A response body is
-read whole and then held to the same 32 MiB limit.
+read whole and then held to the same 32 MiB limit. A retry waits at most
+about 24.8 days there, the longest a browser timer can, however long the
+server asks.
 
 ## Versions
 
