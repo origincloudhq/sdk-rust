@@ -22,7 +22,7 @@ pub struct WaitOperationRequest {
 /// What an operation is about.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct OperationMetadata {
-    /// The resource the operation acts on.
+    /// The full name of the resource the operation acts on.
     #[prost(string, tag = "1")]
     pub target: ::prost::alloc::string::String,
     /// What it does, as the method that started it names it: for example
