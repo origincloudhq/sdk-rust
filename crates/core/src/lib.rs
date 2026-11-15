@@ -51,6 +51,9 @@
 //! answer asks for or a growing one, as long as sending it again is safe: a
 //! read, or a mutation with a request id. The client fills in a mutation's
 //! request id when it is empty, so that a retry can't apply it twice.
+//! [`ClientBuilder::max_attempts`] bounds the attempts of every call;
+//! [`CallOptions`] those of the calls through one service client, such as
+//! a mutation that must not be sent twice at all.
 //!
 //! # Read-your-writes
 //!
@@ -61,7 +64,11 @@
 //! client's own writes. The token answered last replaces the one held: for
 //! writes made one after another, it covers them all; of writes made
 //! concurrently, it covers the one answered last (see
-//! [`Client::set_consistency_token`]).
+//! [`Client::set_consistency_token`]). The token is kept per client, and
+//! shared by its clones; clients given one store share it
+//! ([`ClientBuilder::consistency_token_store`]). A call the API refuses
+//! because its token isn't one is sent again once without it, and the
+//! token is dropped.
 //!
 //! # Names
 //!
@@ -97,6 +104,7 @@
 #![warn(missing_docs)]
 
 mod client;
+pub mod consistency;
 pub mod credentials;
 mod error;
 pub mod longrunning;
@@ -109,7 +117,8 @@ mod runtime;
 mod transport;
 pub mod types;
 
-pub use client::{Client, ClientBuilder, Service, VERSION};
+pub use client::{CallOptions, Client, ClientBuilder, Service, VERSION};
+pub use consistency::{ConsistencyTokenCell, ConsistencyTokenStore};
 #[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 pub use credentials::ServiceAccount;
 pub use credentials::{AccessToken, Credentials};

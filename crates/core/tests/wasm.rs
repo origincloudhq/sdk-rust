@@ -23,7 +23,10 @@ use js_sys::{Function, Reflect};
 #[cfg(feature = "service-account-wasm")]
 use origincloud_core::ServiceAccount;
 use origincloud_core::credentials::TokenFuture;
-use origincloud_core::{AccessToken, Client, Credentials, Error, Method, Request};
+use origincloud_core::{
+    AccessToken, CallOptions, Client, ConsistencyTokenCell, ConsistencyTokenStore, Credentials,
+    Error, Method, Request,
+};
 use serde_json::Value;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_test::wasm_bindgen_test;
@@ -170,4 +173,119 @@ fn a_client_can_be_shared_by_reactive_state() {
     shareable::<origincloud_core::Service>();
     #[cfg(feature = "service-account-wasm")]
     shareable::<ServiceAccount>();
+    shareable::<ConsistencyTokenCell>();
+    shareable::<Arc<dyn ConsistencyTokenStore>>();
+    shareable::<CallOptions>();
+}
+
+/// Replaces the global `fetch`, which reqwest calls, with one that records
+/// each request's headers in `globalThis.sent` and answers with what
+/// `answer(headers)`, a JavaScript expression, makes of them: a status and
+/// a body, with the token `v1.answered` when the status is 200. It returns
+/// the function putting the original back.
+fn stub_fetch_by_headers(answer: &str) -> Function {
+    let install = Function::new_no_args(&format!(
+        r#"
+        const original = globalThis.fetch;
+        globalThis.sent = [];
+        globalThis.fetch = (request) => {{
+            const headers = Object.fromEntries(request.headers.entries());
+            globalThis.sent.push(headers);
+            const [status, body] = (({answer}))(headers);
+            const responseHeaders = {{ "content-type": "application/json" }};
+            if (status === 200) responseHeaders["origin-consistency-token"] = "v1.answered";
+            const response = new Response(body, {{ status, headers: responseHeaders }});
+            Object.defineProperty(response, "url", {{ value: request.url }});
+            return Promise.resolve(response);
+        }};
+        return () => {{ globalThis.fetch = original; }};
+        "#
+    ));
+    Function::from(install.call0(&JsValue::NULL).unwrap())
+}
+
+/// The headers of each request the stub got, as JSON.
+fn sent() -> Value {
+    let sent = Reflect::get(&js_sys::global(), &"sent".into()).unwrap();
+    serde_json::from_str(&String::from(js_sys::JSON::stringify(&sent).unwrap())).unwrap()
+}
+
+fn stubbed_client() -> Client {
+    Client::builder()
+        .endpoint("http://api.test")
+        .credentials(AccessToken::new("test-token"))
+        .build()
+        .unwrap()
+}
+
+/// An anonymous call carries only `Accept`, which a browser sends to
+/// another origin without a CORS preflight; an authenticated one its
+/// credentials, `User-Agent` and consistency token.
+#[wasm_bindgen_test]
+async fn an_anonymous_call_needs_no_preflight() {
+    let restore = stub_fetch_by_headers("() => [200, '{}']");
+    let client = stubbed_client();
+    client.set_consistency_token("v1.held");
+    let billing = client.service("billing", false);
+
+    let anonymous: Result<Value, Error> = billing
+        .call(
+            Request::new(Method::GET, "/v1beta1/legalDocuments")
+                .idempotent()
+                .unauthenticated(),
+        )
+        .await;
+    let authenticated: Result<Value, Error> = billing
+        .call(Request::new(Method::GET, "/v1beta1/legalDocuments").idempotent())
+        .await;
+    let sent = sent();
+    restore.call0(&JsValue::NULL).unwrap();
+
+    anonymous.unwrap();
+    authenticated.unwrap();
+    assert_eq!(sent[0], serde_json::json!({"accept": "application/json"}));
+    assert_eq!(sent[1]["authorization"], "Bearer test-token");
+    assert_eq!(sent[1]["origin-consistency-token"], "v1.held");
+    assert!(sent[1]["user-agent"].is_string(), "{}", sent[1]);
+}
+
+/// A token the API refuses to read is dropped, and the call sent again
+/// once without it.
+#[wasm_bindgen_test]
+async fn a_refused_token_is_dropped_in_a_browser_too() {
+    let restore = stub_fetch_by_headers(
+        r#"(h) => h["origin-consistency-token"] === "v1.stale"
+            ? [400, JSON.stringify({error: {code: 400, status: "INVALID_ARGUMENT",
+                message: "the Origin-Consistency-Token header must be a token a response of this API carried"}})]
+            : [200, "{}"]"#,
+    );
+    let store = Arc::new(ConsistencyTokenCell::new());
+    store.set("v1.stale".to_owned());
+    let client = Client::builder()
+        .endpoint("http://api.test")
+        .credentials(AccessToken::new("test-token"))
+        .consistency_token_store(store.clone())
+        .build()
+        .unwrap();
+
+    let result: Result<Value, Error> = client
+        .service("pvs", true)
+        .with_options(CallOptions::new().max_attempts(1))
+        .call(Request::new(
+            Method::POST,
+            "/v1beta1/projects/p/zones/z/volumes",
+        ))
+        .await;
+    let sent = sent();
+    restore.call0(&JsValue::NULL).unwrap();
+
+    result.unwrap();
+    assert_eq!(sent.as_array().unwrap().len(), 2);
+    assert_eq!(sent[0]["origin-consistency-token"], "v1.stale");
+    assert!(
+        sent[1].get("origin-consistency-token").is_none(),
+        "{}",
+        sent[1]
+    );
+    assert_eq!(store.get(), "v1.answered");
 }

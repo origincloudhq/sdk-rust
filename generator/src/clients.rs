@@ -165,6 +165,14 @@ fn generate_service(cx: &Generation<'_>, s: &ServiceDescriptor, out: &mut String
             "pub fn new(service: &{core}::Service) -> Self {{ Self {{ service: service.clone() }} }}"
         )?;
     }
+    let link = core.trim_start_matches("::");
+    out.push_str(&docs::line(&format!(
+        "The same client, whose calls are sent as `options` says instead of as the [`Client`]({link}::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`]({link}::CallOptions)."
+    )));
+    writeln!(
+        out,
+        "pub fn with_options(&self, options: {core}::CallOptions) -> Self {{ Self {{ service: self.service.with_options(options) }} }}"
+    )?;
 
     for m in s.methods() {
         generate_method(cx, &m, out).with_context(|| m.name().to_owned())?;

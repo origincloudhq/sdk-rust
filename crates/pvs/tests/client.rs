@@ -156,6 +156,43 @@ async fn an_empty_request_id_is_filled_in_and_a_given_one_kept() {
     assert_eq!(json_of(&calls[0]), json!({"sizeGib": 1}));
 }
 
+/// A create sent again because the API refused its consistency token
+/// carries the same request id, so it can't create twice.
+#[tokio::test]
+async fn a_create_sent_again_for_a_refused_token_keeps_its_request_id() {
+    let calls = Arc::new(Mutex::new(Vec::<Received>::new()));
+    let log = Arc::clone(&calls);
+    let server = FakeServer::start(move |r| {
+        let refused = r.header("origin-consistency-token").is_some();
+        log.lock().unwrap().push(r);
+        async move {
+            if refused {
+                Response::json(r#"{"error":{"code":400,"status":"INVALID_ARGUMENT","message":"the Origin-Consistency-Token header must be a token a response of this API carried"}}"#)
+                    .with_status(400)
+            } else {
+                Response::json(r#"{"name":"projects/p/zones/z/operations/op-1"}"#)
+            }
+        }
+    })
+    .await;
+    let client = client(&server);
+    client.set_consistency_token("v1.from-another-api");
+
+    VolumeClient::new(&client)
+        .create_volume(CreateVolumeRequest {
+            parent: ZONE.to_owned(),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    let calls = calls.lock().unwrap();
+    assert_eq!(calls.len(), 2);
+    let first = &calls[0].query_values("requestId")[0];
+    assert!(is_uuid(first), "{first}");
+    assert_eq!(&calls[1].query_values("requestId")[0], first);
+    assert_eq!(calls[1].header("origin-consistency-token"), None);
+}
+
 #[tokio::test]
 async fn a_create_without_a_volume_sends_an_empty_one() {
     let (_server, client, calls) =
@@ -435,4 +472,38 @@ fn the_clients_use_the_service_s_regional_host() {
         volumes.service().base_url().unwrap().as_str(),
         "https://pvs.eu-central1.origincloudapis.eu/"
     );
+}
+
+/// `with_options` bounds the attempts of the calls made through the client
+/// it returns; the client it came from retries as before.
+#[tokio::test]
+async fn with_options_turns_retries_off_for_its_calls() {
+    let calls = Arc::new(Mutex::new(0));
+    let counted = Arc::clone(&calls);
+    let server = FakeServer::start(move |_| {
+        *counted.lock().unwrap() += 1;
+        async {
+            Response::json(r#"{"error":{"code":503,"status":"UNAVAILABLE","details":[{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"0.010s"}]}}"#)
+                .with_status(503)
+        }
+    })
+    .await;
+    let client = Client::builder()
+        .endpoint(server.url())
+        .credentials(AccessToken::new("t"))
+        .max_attempts(3)
+        .build()
+        .unwrap();
+    let volumes = VolumeClient::new(&client);
+    let create = || CreateVolumeRequest {
+        parent: ZONE.to_owned(),
+        ..Default::default()
+    };
+
+    let once = volumes.with_options(origincloud_core::CallOptions::new().max_attempts(1));
+    once.create_volume(create()).await.unwrap_err();
+    assert_eq!(std::mem::take(&mut *calls.lock().unwrap()), 1);
+
+    volumes.create_volume(create()).await.unwrap_err();
+    assert_eq!(*calls.lock().unwrap(), 3);
 }

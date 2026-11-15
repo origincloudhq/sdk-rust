@@ -464,6 +464,12 @@ impl OperationClient {
     pub fn new(service: &crate::Service) -> Self {
         Self { service: service.clone() }
     }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](crate::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](crate::CallOptions).
+    pub fn with_options(&self, options: crate::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
+    }
     /// Returns an operation as it is now.
     pub async fn get_operation(
         &self,

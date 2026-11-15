@@ -6415,6 +6415,12 @@ impl AuditLogClient {
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
     }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
+    }
     /// Returns an audit log entry. Needs `iam.audit_log.list` on the
     /// organization.
     pub async fn get_audit_log_entry(
@@ -6502,6 +6508,12 @@ impl FederatedCredentialClient {
     /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
+    }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
     }
     /// Returns a federated credential, deleted or not. Needs
     /// `iam.service_account.list` on the organization.
@@ -6662,6 +6674,12 @@ impl PermissionClient {
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
     }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
+    }
     /// Returns a permission.
     pub async fn get_permission(
         &self,
@@ -6739,6 +6757,12 @@ impl RoleClient {
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
     }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
+    }
     /// Returns a role.
     pub async fn get_role(
         &self,
@@ -6813,6 +6837,12 @@ impl RoleBindingClient {
     /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
+    }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
     }
     /// Returns a role binding. Needs `iam.member.list` on the organization.
     pub async fn get_role_binding(
@@ -6967,6 +6997,12 @@ impl ServiceAccountClient {
     /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
+    }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
     }
     /// Returns a service account, deleted or not. Needs
     /// `iam.service_account.list` on the organization.
@@ -7141,6 +7177,12 @@ impl UserClient {
     /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
     pub fn service(&self) -> &::origincloud_core::Service {
         &self.service
+    }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
     }
     /// Returns the caller's own profile. Any other user is `NOT_FOUND`; a
     /// service account caller is refused with `BAD_REQUEST`, having no
