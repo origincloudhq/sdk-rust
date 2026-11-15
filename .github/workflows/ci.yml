@@ -79,7 +79,8 @@ jobs:
       - name: Cache
         uses: 'Swatinem/rust-cache@v2'
 
-      # The runner image's Node.js runs the tests; the script downloads the
-      # wasm-bindgen-test-runner Cargo.lock's wasm-bindgen needs.
+      # The runner image's Node.js runs the tests. The script builds the
+      # wasm-bindgen-test-runner Cargo.lock's wasm-bindgen needs into
+      # ~/.cargo/bin, which the cache keeps, unless it is there already.
       - name: Browser build and tests
-        run: scripts/wasm.sh
+        run: WASM_BINDGEN_ROOT="${HOME}/.cargo" scripts/wasm.sh
