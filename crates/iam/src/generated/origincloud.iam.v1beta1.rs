@@ -759,6 +759,18 @@ pub struct GetUserRequest {
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
 }
+/// The request for LookupUser.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct LookupUserRequest {
+    /// The email address the user's account has verified, matched exactly,
+    /// case aside.
+    #[prost(string, tag = "1")]
+    pub email: ::prost::alloc::string::String,
+    /// The organization the caller looks the user up for, where it needs
+    /// `iam.role.assign`: `organizations/{organization}`, or its full name.
+    #[prost(string, tag = "2")]
+    pub organization: ::prost::alloc::string::String,
+}
 impl serde::Serialize for AuditLogEntry {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -4740,6 +4752,131 @@ impl<'de> serde::Deserialize<'de> for ListServiceAccountsResponse {
             )
     }
 }
+impl serde::Serialize for LookupUserRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.email.is_empty() {
+            len += 1;
+        }
+        if !self.organization.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct("origincloud.iam.v1beta1.LookupUserRequest", len)?;
+        if !self.email.is_empty() {
+            struct_ser.serialize_field("email", &self.email)?;
+        }
+        if !self.organization.is_empty() {
+            struct_ser.serialize_field("organization", &self.organization)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for LookupUserRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["email", "organization"];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Email,
+            Organization,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "email" => Ok(GeneratedField::Email),
+                            "organization" => Ok(GeneratedField::Organization),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = LookupUserRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter.write_str("struct origincloud.iam.v1beta1.LookupUserRequest")
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<LookupUserRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut email__ = None;
+                let mut organization__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Email => {
+                            if email__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("email"));
+                            }
+                            email__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::Organization => {
+                            if organization__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("organization"),
+                                );
+                            }
+                            organization__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(LookupUserRequest {
+                    email: email__.unwrap_or_default(),
+                    organization: organization__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.iam.v1beta1.LookupUserRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
 impl serde::Serialize for Permission {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -7172,9 +7309,11 @@ impl ServiceAccountClient {
 }
 /// Calls `UserService`.
 ///
-/// The signed-in user. Each user can read only their own profile, by the
-/// name `users/me` or by their own id; the role bindings they hold are
-/// listed by ListRoleBindings with the parent `organizations/-`.
+/// Users. Each user can read only their own profile, by the name `users/me`
+/// or by their own id; the role bindings they hold are listed by
+/// ListRoleBindings with the parent `organizations/-`. Anyone who may grant
+/// roles in an organization can look a user up by email address, to name
+/// them in a role binding.
 #[derive(Clone, Debug)]
 pub struct UserClient {
     service: ::origincloud_core::Service,
@@ -7210,6 +7349,27 @@ impl UserClient {
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
                 format!("/v1beta1/{p0}"),
+            )
+            .with_query(query)
+            .idempotent();
+        self.service.call(call).await
+    }
+    /// Looks up the user whose account has verified an email address, and
+    /// answers them with their `name`: their full name is
+    /// `//iam.origincloudapis.eu/` followed by it, which is how a role
+    /// binding names them as a member. Needs `iam.role.assign` on
+    /// `organization`, the permission a binding of the user needs anyway.
+    /// Refused with `NOT_FOUND` when no enabled account has verified the
+    /// address, and with `CONFLICT` when more than one has. The answer leaves
+    /// `given_name` and `family_name` empty: only the user reads those.
+    pub async fn lookup_user(
+        &self,
+        request: LookupUserRequest,
+    ) -> ::core::result::Result<User, ::origincloud_core::Error> {
+        let query = ::origincloud_core::query(&request, &[])?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::GET,
+                ::std::string::String::from("/v1beta1/users:lookup"),
             )
             .with_query(query)
             .idempotent();
