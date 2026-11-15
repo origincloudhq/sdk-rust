@@ -136,3 +136,83 @@ async fn the_time_series_decode_their_points() {
     assert_eq!((first.end_time, first.value), (at(1_793_783_100), 0.25));
     assert_eq!((second.end_time, second.value), (at(1_793_783_400), 0.5));
 }
+
+/// A query's `parent` is a project, resourcemanager's: its full name is sent
+/// as its relative name, the same request as `projects/p` makes.
+#[tokio::test]
+async fn a_parent_takes_the_full_name_of_the_project_it_refers_to() {
+    let (_server, client, calls) = recording("{}").await;
+    let metrics = MetricClient::new(&client);
+    for parent in [
+        "projects/p",
+        "//resourcemanager.origincloudapis.eu/projects/p",
+    ] {
+        metrics
+            .query_time_series(QueryTimeSeriesRequest {
+                parent: parent.to_owned(),
+                ..query()
+            })
+            .await
+            .unwrap();
+    }
+    let calls = calls.lock().unwrap();
+    let [relative, full] = calls.as_slice() else {
+        panic!("{calls:?}");
+    };
+    assert_eq!(full.path, "/v1beta1/projects/p/timeSeries:query");
+    assert_eq!(
+        (&full.method, &full.path, &full.query, &full.body),
+        (
+            &relative.method,
+            &relative.path,
+            &relative.query,
+            &relative.body
+        )
+    );
+}
+
+/// A full name on any other host is refused before sending, naming the host
+/// the field takes: the client's own service's is no project's.
+#[tokio::test]
+async fn a_parent_on_another_host_is_refused_before_sending() {
+    let (_server, client, calls) = recording("{}").await;
+    let metrics = MetricClient::new(&client);
+    for parent in [
+        "//pvs.origincloudapis.eu/projects/p",
+        "//observability.origincloudapis.eu/projects/p",
+        "//resourcemanager.eu-central1.origincloudapis.eu/projects/p",
+    ] {
+        let err = metrics
+            .query_time_series(QueryTimeSeriesRequest {
+                parent: parent.to_owned(),
+                ..query()
+            })
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, origincloud_core::Error::InvalidRequest(_)),
+            "{parent}: {err:?}"
+        );
+        assert!(
+            err.to_string().contains("parent")
+                && err
+                    .to_string()
+                    .contains("resourcemanager.origincloudapis.eu"),
+            "{parent}: {err}"
+        );
+    }
+    let err = metrics
+        .query_time_series(QueryTimeSeriesRequest {
+            parent: "//pvs.origincloudapis.eu/projects/p".to_owned(),
+            ..query()
+        })
+        .await
+        .unwrap_err();
+    assert!(
+        err.to_string().contains(
+            "parent must be a name on resourcemanager.origincloudapis.eu, got \"//pvs.origincloudapis.eu/projects/p\""
+        ),
+        "{err}"
+    );
+    assert!(calls.lock().unwrap().is_empty());
+}

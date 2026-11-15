@@ -467,13 +467,11 @@ impl OperationClient {
     /// Returns an operation as it is now.
     pub async fn get_operation(
         &self,
-        request: GetOperationRequest,
+        mut request: GetOperationRequest,
     ) -> ::core::result::Result<crate::longrunning::Operation, crate::Error> {
-        let p0 = crate::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/operations/*",
-        )?;
+        let n0 = self.service.relative_name("name", &request.name, &[])?;
+        let p0 = crate::path_value("name", &n0, "projects/*/zones/*/operations/*")?;
+        request.name = n0;
         let query = crate::query(&request, &["name"])?;
         let call = crate::Request::new(crate::Method::GET, format!("/v1beta1/{p0}"))
             .with_query(query)
@@ -485,13 +483,11 @@ impl OperationClient {
     /// may repeat it after a transport error.
     pub async fn wait_operation(
         &self,
-        request: WaitOperationRequest,
+        mut request: WaitOperationRequest,
     ) -> ::core::result::Result<crate::longrunning::Operation, crate::Error> {
-        let p0 = crate::path_value(
-            "name",
-            &request.name,
-            "projects/*/zones/*/operations/*",
-        )?;
+        let n0 = self.service.relative_name("name", &request.name, &[])?;
+        let p0 = crate::path_value("name", &n0, "projects/*/zones/*/operations/*")?;
+        request.name = n0;
         let body = crate::json_body(&request)?;
         let call = crate::Request::new(
                 crate::Method::POST,

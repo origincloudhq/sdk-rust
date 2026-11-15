@@ -8,7 +8,11 @@
 //! with a `request_id` gets one filled in when it is empty, so that it is
 //! safe to retry. A method answering with a `google.api.HttpBody`, a file
 //! rather than JSON, returns the core crate's `HttpBody`: the file's bytes
-//! and media type, as the server sent them.
+//! and media type, as the server sent them. A path variable's field goes
+//! through the service's `relative_name`, which also takes a full resource
+//! name of the service of the type the field refers to (see
+//! `services::Resources::path_services`): the request then carries the
+//! relative name, in its path and in its body alike.
 
 use std::fmt::Write as _;
 
@@ -20,6 +24,7 @@ use prost_reflect::{
 
 use crate::docs::{self, Comments};
 use crate::names;
+use crate::services::Resources;
 
 /// The services that answer only at their regionless host: the API's
 /// global services.
@@ -48,6 +53,8 @@ const HTTP_BODY: &str = "google.api.HttpBody";
 /// Where the generated code of one package finds the rest.
 pub struct Generation<'a> {
     pub pool: &'a DescriptorPool,
+    /// The API's resource types, for the services a path field takes.
+    pub resources: &'a Resources,
     pub comments: &'a Comments,
     /// The proto package, such as `origincloud.pvs.v1beta1`.
     pub package: &'a str,
@@ -301,7 +308,12 @@ fn generate_method(cx: &Generation<'_>, m: &MethodDescriptor, out: &mut String) 
         .get_field_by_name("request_id")
         .filter(|f| f.kind() == Kind::String && !f.is_list());
     let idempotent = verb == "GET" || request_id.is_some() || declared_idempotent(m);
-    let binding = if request_id.is_some() {
+    // A path field given as a full name is set to its relative name, so
+    // that the body carries what the path does.
+    let has_variables = segments
+        .iter()
+        .any(|s| matches!(s, Segment::Variable { .. }));
+    let binding = if request_id.is_some() || has_variables {
         "mut request"
     } else {
         "request"
@@ -332,11 +344,20 @@ fn generate_method(cx: &Generation<'_>, m: &MethodDescriptor, out: &mut String) 
                     .map(|f| f.json_name())
                     .collect::<Vec<_>>()
                     .join(".");
+                let last = fields
+                    .last()
+                    .expect("resolve_field returns at least one field");
+                let services = cx.resources.path_services(cx.pool, last)?;
                 writeln!(
                     out,
-                    "let p{variable} = {core}::path_value({json_path:?}, {}, {pattern:?})?;",
+                    "let n{variable} = self.service.relative_name({json_path:?}, {}, &{services:?})?;",
                     field_access(fields)
                 )?;
+                writeln!(
+                    out,
+                    "let p{variable} = {core}::path_value({json_path:?}, &n{variable}, {pattern:?})?;"
+                )?;
+                writeln!(out, "{}", field_assign(fields, &format!("n{variable}")))?;
                 write!(path, "{{p{variable}}}")?;
                 bound.push(json_path);
                 variable += 1;
@@ -540,6 +561,24 @@ fn resolve_field(message: &MessageDescriptor, path: &str) -> Result<Vec<FieldDes
         "the path variable {path} isn't a string field"
     );
     Ok(fields)
+}
+
+/// The statement setting a path of fields of `request` to `value`, a
+/// `String`; nothing when a message on the way is unset, which only an
+/// empty value, refused before, can come from.
+fn field_assign(fields: &[FieldDescriptor], value: &str) -> String {
+    let names: Vec<String> = fields.iter().map(|f| names::snake(f.name())).collect();
+    match names.as_slice() {
+        [only] => format!("request.{only} = {value};"),
+        [first, middle @ .., last] => {
+            let mut expr = format!("request.{first}.as_mut()");
+            for m in middle {
+                write!(expr, ".and_then(|m| m.{m}.as_mut())").expect("writing to a string");
+            }
+            format!("if let Some(m) = {expr} {{ m.{last} = {value}; }}")
+        }
+        [] => unreachable!("resolve_field returns at least one field"),
+    }
 }
 
 /// The expression reading a path of fields from `request`, as a `&str`.

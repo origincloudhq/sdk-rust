@@ -59,6 +59,16 @@
 //! concurrently, it covers the one answered last (see
 //! [`Client::set_consistency_token`]).
 //!
+//! # Names
+//!
+//! A resource's `name` is its relative name; its full resource name,
+//! `//{service}.origincloudapis.eu/{name}`, is what references carry
+//! ([`FullName`]). A request's path fields take either. A full name is
+//! checked against the type the field refers to (the client's own service
+//! for its own resources, resourcemanager for a project or an organization
+//! as a `parent`) and sent as its relative name; one on any other host is
+//! refused before anything is sent.
+//!
 //! # Errors
 //!
 //! A call the API refuses returns an [`Error::Api`]: branch on
@@ -77,6 +87,7 @@ mod client;
 pub mod credentials;
 mod error;
 pub mod longrunning;
+pub mod names;
 mod operation;
 mod pages;
 pub mod protobuf;
@@ -90,6 +101,7 @@ pub use credentials::{
     default_credentials,
 };
 pub use error::{ApiError, Error, FieldViolation};
+pub use names::{FullName, FullNameError};
 pub use operation::Operation;
 pub use pages::Pages;
 pub use transport::{

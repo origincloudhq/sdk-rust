@@ -3761,13 +3761,13 @@ impl OrganizationClient {
     /// Returns an organization.
     pub async fn get_organization(
         &self,
-        request: GetOrganizationRequest,
+        mut request: GetOrganizationRequest,
     ) -> ::core::result::Result<Organization, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "organizations/*",
-        )?;
+        let n0 = self
+            .service
+            .relative_name("name", &request.name, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "organizations/*")?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -3840,13 +3840,23 @@ impl OrganizationClient {
     /// Renames an organization.
     pub async fn update_organization(
         &self,
-        request: UpdateOrganizationRequest,
+        mut request: UpdateOrganizationRequest,
     ) -> ::core::result::Result<Organization, ::origincloud_core::Error> {
+        let n0 = self
+            .service
+            .relative_name(
+                "organization.name",
+                request.organization.as_ref().map_or("", |m| m.name.as_str()),
+                &["resourcemanager"],
+            )?;
         let p0 = ::origincloud_core::path_value(
             "organization.name",
-            request.organization.as_ref().map_or("", |m| m.name.as_str()),
+            &n0,
             "organizations/*",
         )?;
+        if let Some(m) = request.organization.as_mut() {
+            m.name = n0;
+        }
         let body = ::origincloud_core::json_body(
             request.organization.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -3870,16 +3880,16 @@ impl OrganizationClient {
     /// still be invoiced.
     pub async fn delete_organization(
         &self,
-        request: DeleteOrganizationRequest,
+        mut request: DeleteOrganizationRequest,
     ) -> ::core::result::Result<
         ::origincloud_core::protobuf::Empty,
         ::origincloud_core::Error,
     > {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "organizations/*",
-        )?;
+        let n0 = self
+            .service
+            .relative_name("name", &request.name, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "organizations/*")?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -3893,13 +3903,13 @@ impl OrganizationClient {
     /// set by the platform; ask support to raise one.
     pub async fn get_organization_quota(
         &self,
-        request: GetOrganizationQuotaRequest,
+        mut request: GetOrganizationQuotaRequest,
     ) -> ::core::result::Result<OrganizationQuota, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "organizations/*/quota",
-        )?;
+        let n0 = self
+            .service
+            .relative_name("name", &request.name, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "organizations/*/quota")?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -3933,9 +3943,13 @@ impl ProjectClient {
     /// Returns a project.
     pub async fn get_project(
         &self,
-        request: GetProjectRequest,
+        mut request: GetProjectRequest,
     ) -> ::core::result::Result<Project, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value("name", &request.name, "projects/*")?;
+        let n0 = self
+            .service
+            .relative_name("name", &request.name, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "projects/*")?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -4006,13 +4020,19 @@ impl ProjectClient {
     /// Renames a project.
     pub async fn update_project(
         &self,
-        request: UpdateProjectRequest,
+        mut request: UpdateProjectRequest,
     ) -> ::core::result::Result<Project, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "project.name",
-            request.project.as_ref().map_or("", |m| m.name.as_str()),
-            "projects/*",
-        )?;
+        let n0 = self
+            .service
+            .relative_name(
+                "project.name",
+                request.project.as_ref().map_or("", |m| m.name.as_str()),
+                &["resourcemanager"],
+            )?;
+        let p0 = ::origincloud_core::path_value("project.name", &n0, "projects/*")?;
+        if let Some(m) = request.project.as_mut() {
+            m.name = n0;
+        }
         let body = ::origincloud_core::json_body(
             request.project.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -4035,12 +4055,16 @@ impl ProjectClient {
     /// organization stay.
     pub async fn delete_project(
         &self,
-        request: DeleteProjectRequest,
+        mut request: DeleteProjectRequest,
     ) -> ::core::result::Result<
         ::origincloud_core::protobuf::Empty,
         ::origincloud_core::Error,
     > {
-        let p0 = ::origincloud_core::path_value("name", &request.name, "projects/*")?;
+        let n0 = self
+            .service
+            .relative_name("name", &request.name, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "projects/*")?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
@@ -4053,13 +4077,13 @@ impl ProjectClient {
     /// project may hold, if one is set, and how much of it the project uses.
     pub async fn get_project_quota(
         &self,
-        request: GetProjectQuotaRequest,
+        mut request: GetProjectQuotaRequest,
     ) -> ::core::result::Result<ProjectQuota, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "projects/*/quota",
-        )?;
+        let n0 = self
+            .service
+            .relative_name("name", &request.name, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "projects/*/quota")?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -4073,13 +4097,23 @@ impl ProjectClient {
     /// is set to the value given, or removed when the value is left out.
     pub async fn update_project_quota(
         &self,
-        request: UpdateProjectQuotaRequest,
+        mut request: UpdateProjectQuotaRequest,
     ) -> ::core::result::Result<ProjectQuota, ::origincloud_core::Error> {
+        let n0 = self
+            .service
+            .relative_name(
+                "projectQuota.name",
+                request.project_quota.as_ref().map_or("", |m| m.name.as_str()),
+                &["resourcemanager"],
+            )?;
         let p0 = ::origincloud_core::path_value(
             "projectQuota.name",
-            request.project_quota.as_ref().map_or("", |m| m.name.as_str()),
+            &n0,
             "projects/*/quota",
         )?;
+        if let Some(m) = request.project_quota.as_mut() {
+            m.name = n0;
+        }
         let body = ::origincloud_core::json_body(
             request
                 .project_quota

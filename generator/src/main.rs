@@ -10,7 +10,9 @@
 //! `<out-dir>` at their paths in this repository: for each proto package,
 //! one file with its messages (prost-build), their proto3 JSON mapping
 //! (pbjson-build) and its clients (this generator), and per crate a
-//! `generated/mod.rs` declaring a module per version.
+//! `generated/mod.rs` declaring a module per version. The core crate's
+//! `names/generated/services.rs` lists the services that have resources,
+//! the hosts a full resource name may name (see `services`).
 //!
 //! `origincloud.longrunning.{version}` goes to the core crate, as
 //! `origincloud_core::longrunning::{version}`; every other
@@ -29,6 +31,7 @@ mod describe;
 mod docs;
 mod names;
 mod scaffold;
+mod services;
 mod support;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -104,8 +107,9 @@ fn main() -> Result<()> {
             summary = service.summary(),
         );
     }
+    let resources = services::Resources::index(&pool)?;
     for target in &targets {
-        let code = generate_package(target, &pool, &fds, &encoded, &comments)
+        let code = generate_package(target, &pool, &resources, &fds, &encoded, &comments)
             .with_context(|| target.package.clone())?;
         files.insert(
             target
@@ -114,6 +118,15 @@ fn main() -> Result<()> {
             code,
         );
     }
+    let resource_services = resources.services();
+    ensure!(
+        !resource_services.is_empty(),
+        "the API declares no resource types"
+    );
+    files.insert(
+        PathBuf::from("crates/core/src/names/generated/services.rs"),
+        format!("{HEADER}\n{}", services::generate(&resource_services)),
+    );
     let mut modules: BTreeMap<PathBuf, Vec<&Target>> = BTreeMap::new();
     for target in &targets {
         modules
@@ -238,6 +251,7 @@ fn plan(packages: &BTreeSet<String>, repository: &Path) -> Result<(Vec<Target>, 
 fn generate_package(
     target: &Target,
     pool: &DescriptorPool,
+    resources: &services::Resources,
     fds: &FileDescriptorSet,
     encoded: &[u8],
     comments: &docs::Comments,
@@ -290,6 +304,7 @@ fn generate_package(
     }
     let clients = clients::generate(&clients::Generation {
         pool,
+        resources,
         comments,
         package,
         core,

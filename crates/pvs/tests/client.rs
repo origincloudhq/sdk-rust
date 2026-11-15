@@ -202,6 +202,163 @@ async fn a_name_of_the_wrong_form_is_refused_before_sending() {
     assert!(calls.lock().unwrap().is_empty());
 }
 
+/// A full resource name of the client's own service is sent as its
+/// relative name: the same request as the relative name makes.
+#[tokio::test]
+async fn a_full_name_of_the_service_is_sent_as_its_relative_name() {
+    let (_server, client, calls) =
+        recording(r#"{"name":"projects/p/zones/z/operations/op-1"}"#).await;
+    let volumes = VolumeClient::new(&client);
+    let relative = format!("{ZONE}/volumes/vol-1");
+    for name in [
+        relative.clone(),
+        format!("//pvs.origincloudapis.eu/{relative}"),
+    ] {
+        let parent = name.strip_suffix("/volumes/vol-1").unwrap().to_owned();
+        volumes
+            .get_volume(GetVolumeRequest { name: name.clone() })
+            .await
+            .unwrap();
+        volumes
+            .list_volumes(ListVolumesRequest {
+                parent,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        volumes
+            .delete_volume(DeleteVolumeRequest {
+                name,
+                request_id: "given".to_owned(),
+            })
+            .await
+            .unwrap();
+    }
+    let calls = calls.lock().unwrap();
+    let sent: Vec<(String, String, String)> = calls
+        .iter()
+        .map(|r| (r.method.clone(), r.path.clone(), r.query.clone()))
+        .collect();
+    let [get, list, delete] = [
+        ("GET", format!("/v1beta1/{relative}"), ""),
+        ("GET", format!("/v1beta1/{ZONE}/volumes"), ""),
+        ("DELETE", format!("/v1beta1/{relative}"), "requestId=given"),
+    ]
+    .map(|(m, p, q)| (m.to_owned(), p, q.to_owned()));
+    assert_eq!(
+        sent,
+        [get.clone(), list.clone(), delete.clone(), get, list, delete]
+    );
+}
+
+/// A full name in a path field that the body also carries, as an update's
+/// resource does, is sent as the relative name in both: the same request.
+#[tokio::test]
+async fn a_full_name_in_the_body_s_resource_is_sent_as_its_relative_name() {
+    let (_server, client, calls) =
+        recording(r#"{"name":"projects/p/zones/z/operations/op-1"}"#).await;
+    let volumes = VolumeClient::new(&client);
+    let relative = format!("{ZONE}/volumes/vol-1");
+    for name in [
+        relative.clone(),
+        format!("//pvs.origincloudapis.eu/{relative}"),
+    ] {
+        volumes
+            .update_volume(UpdateVolumeRequest {
+                volume: Some(Volume {
+                    name,
+                    size_gib: 2,
+                    ..Default::default()
+                }),
+                request_id: "given".to_owned(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        volumes
+            .import_volume(ImportVolumeRequest {
+                parent: format!("//pvs.origincloudapis.eu/{ZONE}"),
+                request_id: "given".to_owned(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+    }
+    let calls = calls.lock().unwrap();
+    let [update, import, full_update, full_import] = calls.as_slice() else {
+        panic!("{calls:?}");
+    };
+    assert_eq!(
+        json_of(full_update),
+        json!({"name": relative, "sizeGib": 2})
+    );
+    for (a, b) in [(update, full_update), (import, full_import)] {
+        assert_eq!(
+            (&a.method, &a.path, &a.query, &a.body),
+            (&b.method, &b.path, &b.query, &b.body)
+        );
+    }
+    assert_eq!(json_of(full_import)["parent"], json!(ZONE));
+}
+
+/// A full name of another service, or one that isn't a valid full name,
+/// is refused before anything is sent, naming the field and the host the
+/// client calls.
+#[tokio::test]
+async fn a_name_of_another_service_is_refused_before_sending() {
+    let (_server, client, calls) = recording("{}").await;
+    let volumes = VolumeClient::new(&client);
+    for (name, says) in [
+        (
+            "//compute.origincloudapis.eu/projects/p/zones/z/volumes/vol-1",
+            "name must be a name on pvs.origincloudapis.eu, got",
+        ),
+        (
+            "//pvs.eu-central1-az1.origincloudapis.eu/projects/p/zones/z/volumes/vol-1",
+            "the service's global host, pvs.origincloudapis.eu",
+        ),
+        (
+            "//pvs.origincloudapis.eu/v1beta1/projects/p/zones/z/volumes/vol-1",
+            "carries the API version \"v1beta1\"",
+        ),
+        ("urn:origincloud:storage:o:p:volume:vol-1", "is a URN"),
+        (
+            "//pvs.origincloudapis.eu/projects/p/zones/z/volumes/vol-1/",
+            "ends with a '/'",
+        ),
+        // A full name of the service, but not of a volume.
+        (
+            "//pvs.origincloudapis.eu/projects/p/zones/z/snapshots/s-1",
+            "name must have the form projects/*/zones/*/volumes/*",
+        ),
+    ] {
+        let err = volumes
+            .get_volume(GetVolumeRequest {
+                name: name.to_owned(),
+            })
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, origincloud_core::Error::InvalidRequest(_)),
+            "{name}: {err:?}"
+        );
+        assert!(err.to_string().contains(says), "{name}: {err}");
+    }
+    let err = volumes
+        .list_volumes(ListVolumesRequest {
+            parent: "//resourcemanager.origincloudapis.eu/projects/p".to_owned(),
+            ..Default::default()
+        })
+        .await
+        .unwrap_err();
+    assert!(
+        err.to_string()
+            .contains("parent must be a name on pvs.origincloudapis.eu"),
+        "{err}"
+    );
+    assert!(calls.lock().unwrap().is_empty());
+}
+
 #[tokio::test]
 async fn a_response_is_read_with_proto3_json() {
     let (_server, client, _) = recording(

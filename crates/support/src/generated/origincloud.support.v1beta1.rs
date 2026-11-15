@@ -2065,13 +2065,11 @@ impl CaseClient {
     /// Returns a case. Needs `admin.support_case.get` on the organization.
     pub async fn get_case(
         &self,
-        request: GetCaseRequest,
+        mut request: GetCaseRequest,
     ) -> ::core::result::Result<Case, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "organizations/*/cases/*",
-        )?;
+        let n0 = self.service.relative_name("name", &request.name, &["support"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "organizations/*/cases/*")?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -2085,13 +2083,13 @@ impl CaseClient {
     /// `admin.support_case.list` on the organization.
     pub async fn list_cases(
         &self,
-        request: ListCasesRequest,
+        mut request: ListCasesRequest,
     ) -> ::core::result::Result<ListCasesResponse, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "organizations/*",
-        )?;
+        let n0 = self
+            .service
+            .relative_name("parent", &request.parent, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "organizations/*")?;
+        request.parent = n0;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -2130,11 +2128,11 @@ impl CaseClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &request.parent,
-            "organizations/*",
-        )?;
+        let n0 = self
+            .service
+            .relative_name("parent", &request.parent, &["resourcemanager"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "organizations/*")?;
+        request.parent = n0;
         let body = ::origincloud_core::json_body(
             request.case.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
@@ -2153,13 +2151,11 @@ impl CaseClient {
     /// `admin.support_case.update` on the organization.
     pub async fn close_case(
         &self,
-        request: CloseCaseRequest,
+        mut request: CloseCaseRequest,
     ) -> ::core::result::Result<Case, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "organizations/*/cases/*",
-        )?;
+        let n0 = self.service.relative_name("name", &request.name, &["support"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "organizations/*/cases/*")?;
+        request.name = n0;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -2174,13 +2170,11 @@ impl CaseClient {
     /// `admin.support_case.update` on the organization.
     pub async fn reopen_case(
         &self,
-        request: ReopenCaseRequest,
+        mut request: ReopenCaseRequest,
     ) -> ::core::result::Result<Case, ::origincloud_core::Error> {
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &request.name,
-            "organizations/*/cases/*",
-        )?;
+        let n0 = self.service.relative_name("name", &request.name, &["support"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "organizations/*/cases/*")?;
+        request.name = n0;
         let body = ::origincloud_core::json_body(&request)?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::POST,
@@ -2213,13 +2207,15 @@ impl CaseMessageClient {
     /// organization.
     pub async fn get_case_message(
         &self,
-        request: GetCaseMessageRequest,
+        mut request: GetCaseMessageRequest,
     ) -> ::core::result::Result<CaseMessage, ::origincloud_core::Error> {
+        let n0 = self.service.relative_name("name", &request.name, &["support"])?;
         let p0 = ::origincloud_core::path_value(
             "name",
-            &request.name,
+            &n0,
             "organizations/*/cases/*/messages/*",
         )?;
+        request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -2233,13 +2229,15 @@ impl CaseMessageClient {
     /// on the organization.
     pub async fn list_case_messages(
         &self,
-        request: ListCaseMessagesRequest,
+        mut request: ListCaseMessagesRequest,
     ) -> ::core::result::Result<ListCaseMessagesResponse, ::origincloud_core::Error> {
+        let n0 = self.service.relative_name("parent", &request.parent, &["support"])?;
         let p0 = ::origincloud_core::path_value(
             "parent",
-            &request.parent,
+            &n0,
             "organizations/*/cases/*",
         )?;
+        request.parent = n0;
         let query = ::origincloud_core::query(&request, &["parent"])?;
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::GET,
@@ -2280,11 +2278,13 @@ impl CaseMessageClient {
         if request.request_id.is_empty() {
             request.request_id = ::origincloud_core::new_request_id();
         }
+        let n0 = self.service.relative_name("parent", &request.parent, &["support"])?;
         let p0 = ::origincloud_core::path_value(
             "parent",
-            &request.parent,
+            &n0,
             "organizations/*/cases/*",
         )?;
+        request.parent = n0;
         let body = ::origincloud_core::json_body(
             request.case_message.as_ref().unwrap_or(&::core::default::Default::default()),
         )?;
