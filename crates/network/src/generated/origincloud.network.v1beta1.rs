@@ -2,13 +2,13 @@
 // source: origincloud/network/v1beta1/acl.proto
 // source: origincloud/network/v1beta1/acl_association.proto
 // source: origincloud/network/v1beta1/acl_rule.proto
-// source: origincloud/network/v1beta1/dns_policy.proto
-// source: origincloud/network/v1beta1/dns_policy_association.proto
 // source: origincloud/network/v1beta1/floating_ip.proto
 // source: origincloud/network/v1beta1/floating_ip_association.proto
 // source: origincloud/network/v1beta1/internet_gateway.proto
 // source: origincloud/network/v1beta1/nat_gateway.proto
 // source: origincloud/network/v1beta1/network_interface.proto
+// source: origincloud/network/v1beta1/resolver_policy.proto
+// source: origincloud/network/v1beta1/resolver_policy_association.proto
 // source: origincloud/network/v1beta1/route.proto
 // source: origincloud/network/v1beta1/route_table.proto
 // source: origincloud/network/v1beta1/route_table_association.proto
@@ -422,196 +422,6 @@ pub struct CreateAclRuleRequest {
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteAclRuleRequest {
     /// The rule to remove.
-    #[prost(string, tag = "1")]
-    pub name: ::prost::alloc::string::String,
-    /// A UUID; a repeat with the same id returns the first request's
-    /// operation.
-    #[prost(string, tag = "2")]
-    pub request_id: ::prost::alloc::string::String,
-}
-/// How a VPC's resolver answers names outside the platform's own.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DnsPolicy {
-    /// The policy's resource name.
-    #[prost(string, tag = "1")]
-    pub name: ::prost::alloc::string::String,
-    /// Whether this is the project's default policy in its region, which a
-    /// VPC without a DNS policy association relays through. Change it with
-    /// `SetDefaultDnsPolicy`.
-    #[prost(bool, tag = "3")]
-    pub project_default: bool,
-    /// Whether the resolver relays names it can't answer itself to
-    /// `upstream_servers`. Off, it answers only the platform's own names.
-    #[prost(bool, tag = "4")]
-    pub relay_enabled: bool,
-    /// The resolvers to relay to, at most 5 IPv4 or IPv6 addresses, tried in
-    /// order. At least one while `relay_enabled` is on.
-    #[prost(string, repeated, tag = "5")]
-    pub upstream_servers: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    /// When the DNS policy was created.
-    #[prost(message, optional, tag = "6")]
-    pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
-    /// The principal that created the DNS policy, by its full name on iam:
-    /// `//iam.origincloudapis.eu/users/{user}`,
-    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
-    /// or a platform service agent's or service's name when the platform did.
-    #[prost(string, tag = "7")]
-    pub creator: ::prost::alloc::string::String,
-    /// Labels of your own, at most 50. The `origin:name` tag is the name the
-    /// console shows.
-    #[prost(btree_map = "string, string", tag = "8")]
-    pub tags: ::prost::alloc::collections::BTreeMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
-}
-/// The request for GetDnsPolicy.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct GetDnsPolicyRequest {
-    /// The DNS policy to return.
-    #[prost(string, tag = "1")]
-    pub name: ::prost::alloc::string::String,
-}
-/// The request for ListDnsPolicies.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct ListDnsPoliciesRequest {
-    /// The region whose DNS policies to list,
-    /// `projects/{project}/regions/{region}`.
-    #[prost(string, tag = "1")]
-    pub parent: ::prost::alloc::string::String,
-    /// The most DNS policies to return; the server clamps it, and 0 means
-    /// its default.
-    #[prost(int32, tag = "2")]
-    pub page_size: i32,
-    /// A previous response's `next_page_token`, for the page after it.
-    #[prost(string, tag = "3")]
-    pub page_token: ::prost::alloc::string::String,
-}
-/// The response for ListDnsPolicies.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ListDnsPoliciesResponse {
-    /// The DNS policies on this page.
-    #[prost(message, repeated, tag = "1")]
-    pub dns_policies: ::prost::alloc::vec::Vec<DnsPolicy>,
-    /// The token for the next page; empty on the last one.
-    #[prost(string, tag = "2")]
-    pub next_page_token: ::prost::alloc::string::String,
-}
-/// The request for CreateDnsPolicy.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CreateDnsPolicyRequest {
-    /// The region to create the DNS policy in,
-    /// `projects/{project}/regions/{region}`.
-    #[prost(string, tag = "1")]
-    pub parent: ::prost::alloc::string::String,
-    /// The policy to create: its relay settings, and optionally its tags.
-    #[prost(message, optional, tag = "2")]
-    pub dns_policy: ::core::option::Option<DnsPolicy>,
-    /// A UUID; a repeat with the same id returns the first request's
-    /// operation instead of creating a second DNS policy.
-    #[prost(string, tag = "3")]
-    pub request_id: ::prost::alloc::string::String,
-}
-/// The request for UpdateDnsPolicy.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct UpdateDnsPolicyRequest {
-    /// The DNS policy, by its name, with the fields to change.
-    #[prost(message, optional, tag = "1")]
-    pub dns_policy: ::core::option::Option<DnsPolicy>,
-    /// The fields to change, any of `relay_enabled`, `upstream_servers` and
-    /// `tags`. `*` is all of them.
-    #[prost(message, optional, tag = "2")]
-    pub update_mask: ::core::option::Option<::origincloud_core::protobuf::FieldMask>,
-    /// A UUID; a repeat with the same id returns the first request's
-    /// operation instead of changing the DNS policy again.
-    #[prost(string, tag = "3")]
-    pub request_id: ::prost::alloc::string::String,
-}
-/// The request for DeleteDnsPolicy.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct DeleteDnsPolicyRequest {
-    /// The DNS policy to delete.
-    #[prost(string, tag = "1")]
-    pub name: ::prost::alloc::string::String,
-    /// A UUID; a repeat with the same id returns the first request's
-    /// operation.
-    #[prost(string, tag = "2")]
-    pub request_id: ::prost::alloc::string::String,
-}
-/// The request for SetDefaultDnsPolicy.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct SetDefaultDnsPolicyRequest {
-    /// The DNS policy to make the default.
-    #[prost(string, tag = "1")]
-    pub name: ::prost::alloc::string::String,
-    /// A UUID; a repeat with the same id returns the first request's
-    /// operation.
-    #[prost(string, tag = "2")]
-    pub request_id: ::prost::alloc::string::String,
-}
-/// The DNS policy a VPC's resolver relays through.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct DnsPolicyAssociation {
-    /// The association's resource name. Its last segment is the DNS policy's
-    /// id.
-    #[prost(string, tag = "1")]
-    pub name: ::prost::alloc::string::String,
-    /// The full name of the DNS policy the VPC relays through, in the VPC's
-    /// project and region.
-    #[prost(string, tag = "2")]
-    pub dns_policy: ::prost::alloc::string::String,
-}
-/// The request for GetDnsPolicyAssociation.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct GetDnsPolicyAssociationRequest {
-    /// The association to return.
-    #[prost(string, tag = "1")]
-    pub name: ::prost::alloc::string::String,
-}
-/// The request for ListDnsPolicyAssociations.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct ListDnsPolicyAssociationsRequest {
-    /// The VPC whose association to list,
-    /// `projects/{project}/regions/{region}/vpcs/{vpc}`.
-    #[prost(string, tag = "1")]
-    pub parent: ::prost::alloc::string::String,
-    /// The most associations to return; the server clamps it, and 0 means
-    /// its default.
-    #[prost(int32, tag = "2")]
-    pub page_size: i32,
-    /// A previous response's `next_page_token`, for the page after it.
-    #[prost(string, tag = "3")]
-    pub page_token: ::prost::alloc::string::String,
-}
-/// The response for ListDnsPolicyAssociations.
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ListDnsPolicyAssociationsResponse {
-    /// The associations on this page.
-    #[prost(message, repeated, tag = "1")]
-    pub dns_policy_associations: ::prost::alloc::vec::Vec<DnsPolicyAssociation>,
-    /// The token for the next page; empty on the last one.
-    #[prost(string, tag = "2")]
-    pub next_page_token: ::prost::alloc::string::String,
-}
-/// The request for CreateDnsPolicyAssociation.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct CreateDnsPolicyAssociationRequest {
-    /// The VPC to associate the DNS policy with,
-    /// `projects/{project}/regions/{region}/vpcs/{vpc}`.
-    #[prost(string, tag = "1")]
-    pub parent: ::prost::alloc::string::String,
-    /// The association to create: its DNS policy.
-    #[prost(message, optional, tag = "2")]
-    pub dns_policy_association: ::core::option::Option<DnsPolicyAssociation>,
-    /// A UUID; a repeat with the same id returns the first request's
-    /// operation.
-    #[prost(string, tag = "3")]
-    pub request_id: ::prost::alloc::string::String,
-}
-/// The request for DeleteDnsPolicyAssociation.
-#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct DeleteDnsPolicyAssociationRequest {
-    /// The association to remove.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
     /// A UUID; a repeat with the same id returns the first request's
@@ -1188,6 +998,198 @@ pub struct UpdateNetworkInterfaceRequest {
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteNetworkInterfaceRequest {
     /// The network interface to delete.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    /// A UUID; a repeat with the same id returns the first request's
+    /// operation.
+    #[prost(string, tag = "2")]
+    pub request_id: ::prost::alloc::string::String,
+}
+/// How a VPC's resolver answers names outside the platform's own.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ResolverPolicy {
+    /// The policy's resource name.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    /// Whether this is the project's default policy in its region, which a
+    /// VPC without a resolver policy association relays through. Change it with
+    /// `SetDefaultResolverPolicy`.
+    #[prost(bool, tag = "3")]
+    pub project_default: bool,
+    /// Whether the resolver relays names it can't answer itself to
+    /// `upstream_servers`. Off, it answers only the platform's own names.
+    #[prost(bool, tag = "4")]
+    pub relay_enabled: bool,
+    /// The resolvers to relay to, at most 5 IPv4 or IPv6 addresses, tried in
+    /// order. At least one while `relay_enabled` is on.
+    #[prost(string, repeated, tag = "5")]
+    pub upstream_servers: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// When the resolver policy was created.
+    #[prost(message, optional, tag = "6")]
+    pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
+    /// The principal that created the resolver policy, by its full name on iam:
+    /// `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// or a platform service agent's or service's name when the platform did.
+    #[prost(string, tag = "7")]
+    pub creator: ::prost::alloc::string::String,
+    /// Labels of your own, at most 50. The `origin:name` tag is the name the
+    /// console shows.
+    #[prost(btree_map = "string, string", tag = "8")]
+    pub tags: ::prost::alloc::collections::BTreeMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
+}
+/// The request for GetResolverPolicy.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GetResolverPolicyRequest {
+    /// The resolver policy to return.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+}
+/// The request for ListResolverPolicies.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ListResolverPoliciesRequest {
+    /// The region whose resolver policies to list,
+    /// `projects/{project}/regions/{region}`.
+    #[prost(string, tag = "1")]
+    pub parent: ::prost::alloc::string::String,
+    /// The most resolver policies to return; the server clamps it, and 0 means
+    /// its default.
+    #[prost(int32, tag = "2")]
+    pub page_size: i32,
+    /// A previous response's `next_page_token`, for the page after it.
+    #[prost(string, tag = "3")]
+    pub page_token: ::prost::alloc::string::String,
+}
+/// The response for ListResolverPolicies.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListResolverPoliciesResponse {
+    /// The resolver policies on this page.
+    #[prost(message, repeated, tag = "1")]
+    pub resolver_policies: ::prost::alloc::vec::Vec<ResolverPolicy>,
+    /// The token for the next page; empty on the last one.
+    #[prost(string, tag = "2")]
+    pub next_page_token: ::prost::alloc::string::String,
+}
+/// The request for CreateResolverPolicy.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CreateResolverPolicyRequest {
+    /// The region to create the resolver policy in,
+    /// `projects/{project}/regions/{region}`.
+    #[prost(string, tag = "1")]
+    pub parent: ::prost::alloc::string::String,
+    /// The policy to create: its relay settings, and optionally its tags.
+    #[prost(message, optional, tag = "2")]
+    pub resolver_policy: ::core::option::Option<ResolverPolicy>,
+    /// A UUID; a repeat with the same id returns the first request's
+    /// operation instead of creating a second resolver policy.
+    #[prost(string, tag = "3")]
+    pub request_id: ::prost::alloc::string::String,
+}
+/// The request for UpdateResolverPolicy.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct UpdateResolverPolicyRequest {
+    /// The resolver policy, by its name, with the fields to change.
+    #[prost(message, optional, tag = "1")]
+    pub resolver_policy: ::core::option::Option<ResolverPolicy>,
+    /// The fields to change, any of `relay_enabled`, `upstream_servers` and
+    /// `tags`. `*` is all of them.
+    #[prost(message, optional, tag = "2")]
+    pub update_mask: ::core::option::Option<::origincloud_core::protobuf::FieldMask>,
+    /// A UUID; a repeat with the same id returns the first request's
+    /// operation instead of changing the resolver policy again.
+    #[prost(string, tag = "3")]
+    pub request_id: ::prost::alloc::string::String,
+}
+/// The request for DeleteResolverPolicy.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct DeleteResolverPolicyRequest {
+    /// The resolver policy to delete.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    /// A UUID; a repeat with the same id returns the first request's
+    /// operation.
+    #[prost(string, tag = "2")]
+    pub request_id: ::prost::alloc::string::String,
+}
+/// The request for SetDefaultResolverPolicy.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct SetDefaultResolverPolicyRequest {
+    /// The resolver policy to make the default.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    /// A UUID; a repeat with the same id returns the first request's
+    /// operation.
+    #[prost(string, tag = "2")]
+    pub request_id: ::prost::alloc::string::String,
+}
+/// The resolver policy a VPC's resolver relays through.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ResolverPolicyAssociation {
+    /// The association's resource name. Its last segment is the resolver policy's
+    /// id.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    /// The full name of the resolver policy the VPC relays through, in the VPC's
+    /// project and region.
+    #[prost(string, tag = "2")]
+    pub resolver_policy: ::prost::alloc::string::String,
+}
+/// The request for GetResolverPolicyAssociation.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GetResolverPolicyAssociationRequest {
+    /// The association to return.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+}
+/// The request for ListResolverPolicyAssociations.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ListResolverPolicyAssociationsRequest {
+    /// The VPC whose association to list,
+    /// `projects/{project}/regions/{region}/vpcs/{vpc}`.
+    #[prost(string, tag = "1")]
+    pub parent: ::prost::alloc::string::String,
+    /// The most associations to return; the server clamps it, and 0 means
+    /// its default.
+    #[prost(int32, tag = "2")]
+    pub page_size: i32,
+    /// A previous response's `next_page_token`, for the page after it.
+    #[prost(string, tag = "3")]
+    pub page_token: ::prost::alloc::string::String,
+}
+/// The response for ListResolverPolicyAssociations.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListResolverPolicyAssociationsResponse {
+    /// The associations on this page.
+    #[prost(message, repeated, tag = "1")]
+    pub resolver_policy_associations: ::prost::alloc::vec::Vec<
+        ResolverPolicyAssociation,
+    >,
+    /// The token for the next page; empty on the last one.
+    #[prost(string, tag = "2")]
+    pub next_page_token: ::prost::alloc::string::String,
+}
+/// The request for CreateResolverPolicyAssociation.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CreateResolverPolicyAssociationRequest {
+    /// The VPC to associate the resolver policy with,
+    /// `projects/{project}/regions/{region}/vpcs/{vpc}`.
+    #[prost(string, tag = "1")]
+    pub parent: ::prost::alloc::string::String,
+    /// The association to create: its resolver policy.
+    #[prost(message, optional, tag = "2")]
+    pub resolver_policy_association: ::core::option::Option<ResolverPolicyAssociation>,
+    /// A UUID; a repeat with the same id returns the first request's
+    /// operation.
+    #[prost(string, tag = "3")]
+    pub request_id: ::prost::alloc::string::String,
+}
+/// The request for DeleteResolverPolicyAssociation.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct DeleteResolverPolicyAssociationRequest {
+    /// The association to remove.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
     /// A UUID; a repeat with the same id returns the first request's
@@ -2008,13 +2010,12 @@ pub struct Vpc {
     /// How many more subnets the VPC's address space holds.
     #[prost(int32, tag = "6")]
     pub available_subnet_count: i32,
-    /// The full name of the DNS policy the VPC's resolver relays through, as
-    /// the VPC's DNS
-    /// policy association (a `DnsPolicyAssociation`) sets it. Empty while it
-    /// has none: the VPC then relays through the project's default DNS policy
-    /// in its region.
+    /// The full name of the resolver policy the VPC's resolver relays through, as
+    /// the VPC's resolver policy association (a `ResolverPolicyAssociation`) sets
+    /// it. Empty while it has none: the VPC then relays through the project's
+    /// default resolver policy in its region.
     #[prost(string, tag = "7")]
-    pub dns_policy: ::prost::alloc::string::String,
+    pub resolver_policy: ::prost::alloc::string::String,
     /// The full name of the VPC's internet gateway; empty while it has none.
     #[prost(string, tag = "8")]
     pub internet_gateway: ::prost::alloc::string::String,
@@ -3373,312 +3374,6 @@ impl<'de> serde::Deserialize<'de> for CreateAclRuleRequest {
             )
     }
 }
-impl serde::Serialize for CreateDnsPolicyAssociationRequest {
-    #[allow(deprecated)]
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut len = 0;
-        if !self.parent.is_empty() {
-            len += 1;
-        }
-        if self.dns_policy_association.is_some() {
-            len += 1;
-        }
-        if !self.request_id.is_empty() {
-            len += 1;
-        }
-        let mut struct_ser = serializer
-            .serialize_struct(
-                "origincloud.network.v1beta1.CreateDnsPolicyAssociationRequest",
-                len,
-            )?;
-        if !self.parent.is_empty() {
-            struct_ser.serialize_field("parent", &self.parent)?;
-        }
-        if let Some(v) = self.dns_policy_association.as_ref() {
-            struct_ser.serialize_field("dnsPolicyAssociation", v)?;
-        }
-        if !self.request_id.is_empty() {
-            struct_ser.serialize_field("requestId", &self.request_id)?;
-        }
-        struct_ser.end()
-    }
-}
-impl<'de> serde::Deserialize<'de> for CreateDnsPolicyAssociationRequest {
-    #[allow(deprecated)]
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &[&str] = &[
-            "parent",
-            "dns_policy_association",
-            "dnsPolicyAssociation",
-            "request_id",
-            "requestId",
-        ];
-        #[allow(clippy::enum_variant_names)]
-        enum GeneratedField {
-            Parent,
-            DnsPolicyAssociation,
-            RequestId,
-            __SkipField__,
-        }
-        impl<'de> serde::Deserialize<'de> for GeneratedField {
-            fn deserialize<D>(
-                deserializer: D,
-            ) -> std::result::Result<GeneratedField, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct GeneratedVisitor;
-                impl serde::de::Visitor<'_> for GeneratedVisitor {
-                    type Value = GeneratedField;
-                    fn expecting(
-                        &self,
-                        formatter: &mut std::fmt::Formatter<'_>,
-                    ) -> std::fmt::Result {
-                        write!(formatter, "expected one of: {:?}", & FIELDS)
-                    }
-                    #[allow(unused_variables)]
-                    fn visit_str<E>(
-                        self,
-                        value: &str,
-                    ) -> std::result::Result<GeneratedField, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match value {
-                            "parent" => Ok(GeneratedField::Parent),
-                            "dnsPolicyAssociation" | "dns_policy_association" => {
-                                Ok(GeneratedField::DnsPolicyAssociation)
-                            }
-                            "requestId" | "request_id" => Ok(GeneratedField::RequestId),
-                            _ => Ok(GeneratedField::__SkipField__),
-                        }
-                    }
-                }
-                deserializer.deserialize_identifier(GeneratedVisitor)
-            }
-        }
-        struct GeneratedVisitor;
-        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = CreateDnsPolicyAssociationRequest;
-            fn expecting(
-                &self,
-                formatter: &mut std::fmt::Formatter<'_>,
-            ) -> std::fmt::Result {
-                formatter
-                    .write_str(
-                        "struct origincloud.network.v1beta1.CreateDnsPolicyAssociationRequest",
-                    )
-            }
-            fn visit_map<V>(
-                self,
-                mut map_: V,
-            ) -> std::result::Result<CreateDnsPolicyAssociationRequest, V::Error>
-            where
-                V: serde::de::MapAccess<'de>,
-            {
-                let mut parent__ = None;
-                let mut dns_policy_association__ = None;
-                let mut request_id__ = None;
-                while let Some(k) = map_.next_key()? {
-                    match k {
-                        GeneratedField::Parent => {
-                            if parent__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("parent"));
-                            }
-                            parent__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::DnsPolicyAssociation => {
-                            if dns_policy_association__.is_some() {
-                                return Err(
-                                    serde::de::Error::duplicate_field("dnsPolicyAssociation"),
-                                );
-                            }
-                            dns_policy_association__ = map_.next_value()?;
-                        }
-                        GeneratedField::RequestId => {
-                            if request_id__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("requestId"));
-                            }
-                            request_id__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::__SkipField__ => {
-                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                    }
-                }
-                Ok(CreateDnsPolicyAssociationRequest {
-                    parent: parent__.unwrap_or_default(),
-                    dns_policy_association: dns_policy_association__,
-                    request_id: request_id__.unwrap_or_default(),
-                })
-            }
-        }
-        deserializer
-            .deserialize_struct(
-                "origincloud.network.v1beta1.CreateDnsPolicyAssociationRequest",
-                FIELDS,
-                GeneratedVisitor,
-            )
-    }
-}
-impl serde::Serialize for CreateDnsPolicyRequest {
-    #[allow(deprecated)]
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut len = 0;
-        if !self.parent.is_empty() {
-            len += 1;
-        }
-        if self.dns_policy.is_some() {
-            len += 1;
-        }
-        if !self.request_id.is_empty() {
-            len += 1;
-        }
-        let mut struct_ser = serializer
-            .serialize_struct(
-                "origincloud.network.v1beta1.CreateDnsPolicyRequest",
-                len,
-            )?;
-        if !self.parent.is_empty() {
-            struct_ser.serialize_field("parent", &self.parent)?;
-        }
-        if let Some(v) = self.dns_policy.as_ref() {
-            struct_ser.serialize_field("dnsPolicy", v)?;
-        }
-        if !self.request_id.is_empty() {
-            struct_ser.serialize_field("requestId", &self.request_id)?;
-        }
-        struct_ser.end()
-    }
-}
-impl<'de> serde::Deserialize<'de> for CreateDnsPolicyRequest {
-    #[allow(deprecated)]
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &[&str] = &[
-            "parent",
-            "dns_policy",
-            "dnsPolicy",
-            "request_id",
-            "requestId",
-        ];
-        #[allow(clippy::enum_variant_names)]
-        enum GeneratedField {
-            Parent,
-            DnsPolicy,
-            RequestId,
-            __SkipField__,
-        }
-        impl<'de> serde::Deserialize<'de> for GeneratedField {
-            fn deserialize<D>(
-                deserializer: D,
-            ) -> std::result::Result<GeneratedField, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct GeneratedVisitor;
-                impl serde::de::Visitor<'_> for GeneratedVisitor {
-                    type Value = GeneratedField;
-                    fn expecting(
-                        &self,
-                        formatter: &mut std::fmt::Formatter<'_>,
-                    ) -> std::fmt::Result {
-                        write!(formatter, "expected one of: {:?}", & FIELDS)
-                    }
-                    #[allow(unused_variables)]
-                    fn visit_str<E>(
-                        self,
-                        value: &str,
-                    ) -> std::result::Result<GeneratedField, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match value {
-                            "parent" => Ok(GeneratedField::Parent),
-                            "dnsPolicy" | "dns_policy" => Ok(GeneratedField::DnsPolicy),
-                            "requestId" | "request_id" => Ok(GeneratedField::RequestId),
-                            _ => Ok(GeneratedField::__SkipField__),
-                        }
-                    }
-                }
-                deserializer.deserialize_identifier(GeneratedVisitor)
-            }
-        }
-        struct GeneratedVisitor;
-        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = CreateDnsPolicyRequest;
-            fn expecting(
-                &self,
-                formatter: &mut std::fmt::Formatter<'_>,
-            ) -> std::fmt::Result {
-                formatter
-                    .write_str(
-                        "struct origincloud.network.v1beta1.CreateDnsPolicyRequest",
-                    )
-            }
-            fn visit_map<V>(
-                self,
-                mut map_: V,
-            ) -> std::result::Result<CreateDnsPolicyRequest, V::Error>
-            where
-                V: serde::de::MapAccess<'de>,
-            {
-                let mut parent__ = None;
-                let mut dns_policy__ = None;
-                let mut request_id__ = None;
-                while let Some(k) = map_.next_key()? {
-                    match k {
-                        GeneratedField::Parent => {
-                            if parent__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("parent"));
-                            }
-                            parent__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::DnsPolicy => {
-                            if dns_policy__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("dnsPolicy"));
-                            }
-                            dns_policy__ = map_.next_value()?;
-                        }
-                        GeneratedField::RequestId => {
-                            if request_id__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("requestId"));
-                            }
-                            request_id__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::__SkipField__ => {
-                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                    }
-                }
-                Ok(CreateDnsPolicyRequest {
-                    parent: parent__.unwrap_or_default(),
-                    dns_policy: dns_policy__,
-                    request_id: request_id__.unwrap_or_default(),
-                })
-            }
-        }
-        deserializer
-            .deserialize_struct(
-                "origincloud.network.v1beta1.CreateDnsPolicyRequest",
-                FIELDS,
-                GeneratedVisitor,
-            )
-    }
-}
 impl serde::Serialize for CreateFloatingIpAssociationRequest {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -4445,6 +4140,319 @@ impl<'de> serde::Deserialize<'de> for CreateNetworkInterfaceRequest {
         deserializer
             .deserialize_struct(
                 "origincloud.network.v1beta1.CreateNetworkInterfaceRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for CreateResolverPolicyAssociationRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.parent.is_empty() {
+            len += 1;
+        }
+        if self.resolver_policy_association.is_some() {
+            len += 1;
+        }
+        if !self.request_id.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.network.v1beta1.CreateResolverPolicyAssociationRequest",
+                len,
+            )?;
+        if !self.parent.is_empty() {
+            struct_ser.serialize_field("parent", &self.parent)?;
+        }
+        if let Some(v) = self.resolver_policy_association.as_ref() {
+            struct_ser.serialize_field("resolverPolicyAssociation", v)?;
+        }
+        if !self.request_id.is_empty() {
+            struct_ser.serialize_field("requestId", &self.request_id)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for CreateResolverPolicyAssociationRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "parent",
+            "resolver_policy_association",
+            "resolverPolicyAssociation",
+            "request_id",
+            "requestId",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Parent,
+            ResolverPolicyAssociation,
+            RequestId,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "parent" => Ok(GeneratedField::Parent),
+                            "resolverPolicyAssociation"
+                            | "resolver_policy_association" => {
+                                Ok(GeneratedField::ResolverPolicyAssociation)
+                            }
+                            "requestId" | "request_id" => Ok(GeneratedField::RequestId),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = CreateResolverPolicyAssociationRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.network.v1beta1.CreateResolverPolicyAssociationRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<CreateResolverPolicyAssociationRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut parent__ = None;
+                let mut resolver_policy_association__ = None;
+                let mut request_id__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Parent => {
+                            if parent__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("parent"));
+                            }
+                            parent__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::ResolverPolicyAssociation => {
+                            if resolver_policy_association__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field(
+                                        "resolverPolicyAssociation",
+                                    ),
+                                );
+                            }
+                            resolver_policy_association__ = map_.next_value()?;
+                        }
+                        GeneratedField::RequestId => {
+                            if request_id__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("requestId"));
+                            }
+                            request_id__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(CreateResolverPolicyAssociationRequest {
+                    parent: parent__.unwrap_or_default(),
+                    resolver_policy_association: resolver_policy_association__,
+                    request_id: request_id__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.network.v1beta1.CreateResolverPolicyAssociationRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for CreateResolverPolicyRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.parent.is_empty() {
+            len += 1;
+        }
+        if self.resolver_policy.is_some() {
+            len += 1;
+        }
+        if !self.request_id.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.network.v1beta1.CreateResolverPolicyRequest",
+                len,
+            )?;
+        if !self.parent.is_empty() {
+            struct_ser.serialize_field("parent", &self.parent)?;
+        }
+        if let Some(v) = self.resolver_policy.as_ref() {
+            struct_ser.serialize_field("resolverPolicy", v)?;
+        }
+        if !self.request_id.is_empty() {
+            struct_ser.serialize_field("requestId", &self.request_id)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for CreateResolverPolicyRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "parent",
+            "resolver_policy",
+            "resolverPolicy",
+            "request_id",
+            "requestId",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Parent,
+            ResolverPolicy,
+            RequestId,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "parent" => Ok(GeneratedField::Parent),
+                            "resolverPolicy" | "resolver_policy" => {
+                                Ok(GeneratedField::ResolverPolicy)
+                            }
+                            "requestId" | "request_id" => Ok(GeneratedField::RequestId),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = CreateResolverPolicyRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.network.v1beta1.CreateResolverPolicyRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<CreateResolverPolicyRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut parent__ = None;
+                let mut resolver_policy__ = None;
+                let mut request_id__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Parent => {
+                            if parent__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("parent"));
+                            }
+                            parent__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::ResolverPolicy => {
+                            if resolver_policy__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("resolverPolicy"),
+                                );
+                            }
+                            resolver_policy__ = map_.next_value()?;
+                        }
+                        GeneratedField::RequestId => {
+                            if request_id__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("requestId"));
+                            }
+                            request_id__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(CreateResolverPolicyRequest {
+                    parent: parent__.unwrap_or_default(),
+                    resolver_policy: resolver_policy__,
+                    request_id: request_id__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.network.v1beta1.CreateResolverPolicyRequest",
                 FIELDS,
                 GeneratedVisitor,
             )
@@ -6022,264 +6030,6 @@ impl<'de> serde::Deserialize<'de> for DeleteAclRuleRequest {
             )
     }
 }
-impl serde::Serialize for DeleteDnsPolicyAssociationRequest {
-    #[allow(deprecated)]
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut len = 0;
-        if !self.name.is_empty() {
-            len += 1;
-        }
-        if !self.request_id.is_empty() {
-            len += 1;
-        }
-        let mut struct_ser = serializer
-            .serialize_struct(
-                "origincloud.network.v1beta1.DeleteDnsPolicyAssociationRequest",
-                len,
-            )?;
-        if !self.name.is_empty() {
-            struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.request_id.is_empty() {
-            struct_ser.serialize_field("requestId", &self.request_id)?;
-        }
-        struct_ser.end()
-    }
-}
-impl<'de> serde::Deserialize<'de> for DeleteDnsPolicyAssociationRequest {
-    #[allow(deprecated)]
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &[&str] = &["name", "request_id", "requestId"];
-        #[allow(clippy::enum_variant_names)]
-        enum GeneratedField {
-            Name,
-            RequestId,
-            __SkipField__,
-        }
-        impl<'de> serde::Deserialize<'de> for GeneratedField {
-            fn deserialize<D>(
-                deserializer: D,
-            ) -> std::result::Result<GeneratedField, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct GeneratedVisitor;
-                impl serde::de::Visitor<'_> for GeneratedVisitor {
-                    type Value = GeneratedField;
-                    fn expecting(
-                        &self,
-                        formatter: &mut std::fmt::Formatter<'_>,
-                    ) -> std::fmt::Result {
-                        write!(formatter, "expected one of: {:?}", & FIELDS)
-                    }
-                    #[allow(unused_variables)]
-                    fn visit_str<E>(
-                        self,
-                        value: &str,
-                    ) -> std::result::Result<GeneratedField, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match value {
-                            "name" => Ok(GeneratedField::Name),
-                            "requestId" | "request_id" => Ok(GeneratedField::RequestId),
-                            _ => Ok(GeneratedField::__SkipField__),
-                        }
-                    }
-                }
-                deserializer.deserialize_identifier(GeneratedVisitor)
-            }
-        }
-        struct GeneratedVisitor;
-        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = DeleteDnsPolicyAssociationRequest;
-            fn expecting(
-                &self,
-                formatter: &mut std::fmt::Formatter<'_>,
-            ) -> std::fmt::Result {
-                formatter
-                    .write_str(
-                        "struct origincloud.network.v1beta1.DeleteDnsPolicyAssociationRequest",
-                    )
-            }
-            fn visit_map<V>(
-                self,
-                mut map_: V,
-            ) -> std::result::Result<DeleteDnsPolicyAssociationRequest, V::Error>
-            where
-                V: serde::de::MapAccess<'de>,
-            {
-                let mut name__ = None;
-                let mut request_id__ = None;
-                while let Some(k) = map_.next_key()? {
-                    match k {
-                        GeneratedField::Name => {
-                            if name__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("name"));
-                            }
-                            name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::RequestId => {
-                            if request_id__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("requestId"));
-                            }
-                            request_id__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::__SkipField__ => {
-                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                    }
-                }
-                Ok(DeleteDnsPolicyAssociationRequest {
-                    name: name__.unwrap_or_default(),
-                    request_id: request_id__.unwrap_or_default(),
-                })
-            }
-        }
-        deserializer
-            .deserialize_struct(
-                "origincloud.network.v1beta1.DeleteDnsPolicyAssociationRequest",
-                FIELDS,
-                GeneratedVisitor,
-            )
-    }
-}
-impl serde::Serialize for DeleteDnsPolicyRequest {
-    #[allow(deprecated)]
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut len = 0;
-        if !self.name.is_empty() {
-            len += 1;
-        }
-        if !self.request_id.is_empty() {
-            len += 1;
-        }
-        let mut struct_ser = serializer
-            .serialize_struct(
-                "origincloud.network.v1beta1.DeleteDnsPolicyRequest",
-                len,
-            )?;
-        if !self.name.is_empty() {
-            struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.request_id.is_empty() {
-            struct_ser.serialize_field("requestId", &self.request_id)?;
-        }
-        struct_ser.end()
-    }
-}
-impl<'de> serde::Deserialize<'de> for DeleteDnsPolicyRequest {
-    #[allow(deprecated)]
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &[&str] = &["name", "request_id", "requestId"];
-        #[allow(clippy::enum_variant_names)]
-        enum GeneratedField {
-            Name,
-            RequestId,
-            __SkipField__,
-        }
-        impl<'de> serde::Deserialize<'de> for GeneratedField {
-            fn deserialize<D>(
-                deserializer: D,
-            ) -> std::result::Result<GeneratedField, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct GeneratedVisitor;
-                impl serde::de::Visitor<'_> for GeneratedVisitor {
-                    type Value = GeneratedField;
-                    fn expecting(
-                        &self,
-                        formatter: &mut std::fmt::Formatter<'_>,
-                    ) -> std::fmt::Result {
-                        write!(formatter, "expected one of: {:?}", & FIELDS)
-                    }
-                    #[allow(unused_variables)]
-                    fn visit_str<E>(
-                        self,
-                        value: &str,
-                    ) -> std::result::Result<GeneratedField, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match value {
-                            "name" => Ok(GeneratedField::Name),
-                            "requestId" | "request_id" => Ok(GeneratedField::RequestId),
-                            _ => Ok(GeneratedField::__SkipField__),
-                        }
-                    }
-                }
-                deserializer.deserialize_identifier(GeneratedVisitor)
-            }
-        }
-        struct GeneratedVisitor;
-        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = DeleteDnsPolicyRequest;
-            fn expecting(
-                &self,
-                formatter: &mut std::fmt::Formatter<'_>,
-            ) -> std::fmt::Result {
-                formatter
-                    .write_str(
-                        "struct origincloud.network.v1beta1.DeleteDnsPolicyRequest",
-                    )
-            }
-            fn visit_map<V>(
-                self,
-                mut map_: V,
-            ) -> std::result::Result<DeleteDnsPolicyRequest, V::Error>
-            where
-                V: serde::de::MapAccess<'de>,
-            {
-                let mut name__ = None;
-                let mut request_id__ = None;
-                while let Some(k) = map_.next_key()? {
-                    match k {
-                        GeneratedField::Name => {
-                            if name__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("name"));
-                            }
-                            name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::RequestId => {
-                            if request_id__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("requestId"));
-                            }
-                            request_id__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::__SkipField__ => {
-                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                    }
-                }
-                Ok(DeleteDnsPolicyRequest {
-                    name: name__.unwrap_or_default(),
-                    request_id: request_id__.unwrap_or_default(),
-                })
-            }
-        }
-        deserializer
-            .deserialize_struct(
-                "origincloud.network.v1beta1.DeleteDnsPolicyRequest",
-                FIELDS,
-                GeneratedVisitor,
-            )
-    }
-}
 impl serde::Serialize for DeleteFloatingIpAssociationRequest {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -6920,6 +6670,264 @@ impl<'de> serde::Deserialize<'de> for DeleteNetworkInterfaceRequest {
         deserializer
             .deserialize_struct(
                 "origincloud.network.v1beta1.DeleteNetworkInterfaceRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for DeleteResolverPolicyAssociationRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        if !self.request_id.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.network.v1beta1.DeleteResolverPolicyAssociationRequest",
+                len,
+            )?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        if !self.request_id.is_empty() {
+            struct_ser.serialize_field("requestId", &self.request_id)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for DeleteResolverPolicyAssociationRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["name", "request_id", "requestId"];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            RequestId,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            "requestId" | "request_id" => Ok(GeneratedField::RequestId),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = DeleteResolverPolicyAssociationRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.network.v1beta1.DeleteResolverPolicyAssociationRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<DeleteResolverPolicyAssociationRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                let mut request_id__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::RequestId => {
+                            if request_id__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("requestId"));
+                            }
+                            request_id__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(DeleteResolverPolicyAssociationRequest {
+                    name: name__.unwrap_or_default(),
+                    request_id: request_id__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.network.v1beta1.DeleteResolverPolicyAssociationRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for DeleteResolverPolicyRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        if !self.request_id.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.network.v1beta1.DeleteResolverPolicyRequest",
+                len,
+            )?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        if !self.request_id.is_empty() {
+            struct_ser.serialize_field("requestId", &self.request_id)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for DeleteResolverPolicyRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["name", "request_id", "requestId"];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            RequestId,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            "requestId" | "request_id" => Ok(GeneratedField::RequestId),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = DeleteResolverPolicyRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.network.v1beta1.DeleteResolverPolicyRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<DeleteResolverPolicyRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                let mut request_id__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::RequestId => {
+                            if request_id__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("requestId"));
+                            }
+                            request_id__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(DeleteResolverPolicyRequest {
+                    name: name__.unwrap_or_default(),
+                    request_id: request_id__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.network.v1beta1.DeleteResolverPolicyRequest",
                 FIELDS,
                 GeneratedVisitor,
             )
@@ -7942,361 +7950,6 @@ impl<'de> serde::Deserialize<'de> for DeleteVpcRequest {
             )
     }
 }
-impl serde::Serialize for DnsPolicy {
-    #[allow(deprecated)]
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut len = 0;
-        if !self.name.is_empty() {
-            len += 1;
-        }
-        if self.project_default {
-            len += 1;
-        }
-        if self.relay_enabled {
-            len += 1;
-        }
-        if !self.upstream_servers.is_empty() {
-            len += 1;
-        }
-        if self.create_time.is_some() {
-            len += 1;
-        }
-        if !self.creator.is_empty() {
-            len += 1;
-        }
-        if !self.tags.is_empty() {
-            len += 1;
-        }
-        let mut struct_ser = serializer
-            .serialize_struct("origincloud.network.v1beta1.DnsPolicy", len)?;
-        if !self.name.is_empty() {
-            struct_ser.serialize_field("name", &self.name)?;
-        }
-        if self.project_default {
-            struct_ser.serialize_field("projectDefault", &self.project_default)?;
-        }
-        if self.relay_enabled {
-            struct_ser.serialize_field("relayEnabled", &self.relay_enabled)?;
-        }
-        if !self.upstream_servers.is_empty() {
-            struct_ser.serialize_field("upstreamServers", &self.upstream_servers)?;
-        }
-        if let Some(v) = self.create_time.as_ref() {
-            struct_ser.serialize_field("createTime", v)?;
-        }
-        if !self.creator.is_empty() {
-            struct_ser.serialize_field("creator", &self.creator)?;
-        }
-        if !self.tags.is_empty() {
-            struct_ser.serialize_field("tags", &self.tags)?;
-        }
-        struct_ser.end()
-    }
-}
-impl<'de> serde::Deserialize<'de> for DnsPolicy {
-    #[allow(deprecated)]
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &[&str] = &[
-            "name",
-            "project_default",
-            "projectDefault",
-            "relay_enabled",
-            "relayEnabled",
-            "upstream_servers",
-            "upstreamServers",
-            "create_time",
-            "createTime",
-            "creator",
-            "tags",
-        ];
-        #[allow(clippy::enum_variant_names)]
-        enum GeneratedField {
-            Name,
-            ProjectDefault,
-            RelayEnabled,
-            UpstreamServers,
-            CreateTime,
-            Creator,
-            Tags,
-            __SkipField__,
-        }
-        impl<'de> serde::Deserialize<'de> for GeneratedField {
-            fn deserialize<D>(
-                deserializer: D,
-            ) -> std::result::Result<GeneratedField, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct GeneratedVisitor;
-                impl serde::de::Visitor<'_> for GeneratedVisitor {
-                    type Value = GeneratedField;
-                    fn expecting(
-                        &self,
-                        formatter: &mut std::fmt::Formatter<'_>,
-                    ) -> std::fmt::Result {
-                        write!(formatter, "expected one of: {:?}", & FIELDS)
-                    }
-                    #[allow(unused_variables)]
-                    fn visit_str<E>(
-                        self,
-                        value: &str,
-                    ) -> std::result::Result<GeneratedField, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match value {
-                            "name" => Ok(GeneratedField::Name),
-                            "projectDefault" | "project_default" => {
-                                Ok(GeneratedField::ProjectDefault)
-                            }
-                            "relayEnabled" | "relay_enabled" => {
-                                Ok(GeneratedField::RelayEnabled)
-                            }
-                            "upstreamServers" | "upstream_servers" => {
-                                Ok(GeneratedField::UpstreamServers)
-                            }
-                            "createTime" | "create_time" => {
-                                Ok(GeneratedField::CreateTime)
-                            }
-                            "creator" => Ok(GeneratedField::Creator),
-                            "tags" => Ok(GeneratedField::Tags),
-                            _ => Ok(GeneratedField::__SkipField__),
-                        }
-                    }
-                }
-                deserializer.deserialize_identifier(GeneratedVisitor)
-            }
-        }
-        struct GeneratedVisitor;
-        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = DnsPolicy;
-            fn expecting(
-                &self,
-                formatter: &mut std::fmt::Formatter<'_>,
-            ) -> std::fmt::Result {
-                formatter.write_str("struct origincloud.network.v1beta1.DnsPolicy")
-            }
-            fn visit_map<V>(
-                self,
-                mut map_: V,
-            ) -> std::result::Result<DnsPolicy, V::Error>
-            where
-                V: serde::de::MapAccess<'de>,
-            {
-                let mut name__ = None;
-                let mut project_default__ = None;
-                let mut relay_enabled__ = None;
-                let mut upstream_servers__ = None;
-                let mut create_time__ = None;
-                let mut creator__ = None;
-                let mut tags__ = None;
-                while let Some(k) = map_.next_key()? {
-                    match k {
-                        GeneratedField::Name => {
-                            if name__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("name"));
-                            }
-                            name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::ProjectDefault => {
-                            if project_default__.is_some() {
-                                return Err(
-                                    serde::de::Error::duplicate_field("projectDefault"),
-                                );
-                            }
-                            project_default__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::RelayEnabled => {
-                            if relay_enabled__.is_some() {
-                                return Err(
-                                    serde::de::Error::duplicate_field("relayEnabled"),
-                                );
-                            }
-                            relay_enabled__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::UpstreamServers => {
-                            if upstream_servers__.is_some() {
-                                return Err(
-                                    serde::de::Error::duplicate_field("upstreamServers"),
-                                );
-                            }
-                            upstream_servers__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::CreateTime => {
-                            if create_time__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("createTime"));
-                            }
-                            create_time__ = map_.next_value()?;
-                        }
-                        GeneratedField::Creator => {
-                            if creator__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("creator"));
-                            }
-                            creator__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::Tags => {
-                            if tags__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("tags"));
-                            }
-                            tags__ = Some(
-                                map_.next_value::<std::collections::BTreeMap<_, _>>()?,
-                            );
-                        }
-                        GeneratedField::__SkipField__ => {
-                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                    }
-                }
-                Ok(DnsPolicy {
-                    name: name__.unwrap_or_default(),
-                    project_default: project_default__.unwrap_or_default(),
-                    relay_enabled: relay_enabled__.unwrap_or_default(),
-                    upstream_servers: upstream_servers__.unwrap_or_default(),
-                    create_time: create_time__,
-                    creator: creator__.unwrap_or_default(),
-                    tags: tags__.unwrap_or_default(),
-                })
-            }
-        }
-        deserializer
-            .deserialize_struct(
-                "origincloud.network.v1beta1.DnsPolicy",
-                FIELDS,
-                GeneratedVisitor,
-            )
-    }
-}
-impl serde::Serialize for DnsPolicyAssociation {
-    #[allow(deprecated)]
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut len = 0;
-        if !self.name.is_empty() {
-            len += 1;
-        }
-        if !self.dns_policy.is_empty() {
-            len += 1;
-        }
-        let mut struct_ser = serializer
-            .serialize_struct("origincloud.network.v1beta1.DnsPolicyAssociation", len)?;
-        if !self.name.is_empty() {
-            struct_ser.serialize_field("name", &self.name)?;
-        }
-        if !self.dns_policy.is_empty() {
-            struct_ser.serialize_field("dnsPolicy", &self.dns_policy)?;
-        }
-        struct_ser.end()
-    }
-}
-impl<'de> serde::Deserialize<'de> for DnsPolicyAssociation {
-    #[allow(deprecated)]
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &[&str] = &["name", "dns_policy", "dnsPolicy"];
-        #[allow(clippy::enum_variant_names)]
-        enum GeneratedField {
-            Name,
-            DnsPolicy,
-            __SkipField__,
-        }
-        impl<'de> serde::Deserialize<'de> for GeneratedField {
-            fn deserialize<D>(
-                deserializer: D,
-            ) -> std::result::Result<GeneratedField, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct GeneratedVisitor;
-                impl serde::de::Visitor<'_> for GeneratedVisitor {
-                    type Value = GeneratedField;
-                    fn expecting(
-                        &self,
-                        formatter: &mut std::fmt::Formatter<'_>,
-                    ) -> std::fmt::Result {
-                        write!(formatter, "expected one of: {:?}", & FIELDS)
-                    }
-                    #[allow(unused_variables)]
-                    fn visit_str<E>(
-                        self,
-                        value: &str,
-                    ) -> std::result::Result<GeneratedField, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match value {
-                            "name" => Ok(GeneratedField::Name),
-                            "dnsPolicy" | "dns_policy" => Ok(GeneratedField::DnsPolicy),
-                            _ => Ok(GeneratedField::__SkipField__),
-                        }
-                    }
-                }
-                deserializer.deserialize_identifier(GeneratedVisitor)
-            }
-        }
-        struct GeneratedVisitor;
-        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = DnsPolicyAssociation;
-            fn expecting(
-                &self,
-                formatter: &mut std::fmt::Formatter<'_>,
-            ) -> std::fmt::Result {
-                formatter
-                    .write_str("struct origincloud.network.v1beta1.DnsPolicyAssociation")
-            }
-            fn visit_map<V>(
-                self,
-                mut map_: V,
-            ) -> std::result::Result<DnsPolicyAssociation, V::Error>
-            where
-                V: serde::de::MapAccess<'de>,
-            {
-                let mut name__ = None;
-                let mut dns_policy__ = None;
-                while let Some(k) = map_.next_key()? {
-                    match k {
-                        GeneratedField::Name => {
-                            if name__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("name"));
-                            }
-                            name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::DnsPolicy => {
-                            if dns_policy__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("dnsPolicy"));
-                            }
-                            dns_policy__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::__SkipField__ => {
-                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                    }
-                }
-                Ok(DnsPolicyAssociation {
-                    name: name__.unwrap_or_default(),
-                    dns_policy: dns_policy__.unwrap_or_default(),
-                })
-            }
-        }
-        deserializer
-            .deserialize_struct(
-                "origincloud.network.v1beta1.DnsPolicyAssociation",
-                FIELDS,
-                GeneratedVisitor,
-            )
-    }
-}
 impl serde::Serialize for FloatingIp {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -9029,227 +8682,6 @@ impl<'de> serde::Deserialize<'de> for GetAclRuleRequest {
             )
     }
 }
-impl serde::Serialize for GetDnsPolicyAssociationRequest {
-    #[allow(deprecated)]
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut len = 0;
-        if !self.name.is_empty() {
-            len += 1;
-        }
-        let mut struct_ser = serializer
-            .serialize_struct(
-                "origincloud.network.v1beta1.GetDnsPolicyAssociationRequest",
-                len,
-            )?;
-        if !self.name.is_empty() {
-            struct_ser.serialize_field("name", &self.name)?;
-        }
-        struct_ser.end()
-    }
-}
-impl<'de> serde::Deserialize<'de> for GetDnsPolicyAssociationRequest {
-    #[allow(deprecated)]
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &[&str] = &["name"];
-        #[allow(clippy::enum_variant_names)]
-        enum GeneratedField {
-            Name,
-            __SkipField__,
-        }
-        impl<'de> serde::Deserialize<'de> for GeneratedField {
-            fn deserialize<D>(
-                deserializer: D,
-            ) -> std::result::Result<GeneratedField, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct GeneratedVisitor;
-                impl serde::de::Visitor<'_> for GeneratedVisitor {
-                    type Value = GeneratedField;
-                    fn expecting(
-                        &self,
-                        formatter: &mut std::fmt::Formatter<'_>,
-                    ) -> std::fmt::Result {
-                        write!(formatter, "expected one of: {:?}", & FIELDS)
-                    }
-                    #[allow(unused_variables)]
-                    fn visit_str<E>(
-                        self,
-                        value: &str,
-                    ) -> std::result::Result<GeneratedField, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match value {
-                            "name" => Ok(GeneratedField::Name),
-                            _ => Ok(GeneratedField::__SkipField__),
-                        }
-                    }
-                }
-                deserializer.deserialize_identifier(GeneratedVisitor)
-            }
-        }
-        struct GeneratedVisitor;
-        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = GetDnsPolicyAssociationRequest;
-            fn expecting(
-                &self,
-                formatter: &mut std::fmt::Formatter<'_>,
-            ) -> std::fmt::Result {
-                formatter
-                    .write_str(
-                        "struct origincloud.network.v1beta1.GetDnsPolicyAssociationRequest",
-                    )
-            }
-            fn visit_map<V>(
-                self,
-                mut map_: V,
-            ) -> std::result::Result<GetDnsPolicyAssociationRequest, V::Error>
-            where
-                V: serde::de::MapAccess<'de>,
-            {
-                let mut name__ = None;
-                while let Some(k) = map_.next_key()? {
-                    match k {
-                        GeneratedField::Name => {
-                            if name__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("name"));
-                            }
-                            name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::__SkipField__ => {
-                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                    }
-                }
-                Ok(GetDnsPolicyAssociationRequest {
-                    name: name__.unwrap_or_default(),
-                })
-            }
-        }
-        deserializer
-            .deserialize_struct(
-                "origincloud.network.v1beta1.GetDnsPolicyAssociationRequest",
-                FIELDS,
-                GeneratedVisitor,
-            )
-    }
-}
-impl serde::Serialize for GetDnsPolicyRequest {
-    #[allow(deprecated)]
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut len = 0;
-        if !self.name.is_empty() {
-            len += 1;
-        }
-        let mut struct_ser = serializer
-            .serialize_struct("origincloud.network.v1beta1.GetDnsPolicyRequest", len)?;
-        if !self.name.is_empty() {
-            struct_ser.serialize_field("name", &self.name)?;
-        }
-        struct_ser.end()
-    }
-}
-impl<'de> serde::Deserialize<'de> for GetDnsPolicyRequest {
-    #[allow(deprecated)]
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &[&str] = &["name"];
-        #[allow(clippy::enum_variant_names)]
-        enum GeneratedField {
-            Name,
-            __SkipField__,
-        }
-        impl<'de> serde::Deserialize<'de> for GeneratedField {
-            fn deserialize<D>(
-                deserializer: D,
-            ) -> std::result::Result<GeneratedField, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct GeneratedVisitor;
-                impl serde::de::Visitor<'_> for GeneratedVisitor {
-                    type Value = GeneratedField;
-                    fn expecting(
-                        &self,
-                        formatter: &mut std::fmt::Formatter<'_>,
-                    ) -> std::fmt::Result {
-                        write!(formatter, "expected one of: {:?}", & FIELDS)
-                    }
-                    #[allow(unused_variables)]
-                    fn visit_str<E>(
-                        self,
-                        value: &str,
-                    ) -> std::result::Result<GeneratedField, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match value {
-                            "name" => Ok(GeneratedField::Name),
-                            _ => Ok(GeneratedField::__SkipField__),
-                        }
-                    }
-                }
-                deserializer.deserialize_identifier(GeneratedVisitor)
-            }
-        }
-        struct GeneratedVisitor;
-        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = GetDnsPolicyRequest;
-            fn expecting(
-                &self,
-                formatter: &mut std::fmt::Formatter<'_>,
-            ) -> std::fmt::Result {
-                formatter
-                    .write_str("struct origincloud.network.v1beta1.GetDnsPolicyRequest")
-            }
-            fn visit_map<V>(
-                self,
-                mut map_: V,
-            ) -> std::result::Result<GetDnsPolicyRequest, V::Error>
-            where
-                V: serde::de::MapAccess<'de>,
-            {
-                let mut name__ = None;
-                while let Some(k) = map_.next_key()? {
-                    match k {
-                        GeneratedField::Name => {
-                            if name__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("name"));
-                            }
-                            name__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::__SkipField__ => {
-                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                    }
-                }
-                Ok(GetDnsPolicyRequest {
-                    name: name__.unwrap_or_default(),
-                })
-            }
-        }
-        deserializer
-            .deserialize_struct(
-                "origincloud.network.v1beta1.GetDnsPolicyRequest",
-                FIELDS,
-                GeneratedVisitor,
-            )
-    }
-}
 impl serde::Serialize for GetFloatingIpAssociationRequest {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -9800,6 +9232,232 @@ impl<'de> serde::Deserialize<'de> for GetNetworkInterfaceRequest {
         deserializer
             .deserialize_struct(
                 "origincloud.network.v1beta1.GetNetworkInterfaceRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for GetResolverPolicyAssociationRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.network.v1beta1.GetResolverPolicyAssociationRequest",
+                len,
+            )?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for GetResolverPolicyAssociationRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["name"];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = GetResolverPolicyAssociationRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.network.v1beta1.GetResolverPolicyAssociationRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<GetResolverPolicyAssociationRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(GetResolverPolicyAssociationRequest {
+                    name: name__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.network.v1beta1.GetResolverPolicyAssociationRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for GetResolverPolicyRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.network.v1beta1.GetResolverPolicyRequest",
+                len,
+            )?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for GetResolverPolicyRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["name"];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = GetResolverPolicyRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.network.v1beta1.GetResolverPolicyRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<GetResolverPolicyRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(GetResolverPolicyRequest {
+                    name: name__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.network.v1beta1.GetResolverPolicyRequest",
                 FIELDS,
                 GeneratedVisitor,
             )
@@ -11743,605 +11401,6 @@ impl<'de> serde::Deserialize<'de> for ListAclsResponse {
             )
     }
 }
-impl serde::Serialize for ListDnsPoliciesRequest {
-    #[allow(deprecated)]
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut len = 0;
-        if !self.parent.is_empty() {
-            len += 1;
-        }
-        if self.page_size != 0 {
-            len += 1;
-        }
-        if !self.page_token.is_empty() {
-            len += 1;
-        }
-        let mut struct_ser = serializer
-            .serialize_struct(
-                "origincloud.network.v1beta1.ListDnsPoliciesRequest",
-                len,
-            )?;
-        if !self.parent.is_empty() {
-            struct_ser.serialize_field("parent", &self.parent)?;
-        }
-        if self.page_size != 0 {
-            struct_ser.serialize_field("pageSize", &self.page_size)?;
-        }
-        if !self.page_token.is_empty() {
-            struct_ser.serialize_field("pageToken", &self.page_token)?;
-        }
-        struct_ser.end()
-    }
-}
-impl<'de> serde::Deserialize<'de> for ListDnsPoliciesRequest {
-    #[allow(deprecated)]
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &[&str] = &[
-            "parent",
-            "page_size",
-            "pageSize",
-            "page_token",
-            "pageToken",
-        ];
-        #[allow(clippy::enum_variant_names)]
-        enum GeneratedField {
-            Parent,
-            PageSize,
-            PageToken,
-            __SkipField__,
-        }
-        impl<'de> serde::Deserialize<'de> for GeneratedField {
-            fn deserialize<D>(
-                deserializer: D,
-            ) -> std::result::Result<GeneratedField, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct GeneratedVisitor;
-                impl serde::de::Visitor<'_> for GeneratedVisitor {
-                    type Value = GeneratedField;
-                    fn expecting(
-                        &self,
-                        formatter: &mut std::fmt::Formatter<'_>,
-                    ) -> std::fmt::Result {
-                        write!(formatter, "expected one of: {:?}", & FIELDS)
-                    }
-                    #[allow(unused_variables)]
-                    fn visit_str<E>(
-                        self,
-                        value: &str,
-                    ) -> std::result::Result<GeneratedField, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match value {
-                            "parent" => Ok(GeneratedField::Parent),
-                            "pageSize" | "page_size" => Ok(GeneratedField::PageSize),
-                            "pageToken" | "page_token" => Ok(GeneratedField::PageToken),
-                            _ => Ok(GeneratedField::__SkipField__),
-                        }
-                    }
-                }
-                deserializer.deserialize_identifier(GeneratedVisitor)
-            }
-        }
-        struct GeneratedVisitor;
-        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = ListDnsPoliciesRequest;
-            fn expecting(
-                &self,
-                formatter: &mut std::fmt::Formatter<'_>,
-            ) -> std::fmt::Result {
-                formatter
-                    .write_str(
-                        "struct origincloud.network.v1beta1.ListDnsPoliciesRequest",
-                    )
-            }
-            fn visit_map<V>(
-                self,
-                mut map_: V,
-            ) -> std::result::Result<ListDnsPoliciesRequest, V::Error>
-            where
-                V: serde::de::MapAccess<'de>,
-            {
-                let mut parent__ = None;
-                let mut page_size__ = None;
-                let mut page_token__ = None;
-                while let Some(k) = map_.next_key()? {
-                    match k {
-                        GeneratedField::Parent => {
-                            if parent__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("parent"));
-                            }
-                            parent__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::PageSize => {
-                            if page_size__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("pageSize"));
-                            }
-                            page_size__ = Some(
-                                map_
-                                    .next_value::<::pbjson::private::NumberDeserialize<_>>()?
-                                    .0,
-                            );
-                        }
-                        GeneratedField::PageToken => {
-                            if page_token__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("pageToken"));
-                            }
-                            page_token__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::__SkipField__ => {
-                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                    }
-                }
-                Ok(ListDnsPoliciesRequest {
-                    parent: parent__.unwrap_or_default(),
-                    page_size: page_size__.unwrap_or_default(),
-                    page_token: page_token__.unwrap_or_default(),
-                })
-            }
-        }
-        deserializer
-            .deserialize_struct(
-                "origincloud.network.v1beta1.ListDnsPoliciesRequest",
-                FIELDS,
-                GeneratedVisitor,
-            )
-    }
-}
-impl serde::Serialize for ListDnsPoliciesResponse {
-    #[allow(deprecated)]
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut len = 0;
-        if !self.dns_policies.is_empty() {
-            len += 1;
-        }
-        if !self.next_page_token.is_empty() {
-            len += 1;
-        }
-        let mut struct_ser = serializer
-            .serialize_struct(
-                "origincloud.network.v1beta1.ListDnsPoliciesResponse",
-                len,
-            )?;
-        if !self.dns_policies.is_empty() {
-            struct_ser.serialize_field("dnsPolicies", &self.dns_policies)?;
-        }
-        if !self.next_page_token.is_empty() {
-            struct_ser.serialize_field("nextPageToken", &self.next_page_token)?;
-        }
-        struct_ser.end()
-    }
-}
-impl<'de> serde::Deserialize<'de> for ListDnsPoliciesResponse {
-    #[allow(deprecated)]
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &[&str] = &[
-            "dns_policies",
-            "dnsPolicies",
-            "next_page_token",
-            "nextPageToken",
-        ];
-        #[allow(clippy::enum_variant_names)]
-        enum GeneratedField {
-            DnsPolicies,
-            NextPageToken,
-            __SkipField__,
-        }
-        impl<'de> serde::Deserialize<'de> for GeneratedField {
-            fn deserialize<D>(
-                deserializer: D,
-            ) -> std::result::Result<GeneratedField, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct GeneratedVisitor;
-                impl serde::de::Visitor<'_> for GeneratedVisitor {
-                    type Value = GeneratedField;
-                    fn expecting(
-                        &self,
-                        formatter: &mut std::fmt::Formatter<'_>,
-                    ) -> std::fmt::Result {
-                        write!(formatter, "expected one of: {:?}", & FIELDS)
-                    }
-                    #[allow(unused_variables)]
-                    fn visit_str<E>(
-                        self,
-                        value: &str,
-                    ) -> std::result::Result<GeneratedField, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match value {
-                            "dnsPolicies" | "dns_policies" => {
-                                Ok(GeneratedField::DnsPolicies)
-                            }
-                            "nextPageToken" | "next_page_token" => {
-                                Ok(GeneratedField::NextPageToken)
-                            }
-                            _ => Ok(GeneratedField::__SkipField__),
-                        }
-                    }
-                }
-                deserializer.deserialize_identifier(GeneratedVisitor)
-            }
-        }
-        struct GeneratedVisitor;
-        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = ListDnsPoliciesResponse;
-            fn expecting(
-                &self,
-                formatter: &mut std::fmt::Formatter<'_>,
-            ) -> std::fmt::Result {
-                formatter
-                    .write_str(
-                        "struct origincloud.network.v1beta1.ListDnsPoliciesResponse",
-                    )
-            }
-            fn visit_map<V>(
-                self,
-                mut map_: V,
-            ) -> std::result::Result<ListDnsPoliciesResponse, V::Error>
-            where
-                V: serde::de::MapAccess<'de>,
-            {
-                let mut dns_policies__ = None;
-                let mut next_page_token__ = None;
-                while let Some(k) = map_.next_key()? {
-                    match k {
-                        GeneratedField::DnsPolicies => {
-                            if dns_policies__.is_some() {
-                                return Err(
-                                    serde::de::Error::duplicate_field("dnsPolicies"),
-                                );
-                            }
-                            dns_policies__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::NextPageToken => {
-                            if next_page_token__.is_some() {
-                                return Err(
-                                    serde::de::Error::duplicate_field("nextPageToken"),
-                                );
-                            }
-                            next_page_token__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::__SkipField__ => {
-                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                    }
-                }
-                Ok(ListDnsPoliciesResponse {
-                    dns_policies: dns_policies__.unwrap_or_default(),
-                    next_page_token: next_page_token__.unwrap_or_default(),
-                })
-            }
-        }
-        deserializer
-            .deserialize_struct(
-                "origincloud.network.v1beta1.ListDnsPoliciesResponse",
-                FIELDS,
-                GeneratedVisitor,
-            )
-    }
-}
-impl serde::Serialize for ListDnsPolicyAssociationsRequest {
-    #[allow(deprecated)]
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut len = 0;
-        if !self.parent.is_empty() {
-            len += 1;
-        }
-        if self.page_size != 0 {
-            len += 1;
-        }
-        if !self.page_token.is_empty() {
-            len += 1;
-        }
-        let mut struct_ser = serializer
-            .serialize_struct(
-                "origincloud.network.v1beta1.ListDnsPolicyAssociationsRequest",
-                len,
-            )?;
-        if !self.parent.is_empty() {
-            struct_ser.serialize_field("parent", &self.parent)?;
-        }
-        if self.page_size != 0 {
-            struct_ser.serialize_field("pageSize", &self.page_size)?;
-        }
-        if !self.page_token.is_empty() {
-            struct_ser.serialize_field("pageToken", &self.page_token)?;
-        }
-        struct_ser.end()
-    }
-}
-impl<'de> serde::Deserialize<'de> for ListDnsPolicyAssociationsRequest {
-    #[allow(deprecated)]
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &[&str] = &[
-            "parent",
-            "page_size",
-            "pageSize",
-            "page_token",
-            "pageToken",
-        ];
-        #[allow(clippy::enum_variant_names)]
-        enum GeneratedField {
-            Parent,
-            PageSize,
-            PageToken,
-            __SkipField__,
-        }
-        impl<'de> serde::Deserialize<'de> for GeneratedField {
-            fn deserialize<D>(
-                deserializer: D,
-            ) -> std::result::Result<GeneratedField, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct GeneratedVisitor;
-                impl serde::de::Visitor<'_> for GeneratedVisitor {
-                    type Value = GeneratedField;
-                    fn expecting(
-                        &self,
-                        formatter: &mut std::fmt::Formatter<'_>,
-                    ) -> std::fmt::Result {
-                        write!(formatter, "expected one of: {:?}", & FIELDS)
-                    }
-                    #[allow(unused_variables)]
-                    fn visit_str<E>(
-                        self,
-                        value: &str,
-                    ) -> std::result::Result<GeneratedField, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match value {
-                            "parent" => Ok(GeneratedField::Parent),
-                            "pageSize" | "page_size" => Ok(GeneratedField::PageSize),
-                            "pageToken" | "page_token" => Ok(GeneratedField::PageToken),
-                            _ => Ok(GeneratedField::__SkipField__),
-                        }
-                    }
-                }
-                deserializer.deserialize_identifier(GeneratedVisitor)
-            }
-        }
-        struct GeneratedVisitor;
-        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = ListDnsPolicyAssociationsRequest;
-            fn expecting(
-                &self,
-                formatter: &mut std::fmt::Formatter<'_>,
-            ) -> std::fmt::Result {
-                formatter
-                    .write_str(
-                        "struct origincloud.network.v1beta1.ListDnsPolicyAssociationsRequest",
-                    )
-            }
-            fn visit_map<V>(
-                self,
-                mut map_: V,
-            ) -> std::result::Result<ListDnsPolicyAssociationsRequest, V::Error>
-            where
-                V: serde::de::MapAccess<'de>,
-            {
-                let mut parent__ = None;
-                let mut page_size__ = None;
-                let mut page_token__ = None;
-                while let Some(k) = map_.next_key()? {
-                    match k {
-                        GeneratedField::Parent => {
-                            if parent__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("parent"));
-                            }
-                            parent__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::PageSize => {
-                            if page_size__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("pageSize"));
-                            }
-                            page_size__ = Some(
-                                map_
-                                    .next_value::<::pbjson::private::NumberDeserialize<_>>()?
-                                    .0,
-                            );
-                        }
-                        GeneratedField::PageToken => {
-                            if page_token__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("pageToken"));
-                            }
-                            page_token__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::__SkipField__ => {
-                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                    }
-                }
-                Ok(ListDnsPolicyAssociationsRequest {
-                    parent: parent__.unwrap_or_default(),
-                    page_size: page_size__.unwrap_or_default(),
-                    page_token: page_token__.unwrap_or_default(),
-                })
-            }
-        }
-        deserializer
-            .deserialize_struct(
-                "origincloud.network.v1beta1.ListDnsPolicyAssociationsRequest",
-                FIELDS,
-                GeneratedVisitor,
-            )
-    }
-}
-impl serde::Serialize for ListDnsPolicyAssociationsResponse {
-    #[allow(deprecated)]
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut len = 0;
-        if !self.dns_policy_associations.is_empty() {
-            len += 1;
-        }
-        if !self.next_page_token.is_empty() {
-            len += 1;
-        }
-        let mut struct_ser = serializer
-            .serialize_struct(
-                "origincloud.network.v1beta1.ListDnsPolicyAssociationsResponse",
-                len,
-            )?;
-        if !self.dns_policy_associations.is_empty() {
-            struct_ser
-                .serialize_field(
-                    "dnsPolicyAssociations",
-                    &self.dns_policy_associations,
-                )?;
-        }
-        if !self.next_page_token.is_empty() {
-            struct_ser.serialize_field("nextPageToken", &self.next_page_token)?;
-        }
-        struct_ser.end()
-    }
-}
-impl<'de> serde::Deserialize<'de> for ListDnsPolicyAssociationsResponse {
-    #[allow(deprecated)]
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &[&str] = &[
-            "dns_policy_associations",
-            "dnsPolicyAssociations",
-            "next_page_token",
-            "nextPageToken",
-        ];
-        #[allow(clippy::enum_variant_names)]
-        enum GeneratedField {
-            DnsPolicyAssociations,
-            NextPageToken,
-            __SkipField__,
-        }
-        impl<'de> serde::Deserialize<'de> for GeneratedField {
-            fn deserialize<D>(
-                deserializer: D,
-            ) -> std::result::Result<GeneratedField, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct GeneratedVisitor;
-                impl serde::de::Visitor<'_> for GeneratedVisitor {
-                    type Value = GeneratedField;
-                    fn expecting(
-                        &self,
-                        formatter: &mut std::fmt::Formatter<'_>,
-                    ) -> std::fmt::Result {
-                        write!(formatter, "expected one of: {:?}", & FIELDS)
-                    }
-                    #[allow(unused_variables)]
-                    fn visit_str<E>(
-                        self,
-                        value: &str,
-                    ) -> std::result::Result<GeneratedField, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match value {
-                            "dnsPolicyAssociations" | "dns_policy_associations" => {
-                                Ok(GeneratedField::DnsPolicyAssociations)
-                            }
-                            "nextPageToken" | "next_page_token" => {
-                                Ok(GeneratedField::NextPageToken)
-                            }
-                            _ => Ok(GeneratedField::__SkipField__),
-                        }
-                    }
-                }
-                deserializer.deserialize_identifier(GeneratedVisitor)
-            }
-        }
-        struct GeneratedVisitor;
-        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = ListDnsPolicyAssociationsResponse;
-            fn expecting(
-                &self,
-                formatter: &mut std::fmt::Formatter<'_>,
-            ) -> std::fmt::Result {
-                formatter
-                    .write_str(
-                        "struct origincloud.network.v1beta1.ListDnsPolicyAssociationsResponse",
-                    )
-            }
-            fn visit_map<V>(
-                self,
-                mut map_: V,
-            ) -> std::result::Result<ListDnsPolicyAssociationsResponse, V::Error>
-            where
-                V: serde::de::MapAccess<'de>,
-            {
-                let mut dns_policy_associations__ = None;
-                let mut next_page_token__ = None;
-                while let Some(k) = map_.next_key()? {
-                    match k {
-                        GeneratedField::DnsPolicyAssociations => {
-                            if dns_policy_associations__.is_some() {
-                                return Err(
-                                    serde::de::Error::duplicate_field("dnsPolicyAssociations"),
-                                );
-                            }
-                            dns_policy_associations__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::NextPageToken => {
-                            if next_page_token__.is_some() {
-                                return Err(
-                                    serde::de::Error::duplicate_field("nextPageToken"),
-                                );
-                            }
-                            next_page_token__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::__SkipField__ => {
-                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                    }
-                }
-                Ok(ListDnsPolicyAssociationsResponse {
-                    dns_policy_associations: dns_policy_associations__
-                        .unwrap_or_default(),
-                    next_page_token: next_page_token__.unwrap_or_default(),
-                })
-            }
-        }
-        deserializer
-            .deserialize_struct(
-                "origincloud.network.v1beta1.ListDnsPolicyAssociationsResponse",
-                FIELDS,
-                GeneratedVisitor,
-            )
-    }
-}
 impl serde::Serialize for ListFloatingIpAssociationsRequest {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -13861,6 +12920,608 @@ impl<'de> serde::Deserialize<'de> for ListNetworkInterfacesResponse {
         deserializer
             .deserialize_struct(
                 "origincloud.network.v1beta1.ListNetworkInterfacesResponse",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for ListResolverPoliciesRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.parent.is_empty() {
+            len += 1;
+        }
+        if self.page_size != 0 {
+            len += 1;
+        }
+        if !self.page_token.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.network.v1beta1.ListResolverPoliciesRequest",
+                len,
+            )?;
+        if !self.parent.is_empty() {
+            struct_ser.serialize_field("parent", &self.parent)?;
+        }
+        if self.page_size != 0 {
+            struct_ser.serialize_field("pageSize", &self.page_size)?;
+        }
+        if !self.page_token.is_empty() {
+            struct_ser.serialize_field("pageToken", &self.page_token)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for ListResolverPoliciesRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "parent",
+            "page_size",
+            "pageSize",
+            "page_token",
+            "pageToken",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Parent,
+            PageSize,
+            PageToken,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "parent" => Ok(GeneratedField::Parent),
+                            "pageSize" | "page_size" => Ok(GeneratedField::PageSize),
+                            "pageToken" | "page_token" => Ok(GeneratedField::PageToken),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = ListResolverPoliciesRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.network.v1beta1.ListResolverPoliciesRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<ListResolverPoliciesRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut parent__ = None;
+                let mut page_size__ = None;
+                let mut page_token__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Parent => {
+                            if parent__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("parent"));
+                            }
+                            parent__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::PageSize => {
+                            if page_size__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("pageSize"));
+                            }
+                            page_size__ = Some(
+                                map_
+                                    .next_value::<::pbjson::private::NumberDeserialize<_>>()?
+                                    .0,
+                            );
+                        }
+                        GeneratedField::PageToken => {
+                            if page_token__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("pageToken"));
+                            }
+                            page_token__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(ListResolverPoliciesRequest {
+                    parent: parent__.unwrap_or_default(),
+                    page_size: page_size__.unwrap_or_default(),
+                    page_token: page_token__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.network.v1beta1.ListResolverPoliciesRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for ListResolverPoliciesResponse {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.resolver_policies.is_empty() {
+            len += 1;
+        }
+        if !self.next_page_token.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.network.v1beta1.ListResolverPoliciesResponse",
+                len,
+            )?;
+        if !self.resolver_policies.is_empty() {
+            struct_ser.serialize_field("resolverPolicies", &self.resolver_policies)?;
+        }
+        if !self.next_page_token.is_empty() {
+            struct_ser.serialize_field("nextPageToken", &self.next_page_token)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for ListResolverPoliciesResponse {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "resolver_policies",
+            "resolverPolicies",
+            "next_page_token",
+            "nextPageToken",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            ResolverPolicies,
+            NextPageToken,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "resolverPolicies" | "resolver_policies" => {
+                                Ok(GeneratedField::ResolverPolicies)
+                            }
+                            "nextPageToken" | "next_page_token" => {
+                                Ok(GeneratedField::NextPageToken)
+                            }
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = ListResolverPoliciesResponse;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.network.v1beta1.ListResolverPoliciesResponse",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<ListResolverPoliciesResponse, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut resolver_policies__ = None;
+                let mut next_page_token__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::ResolverPolicies => {
+                            if resolver_policies__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("resolverPolicies"),
+                                );
+                            }
+                            resolver_policies__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::NextPageToken => {
+                            if next_page_token__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("nextPageToken"),
+                                );
+                            }
+                            next_page_token__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(ListResolverPoliciesResponse {
+                    resolver_policies: resolver_policies__.unwrap_or_default(),
+                    next_page_token: next_page_token__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.network.v1beta1.ListResolverPoliciesResponse",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for ListResolverPolicyAssociationsRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.parent.is_empty() {
+            len += 1;
+        }
+        if self.page_size != 0 {
+            len += 1;
+        }
+        if !self.page_token.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.network.v1beta1.ListResolverPolicyAssociationsRequest",
+                len,
+            )?;
+        if !self.parent.is_empty() {
+            struct_ser.serialize_field("parent", &self.parent)?;
+        }
+        if self.page_size != 0 {
+            struct_ser.serialize_field("pageSize", &self.page_size)?;
+        }
+        if !self.page_token.is_empty() {
+            struct_ser.serialize_field("pageToken", &self.page_token)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for ListResolverPolicyAssociationsRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "parent",
+            "page_size",
+            "pageSize",
+            "page_token",
+            "pageToken",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Parent,
+            PageSize,
+            PageToken,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "parent" => Ok(GeneratedField::Parent),
+                            "pageSize" | "page_size" => Ok(GeneratedField::PageSize),
+                            "pageToken" | "page_token" => Ok(GeneratedField::PageToken),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = ListResolverPolicyAssociationsRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.network.v1beta1.ListResolverPolicyAssociationsRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<ListResolverPolicyAssociationsRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut parent__ = None;
+                let mut page_size__ = None;
+                let mut page_token__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Parent => {
+                            if parent__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("parent"));
+                            }
+                            parent__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::PageSize => {
+                            if page_size__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("pageSize"));
+                            }
+                            page_size__ = Some(
+                                map_
+                                    .next_value::<::pbjson::private::NumberDeserialize<_>>()?
+                                    .0,
+                            );
+                        }
+                        GeneratedField::PageToken => {
+                            if page_token__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("pageToken"));
+                            }
+                            page_token__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(ListResolverPolicyAssociationsRequest {
+                    parent: parent__.unwrap_or_default(),
+                    page_size: page_size__.unwrap_or_default(),
+                    page_token: page_token__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.network.v1beta1.ListResolverPolicyAssociationsRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for ListResolverPolicyAssociationsResponse {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.resolver_policy_associations.is_empty() {
+            len += 1;
+        }
+        if !self.next_page_token.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.network.v1beta1.ListResolverPolicyAssociationsResponse",
+                len,
+            )?;
+        if !self.resolver_policy_associations.is_empty() {
+            struct_ser
+                .serialize_field(
+                    "resolverPolicyAssociations",
+                    &self.resolver_policy_associations,
+                )?;
+        }
+        if !self.next_page_token.is_empty() {
+            struct_ser.serialize_field("nextPageToken", &self.next_page_token)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for ListResolverPolicyAssociationsResponse {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "resolver_policy_associations",
+            "resolverPolicyAssociations",
+            "next_page_token",
+            "nextPageToken",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            ResolverPolicyAssociations,
+            NextPageToken,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "resolverPolicyAssociations"
+                            | "resolver_policy_associations" => {
+                                Ok(GeneratedField::ResolverPolicyAssociations)
+                            }
+                            "nextPageToken" | "next_page_token" => {
+                                Ok(GeneratedField::NextPageToken)
+                            }
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = ListResolverPolicyAssociationsResponse;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.network.v1beta1.ListResolverPolicyAssociationsResponse",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<ListResolverPolicyAssociationsResponse, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut resolver_policy_associations__ = None;
+                let mut next_page_token__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::ResolverPolicyAssociations => {
+                            if resolver_policy_associations__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field(
+                                        "resolverPolicyAssociations",
+                                    ),
+                                );
+                            }
+                            resolver_policy_associations__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::NextPageToken => {
+                            if next_page_token__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("nextPageToken"),
+                                );
+                            }
+                            next_page_token__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(ListResolverPolicyAssociationsResponse {
+                    resolver_policy_associations: resolver_policy_associations__
+                        .unwrap_or_default(),
+                    next_page_token: next_page_token__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.network.v1beta1.ListResolverPolicyAssociationsResponse",
                 FIELDS,
                 GeneratedVisitor,
             )
@@ -16862,6 +16523,370 @@ impl<'de> serde::Deserialize<'de> for network_interface::State {
         deserializer.deserialize_any(GeneratedVisitor)
     }
 }
+impl serde::Serialize for ResolverPolicy {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        if self.project_default {
+            len += 1;
+        }
+        if self.relay_enabled {
+            len += 1;
+        }
+        if !self.upstream_servers.is_empty() {
+            len += 1;
+        }
+        if self.create_time.is_some() {
+            len += 1;
+        }
+        if !self.creator.is_empty() {
+            len += 1;
+        }
+        if !self.tags.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct("origincloud.network.v1beta1.ResolverPolicy", len)?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        if self.project_default {
+            struct_ser.serialize_field("projectDefault", &self.project_default)?;
+        }
+        if self.relay_enabled {
+            struct_ser.serialize_field("relayEnabled", &self.relay_enabled)?;
+        }
+        if !self.upstream_servers.is_empty() {
+            struct_ser.serialize_field("upstreamServers", &self.upstream_servers)?;
+        }
+        if let Some(v) = self.create_time.as_ref() {
+            struct_ser.serialize_field("createTime", v)?;
+        }
+        if !self.creator.is_empty() {
+            struct_ser.serialize_field("creator", &self.creator)?;
+        }
+        if !self.tags.is_empty() {
+            struct_ser.serialize_field("tags", &self.tags)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for ResolverPolicy {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "name",
+            "project_default",
+            "projectDefault",
+            "relay_enabled",
+            "relayEnabled",
+            "upstream_servers",
+            "upstreamServers",
+            "create_time",
+            "createTime",
+            "creator",
+            "tags",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            ProjectDefault,
+            RelayEnabled,
+            UpstreamServers,
+            CreateTime,
+            Creator,
+            Tags,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            "projectDefault" | "project_default" => {
+                                Ok(GeneratedField::ProjectDefault)
+                            }
+                            "relayEnabled" | "relay_enabled" => {
+                                Ok(GeneratedField::RelayEnabled)
+                            }
+                            "upstreamServers" | "upstream_servers" => {
+                                Ok(GeneratedField::UpstreamServers)
+                            }
+                            "createTime" | "create_time" => {
+                                Ok(GeneratedField::CreateTime)
+                            }
+                            "creator" => Ok(GeneratedField::Creator),
+                            "tags" => Ok(GeneratedField::Tags),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = ResolverPolicy;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter.write_str("struct origincloud.network.v1beta1.ResolverPolicy")
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<ResolverPolicy, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                let mut project_default__ = None;
+                let mut relay_enabled__ = None;
+                let mut upstream_servers__ = None;
+                let mut create_time__ = None;
+                let mut creator__ = None;
+                let mut tags__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::ProjectDefault => {
+                            if project_default__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("projectDefault"),
+                                );
+                            }
+                            project_default__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::RelayEnabled => {
+                            if relay_enabled__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("relayEnabled"),
+                                );
+                            }
+                            relay_enabled__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::UpstreamServers => {
+                            if upstream_servers__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("upstreamServers"),
+                                );
+                            }
+                            upstream_servers__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::CreateTime => {
+                            if create_time__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("createTime"));
+                            }
+                            create_time__ = map_.next_value()?;
+                        }
+                        GeneratedField::Creator => {
+                            if creator__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("creator"));
+                            }
+                            creator__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::Tags => {
+                            if tags__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("tags"));
+                            }
+                            tags__ = Some(
+                                map_.next_value::<std::collections::BTreeMap<_, _>>()?,
+                            );
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(ResolverPolicy {
+                    name: name__.unwrap_or_default(),
+                    project_default: project_default__.unwrap_or_default(),
+                    relay_enabled: relay_enabled__.unwrap_or_default(),
+                    upstream_servers: upstream_servers__.unwrap_or_default(),
+                    create_time: create_time__,
+                    creator: creator__.unwrap_or_default(),
+                    tags: tags__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.network.v1beta1.ResolverPolicy",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for ResolverPolicyAssociation {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        if !self.resolver_policy.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.network.v1beta1.ResolverPolicyAssociation",
+                len,
+            )?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        if !self.resolver_policy.is_empty() {
+            struct_ser.serialize_field("resolverPolicy", &self.resolver_policy)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for ResolverPolicyAssociation {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["name", "resolver_policy", "resolverPolicy"];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            ResolverPolicy,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            "resolverPolicy" | "resolver_policy" => {
+                                Ok(GeneratedField::ResolverPolicy)
+                            }
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = ResolverPolicyAssociation;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.network.v1beta1.ResolverPolicyAssociation",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<ResolverPolicyAssociation, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                let mut resolver_policy__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::ResolverPolicy => {
+                            if resolver_policy__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("resolverPolicy"),
+                                );
+                            }
+                            resolver_policy__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(ResolverPolicyAssociation {
+                    name: name__.unwrap_or_default(),
+                    resolver_policy: resolver_policy__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.network.v1beta1.ResolverPolicyAssociation",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
 impl serde::Serialize for Route {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -18164,7 +18189,7 @@ impl<'de> serde::Deserialize<'de> for security_group_rule::Protocol {
         deserializer.deserialize_any(GeneratedVisitor)
     }
 }
-impl serde::Serialize for SetDefaultDnsPolicyRequest {
+impl serde::Serialize for SetDefaultResolverPolicyRequest {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
@@ -18180,7 +18205,7 @@ impl serde::Serialize for SetDefaultDnsPolicyRequest {
         }
         let mut struct_ser = serializer
             .serialize_struct(
-                "origincloud.network.v1beta1.SetDefaultDnsPolicyRequest",
+                "origincloud.network.v1beta1.SetDefaultResolverPolicyRequest",
                 len,
             )?;
         if !self.name.is_empty() {
@@ -18192,7 +18217,7 @@ impl serde::Serialize for SetDefaultDnsPolicyRequest {
         struct_ser.end()
     }
 }
-impl<'de> serde::Deserialize<'de> for SetDefaultDnsPolicyRequest {
+impl<'de> serde::Deserialize<'de> for SetDefaultResolverPolicyRequest {
     #[allow(deprecated)]
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
@@ -18241,20 +18266,20 @@ impl<'de> serde::Deserialize<'de> for SetDefaultDnsPolicyRequest {
         }
         struct GeneratedVisitor;
         impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = SetDefaultDnsPolicyRequest;
+            type Value = SetDefaultResolverPolicyRequest;
             fn expecting(
                 &self,
                 formatter: &mut std::fmt::Formatter<'_>,
             ) -> std::fmt::Result {
                 formatter
                     .write_str(
-                        "struct origincloud.network.v1beta1.SetDefaultDnsPolicyRequest",
+                        "struct origincloud.network.v1beta1.SetDefaultResolverPolicyRequest",
                     )
             }
             fn visit_map<V>(
                 self,
                 mut map_: V,
-            ) -> std::result::Result<SetDefaultDnsPolicyRequest, V::Error>
+            ) -> std::result::Result<SetDefaultResolverPolicyRequest, V::Error>
             where
                 V: serde::de::MapAccess<'de>,
             {
@@ -18279,7 +18304,7 @@ impl<'de> serde::Deserialize<'de> for SetDefaultDnsPolicyRequest {
                         }
                     }
                 }
-                Ok(SetDefaultDnsPolicyRequest {
+                Ok(SetDefaultResolverPolicyRequest {
                     name: name__.unwrap_or_default(),
                     request_id: request_id__.unwrap_or_default(),
                 })
@@ -18287,7 +18312,7 @@ impl<'de> serde::Deserialize<'de> for SetDefaultDnsPolicyRequest {
         }
         deserializer
             .deserialize_struct(
-                "origincloud.network.v1beta1.SetDefaultDnsPolicyRequest",
+                "origincloud.network.v1beta1.SetDefaultResolverPolicyRequest",
                 FIELDS,
                 GeneratedVisitor,
             )
@@ -18843,160 +18868,6 @@ impl<'de> serde::Deserialize<'de> for UpdateAclRequest {
         deserializer
             .deserialize_struct(
                 "origincloud.network.v1beta1.UpdateAclRequest",
-                FIELDS,
-                GeneratedVisitor,
-            )
-    }
-}
-impl serde::Serialize for UpdateDnsPolicyRequest {
-    #[allow(deprecated)]
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut len = 0;
-        if self.dns_policy.is_some() {
-            len += 1;
-        }
-        if self.update_mask.is_some() {
-            len += 1;
-        }
-        if !self.request_id.is_empty() {
-            len += 1;
-        }
-        let mut struct_ser = serializer
-            .serialize_struct(
-                "origincloud.network.v1beta1.UpdateDnsPolicyRequest",
-                len,
-            )?;
-        if let Some(v) = self.dns_policy.as_ref() {
-            struct_ser.serialize_field("dnsPolicy", v)?;
-        }
-        if let Some(v) = self.update_mask.as_ref() {
-            struct_ser.serialize_field("updateMask", v)?;
-        }
-        if !self.request_id.is_empty() {
-            struct_ser.serialize_field("requestId", &self.request_id)?;
-        }
-        struct_ser.end()
-    }
-}
-impl<'de> serde::Deserialize<'de> for UpdateDnsPolicyRequest {
-    #[allow(deprecated)]
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const FIELDS: &[&str] = &[
-            "dns_policy",
-            "dnsPolicy",
-            "update_mask",
-            "updateMask",
-            "request_id",
-            "requestId",
-        ];
-        #[allow(clippy::enum_variant_names)]
-        enum GeneratedField {
-            DnsPolicy,
-            UpdateMask,
-            RequestId,
-            __SkipField__,
-        }
-        impl<'de> serde::Deserialize<'de> for GeneratedField {
-            fn deserialize<D>(
-                deserializer: D,
-            ) -> std::result::Result<GeneratedField, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct GeneratedVisitor;
-                impl serde::de::Visitor<'_> for GeneratedVisitor {
-                    type Value = GeneratedField;
-                    fn expecting(
-                        &self,
-                        formatter: &mut std::fmt::Formatter<'_>,
-                    ) -> std::fmt::Result {
-                        write!(formatter, "expected one of: {:?}", & FIELDS)
-                    }
-                    #[allow(unused_variables)]
-                    fn visit_str<E>(
-                        self,
-                        value: &str,
-                    ) -> std::result::Result<GeneratedField, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match value {
-                            "dnsPolicy" | "dns_policy" => Ok(GeneratedField::DnsPolicy),
-                            "updateMask" | "update_mask" => {
-                                Ok(GeneratedField::UpdateMask)
-                            }
-                            "requestId" | "request_id" => Ok(GeneratedField::RequestId),
-                            _ => Ok(GeneratedField::__SkipField__),
-                        }
-                    }
-                }
-                deserializer.deserialize_identifier(GeneratedVisitor)
-            }
-        }
-        struct GeneratedVisitor;
-        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
-            type Value = UpdateDnsPolicyRequest;
-            fn expecting(
-                &self,
-                formatter: &mut std::fmt::Formatter<'_>,
-            ) -> std::fmt::Result {
-                formatter
-                    .write_str(
-                        "struct origincloud.network.v1beta1.UpdateDnsPolicyRequest",
-                    )
-            }
-            fn visit_map<V>(
-                self,
-                mut map_: V,
-            ) -> std::result::Result<UpdateDnsPolicyRequest, V::Error>
-            where
-                V: serde::de::MapAccess<'de>,
-            {
-                let mut dns_policy__ = None;
-                let mut update_mask__ = None;
-                let mut request_id__ = None;
-                while let Some(k) = map_.next_key()? {
-                    match k {
-                        GeneratedField::DnsPolicy => {
-                            if dns_policy__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("dnsPolicy"));
-                            }
-                            dns_policy__ = map_.next_value()?;
-                        }
-                        GeneratedField::UpdateMask => {
-                            if update_mask__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("updateMask"));
-                            }
-                            update_mask__ = map_.next_value()?;
-                        }
-                        GeneratedField::RequestId => {
-                            if request_id__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("requestId"));
-                            }
-                            request_id__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::__SkipField__ => {
-                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                    }
-                }
-                Ok(UpdateDnsPolicyRequest {
-                    dns_policy: dns_policy__,
-                    update_mask: update_mask__,
-                    request_id: request_id__.unwrap_or_default(),
-                })
-            }
-        }
-        deserializer
-            .deserialize_struct(
-                "origincloud.network.v1beta1.UpdateDnsPolicyRequest",
                 FIELDS,
                 GeneratedVisitor,
             )
@@ -19625,6 +19496,164 @@ impl<'de> serde::Deserialize<'de> for UpdateNetworkInterfaceRequest {
         deserializer
             .deserialize_struct(
                 "origincloud.network.v1beta1.UpdateNetworkInterfaceRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for UpdateResolverPolicyRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if self.resolver_policy.is_some() {
+            len += 1;
+        }
+        if self.update_mask.is_some() {
+            len += 1;
+        }
+        if !self.request_id.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.network.v1beta1.UpdateResolverPolicyRequest",
+                len,
+            )?;
+        if let Some(v) = self.resolver_policy.as_ref() {
+            struct_ser.serialize_field("resolverPolicy", v)?;
+        }
+        if let Some(v) = self.update_mask.as_ref() {
+            struct_ser.serialize_field("updateMask", v)?;
+        }
+        if !self.request_id.is_empty() {
+            struct_ser.serialize_field("requestId", &self.request_id)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for UpdateResolverPolicyRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "resolver_policy",
+            "resolverPolicy",
+            "update_mask",
+            "updateMask",
+            "request_id",
+            "requestId",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            ResolverPolicy,
+            UpdateMask,
+            RequestId,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "resolverPolicy" | "resolver_policy" => {
+                                Ok(GeneratedField::ResolverPolicy)
+                            }
+                            "updateMask" | "update_mask" => {
+                                Ok(GeneratedField::UpdateMask)
+                            }
+                            "requestId" | "request_id" => Ok(GeneratedField::RequestId),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = UpdateResolverPolicyRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.network.v1beta1.UpdateResolverPolicyRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<UpdateResolverPolicyRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut resolver_policy__ = None;
+                let mut update_mask__ = None;
+                let mut request_id__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::ResolverPolicy => {
+                            if resolver_policy__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("resolverPolicy"),
+                                );
+                            }
+                            resolver_policy__ = map_.next_value()?;
+                        }
+                        GeneratedField::UpdateMask => {
+                            if update_mask__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("updateMask"));
+                            }
+                            update_mask__ = map_.next_value()?;
+                        }
+                        GeneratedField::RequestId => {
+                            if request_id__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("requestId"));
+                            }
+                            request_id__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(UpdateResolverPolicyRequest {
+                    resolver_policy: resolver_policy__,
+                    update_mask: update_mask__,
+                    request_id: request_id__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.network.v1beta1.UpdateResolverPolicyRequest",
                 FIELDS,
                 GeneratedVisitor,
             )
@@ -20263,7 +20292,7 @@ impl serde::Serialize for Vpc {
         if self.available_subnet_count != 0 {
             len += 1;
         }
-        if !self.dns_policy.is_empty() {
+        if !self.resolver_policy.is_empty() {
             len += 1;
         }
         if !self.internet_gateway.is_empty() {
@@ -20303,8 +20332,8 @@ impl serde::Serialize for Vpc {
             struct_ser
                 .serialize_field("availableSubnetCount", &self.available_subnet_count)?;
         }
-        if !self.dns_policy.is_empty() {
-            struct_ser.serialize_field("dnsPolicy", &self.dns_policy)?;
+        if !self.resolver_policy.is_empty() {
+            struct_ser.serialize_field("resolverPolicy", &self.resolver_policy)?;
         }
         if !self.internet_gateway.is_empty() {
             struct_ser.serialize_field("internetGateway", &self.internet_gateway)?;
@@ -20340,8 +20369,8 @@ impl<'de> serde::Deserialize<'de> for Vpc {
             "subnetIpv4PrefixLength",
             "available_subnet_count",
             "availableSubnetCount",
-            "dns_policy",
-            "dnsPolicy",
+            "resolver_policy",
+            "resolverPolicy",
             "internet_gateway",
             "internetGateway",
             "project_default",
@@ -20358,7 +20387,7 @@ impl<'de> serde::Deserialize<'de> for Vpc {
             Ipv6CidrBlock,
             SubnetIpv4PrefixLength,
             AvailableSubnetCount,
-            DnsPolicy,
+            ResolverPolicy,
             InternetGateway,
             ProjectDefault,
             CreateTime,
@@ -20404,7 +20433,9 @@ impl<'de> serde::Deserialize<'de> for Vpc {
                             "availableSubnetCount" | "available_subnet_count" => {
                                 Ok(GeneratedField::AvailableSubnetCount)
                             }
-                            "dnsPolicy" | "dns_policy" => Ok(GeneratedField::DnsPolicy),
+                            "resolverPolicy" | "resolver_policy" => {
+                                Ok(GeneratedField::ResolverPolicy)
+                            }
                             "internetGateway" | "internet_gateway" => {
                                 Ok(GeneratedField::InternetGateway)
                             }
@@ -20441,7 +20472,7 @@ impl<'de> serde::Deserialize<'de> for Vpc {
                 let mut ipv6_cidr_block__ = None;
                 let mut subnet_ipv4_prefix_length__ = None;
                 let mut available_subnet_count__ = None;
-                let mut dns_policy__ = None;
+                let mut resolver_policy__ = None;
                 let mut internet_gateway__ = None;
                 let mut project_default__ = None;
                 let mut create_time__ = None;
@@ -20495,11 +20526,13 @@ impl<'de> serde::Deserialize<'de> for Vpc {
                                     .0,
                             );
                         }
-                        GeneratedField::DnsPolicy => {
-                            if dns_policy__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("dnsPolicy"));
+                        GeneratedField::ResolverPolicy => {
+                            if resolver_policy__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("resolverPolicy"),
+                                );
                             }
-                            dns_policy__ = Some(map_.next_value()?);
+                            resolver_policy__ = Some(map_.next_value()?);
                         }
                         GeneratedField::InternetGateway => {
                             if internet_gateway__.is_some() {
@@ -20549,7 +20582,7 @@ impl<'de> serde::Deserialize<'de> for Vpc {
                     subnet_ipv4_prefix_length: subnet_ipv4_prefix_length__
                         .unwrap_or_default(),
                     available_subnet_count: available_subnet_count__.unwrap_or_default(),
-                    dns_policy: dns_policy__.unwrap_or_default(),
+                    resolver_policy: resolver_policy__.unwrap_or_default(),
                     internet_gateway: internet_gateway__.unwrap_or_default(),
                     project_default: project_default__.unwrap_or_default(),
                     create_time: create_time__,
@@ -21105,445 +21138,6 @@ impl AclRuleClient {
             "name",
             &n0,
             "projects/*/regions/*/acls/*/rules/*",
-        )?;
-        request.name = n0;
-        let query = ::origincloud_core::query(&request, &["name"])?;
-        let call = ::origincloud_core::Request::new(
-                ::origincloud_core::Method::DELETE,
-                format!("/v1beta1/{p0}"),
-            )
-            .with_query(query)
-            .idempotent();
-        let operation = self.service.call(call).await?;
-        Ok(
-            ::origincloud_core::Operation::new(
-                self.service.clone(),
-                operation,
-                "google.protobuf.Empty",
-            ),
-        )
-    }
-}
-/// Calls `DnsPolicyService`.
-///
-/// DNS policies: how a VPC's resolver answers names it isn't authoritative
-/// for. A VPC relays through the policy its DNS policy association names
-/// (`DnsPolicyAssociationService`), or else through the project's default
-/// policy in its region.
-#[derive(Clone, Debug)]
-pub struct DnsPolicyClient {
-    service: ::origincloud_core::Service,
-}
-impl DnsPolicyClient {
-    /// Returns a client of `DnsPolicyService` that sends its calls through `client`.
-    pub fn new(client: &::origincloud_core::Client) -> Self {
-        Self {
-            service: client.service("network", true),
-        }
-    }
-    /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
-    pub fn service(&self) -> &::origincloud_core::Service {
-        &self.service
-    }
-    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
-    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
-        Self {
-            service: self.service.with_options(options),
-        }
-    }
-    /// Returns a DNS policy.
-    pub async fn get_dns_policy(
-        &self,
-        mut request: GetDnsPolicyRequest,
-    ) -> ::core::result::Result<DnsPolicy, ::origincloud_core::Error> {
-        let n0 = self.service.relative_name("name", &request.name, &["network"])?;
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &n0,
-            "projects/*/regions/*/dnsPolicies/*",
-        )?;
-        request.name = n0;
-        let query = ::origincloud_core::query(&request, &["name"])?;
-        let call = ::origincloud_core::Request::new(
-                ::origincloud_core::Method::GET,
-                format!("/v1beta1/{p0}"),
-            )
-            .with_query(query)
-            .idempotent();
-        self.service.call(call).await
-    }
-    /// Lists the DNS policies in a region, oldest first, the project's
-    /// default included.
-    pub async fn list_dns_policies(
-        &self,
-        mut request: ListDnsPoliciesRequest,
-    ) -> ::core::result::Result<ListDnsPoliciesResponse, ::origincloud_core::Error> {
-        let n0 = self.service.relative_name("parent", &request.parent, &["network"])?;
-        let p0 = ::origincloud_core::path_value("parent", &n0, "projects/*/regions/*")?;
-        request.parent = n0;
-        let query = ::origincloud_core::query(&request, &["parent"])?;
-        let call = ::origincloud_core::Request::new(
-                ::origincloud_core::Method::GET,
-                format!("/v1beta1/{p0}/dnsPolicies"),
-            )
-            .with_query(query)
-            .idempotent();
-        self.service.call(call).await
-    }
-    /// Returns everything [`list_dns_policies`](Self::list_dns_policies) lists from `request`'s page on, fetching the next page as the stream reaches it. A page that fails ends the stream with its error.
-    pub fn all_dns_policies(
-        &self,
-        request: ListDnsPoliciesRequest,
-    ) -> ::origincloud_core::Pages<DnsPolicy> {
-        let client = self.clone();
-        ::origincloud_core::Pages::new(
-            request,
-            move |request: ListDnsPoliciesRequest| {
-                let client = client.clone();
-                async move {
-                    let page = client.list_dns_policies(request).await?;
-                    Ok((page.dns_policies, page.next_page_token))
-                }
-            },
-            |request: &mut ListDnsPoliciesRequest, token: ::std::string::String| {
-                request.page_token = token;
-            },
-        )
-    }
-    /// Creates a DNS policy. It isn't the default: associate it with a VPC,
-    /// or make it the default with `SetDefaultDnsPolicy`. The operation is
-    /// done once the DNS policy is recorded.
-    ///
-    /// It answers with an operation to wait on: [`Operation::wait`](origincloud_core::Operation::wait) returns the [`DnsPolicy`] once the change is done.
-    pub async fn create_dns_policy(
-        &self,
-        mut request: CreateDnsPolicyRequest,
-    ) -> ::core::result::Result<
-        ::origincloud_core::Operation<DnsPolicy>,
-        ::origincloud_core::Error,
-    > {
-        if request.request_id.is_empty() {
-            request.request_id = ::origincloud_core::new_request_id();
-        }
-        let n0 = self.service.relative_name("parent", &request.parent, &["network"])?;
-        let p0 = ::origincloud_core::path_value("parent", &n0, "projects/*/regions/*")?;
-        request.parent = n0;
-        let body = ::origincloud_core::json_body(
-            request.dns_policy.as_ref().unwrap_or(&::core::default::Default::default()),
-        )?;
-        let query = ::origincloud_core::query(&request, &["parent", "dnsPolicy"])?;
-        let call = ::origincloud_core::Request::new(
-                ::origincloud_core::Method::POST,
-                format!("/v1beta1/{p0}/dnsPolicies"),
-            )
-            .with_body(body)
-            .with_query(query)
-            .idempotent();
-        let operation = self.service.call(call).await?;
-        Ok(
-            ::origincloud_core::Operation::new(
-                self.service.clone(),
-                operation,
-                "origincloud.network.v1beta1.DnsPolicy",
-            ),
-        )
-    }
-    /// Changes a DNS policy's relay settings or tags. The operation is done
-    /// once the change is recorded; the resolvers of every VPC relaying
-    /// through the policy apply it within seconds.
-    ///
-    /// It answers with an operation to wait on: [`Operation::wait`](origincloud_core::Operation::wait) returns the [`DnsPolicy`] once the change is done.
-    pub async fn update_dns_policy(
-        &self,
-        mut request: UpdateDnsPolicyRequest,
-    ) -> ::core::result::Result<
-        ::origincloud_core::Operation<DnsPolicy>,
-        ::origincloud_core::Error,
-    > {
-        if request.request_id.is_empty() {
-            request.request_id = ::origincloud_core::new_request_id();
-        }
-        let n0 = self
-            .service
-            .relative_name(
-                "dnsPolicy.name",
-                request.dns_policy.as_ref().map_or("", |m| m.name.as_str()),
-                &["network"],
-            )?;
-        let p0 = ::origincloud_core::path_value(
-            "dnsPolicy.name",
-            &n0,
-            "projects/*/regions/*/dnsPolicies/*",
-        )?;
-        if let Some(m) = request.dns_policy.as_mut() {
-            m.name = n0;
-        }
-        let body = ::origincloud_core::json_body(
-            request.dns_policy.as_ref().unwrap_or(&::core::default::Default::default()),
-        )?;
-        let query = ::origincloud_core::query(
-            &request,
-            &["dnsPolicy.name", "dnsPolicy"],
-        )?;
-        let call = ::origincloud_core::Request::new(
-                ::origincloud_core::Method::PATCH,
-                format!("/v1beta1/{p0}"),
-            )
-            .with_body(body)
-            .with_query(query)
-            .idempotent();
-        let operation = self.service.call(call).await?;
-        Ok(
-            ::origincloud_core::Operation::new(
-                self.service.clone(),
-                operation,
-                "origincloud.network.v1beta1.DnsPolicy",
-            ),
-        )
-    }
-    /// Deletes a DNS policy. Refused for the project's default policy and
-    /// while a DNS policy association names it. The operation is done once
-    /// the change is recorded.
-    ///
-    /// It answers with an operation to wait on, which has no result: [`Operation::wait`](origincloud_core::Operation::wait) returns once the change is done.
-    pub async fn delete_dns_policy(
-        &self,
-        mut request: DeleteDnsPolicyRequest,
-    ) -> ::core::result::Result<
-        ::origincloud_core::Operation<::origincloud_core::protobuf::Empty>,
-        ::origincloud_core::Error,
-    > {
-        if request.request_id.is_empty() {
-            request.request_id = ::origincloud_core::new_request_id();
-        }
-        let n0 = self.service.relative_name("name", &request.name, &["network"])?;
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &n0,
-            "projects/*/regions/*/dnsPolicies/*",
-        )?;
-        request.name = n0;
-        let query = ::origincloud_core::query(&request, &["name"])?;
-        let call = ::origincloud_core::Request::new(
-                ::origincloud_core::Method::DELETE,
-                format!("/v1beta1/{p0}"),
-            )
-            .with_query(query)
-            .idempotent();
-        let operation = self.service.call(call).await?;
-        Ok(
-            ::origincloud_core::Operation::new(
-                self.service.clone(),
-                operation,
-                "google.protobuf.Empty",
-            ),
-        )
-    }
-    /// Makes a DNS policy the project's default in its region, in place of
-    /// the one before. Every VPC of the region without a DNS policy
-    /// association relays through it from then on. Making the default the
-    /// default changes nothing. The operation is done once the change is
-    /// recorded; the resolvers apply it within seconds.
-    ///
-    /// It answers with an operation to wait on: [`Operation::wait`](origincloud_core::Operation::wait) returns the [`DnsPolicy`] once the change is done.
-    pub async fn set_default_dns_policy(
-        &self,
-        mut request: SetDefaultDnsPolicyRequest,
-    ) -> ::core::result::Result<
-        ::origincloud_core::Operation<DnsPolicy>,
-        ::origincloud_core::Error,
-    > {
-        if request.request_id.is_empty() {
-            request.request_id = ::origincloud_core::new_request_id();
-        }
-        let n0 = self.service.relative_name("name", &request.name, &["network"])?;
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &n0,
-            "projects/*/regions/*/dnsPolicies/*",
-        )?;
-        request.name = n0;
-        let body = ::origincloud_core::json_body(&request)?;
-        let call = ::origincloud_core::Request::new(
-                ::origincloud_core::Method::POST,
-                format!("/v1beta1/{p0}:setDefault"),
-            )
-            .with_body(body)
-            .idempotent();
-        let operation = self.service.call(call).await?;
-        Ok(
-            ::origincloud_core::Operation::new(
-                self.service.clone(),
-                operation,
-                "origincloud.network.v1beta1.DnsPolicy",
-            ),
-        )
-    }
-}
-/// Calls `DnsPolicyAssociationService`.
-///
-/// DNS policy associations: which DNS policy a VPC's resolver relays through.
-/// A VPC has at most one; without one, it relays through the project's
-/// default DNS policy in its region (see the VPC's `dns_policy`). An
-/// association's id is the id of the DNS policy it names, so a client that
-/// knows the VPC and the policy names the association without listing. To
-/// move a VPC to another policy, delete its association and create another.
-#[derive(Clone, Debug)]
-pub struct DnsPolicyAssociationClient {
-    service: ::origincloud_core::Service,
-}
-impl DnsPolicyAssociationClient {
-    /// Returns a client of `DnsPolicyAssociationService` that sends its calls through `client`.
-    pub fn new(client: &::origincloud_core::Client) -> Self {
-        Self {
-            service: client.service("network", true),
-        }
-    }
-    /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
-    pub fn service(&self) -> &::origincloud_core::Service {
-        &self.service
-    }
-    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
-    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
-        Self {
-            service: self.service.with_options(options),
-        }
-    }
-    /// Returns a DNS policy association.
-    pub async fn get_dns_policy_association(
-        &self,
-        mut request: GetDnsPolicyAssociationRequest,
-    ) -> ::core::result::Result<DnsPolicyAssociation, ::origincloud_core::Error> {
-        let n0 = self.service.relative_name("name", &request.name, &["network"])?;
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &n0,
-            "projects/*/regions/*/vpcs/*/dnsPolicyAssociations/*",
-        )?;
-        request.name = n0;
-        let query = ::origincloud_core::query(&request, &["name"])?;
-        let call = ::origincloud_core::Request::new(
-                ::origincloud_core::Method::GET,
-                format!("/v1beta1/{p0}"),
-            )
-            .with_query(query)
-            .idempotent();
-        self.service.call(call).await
-    }
-    /// Lists a VPC's DNS policy associations: none or one.
-    pub async fn list_dns_policy_associations(
-        &self,
-        mut request: ListDnsPolicyAssociationsRequest,
-    ) -> ::core::result::Result<
-        ListDnsPolicyAssociationsResponse,
-        ::origincloud_core::Error,
-    > {
-        let n0 = self.service.relative_name("parent", &request.parent, &["network"])?;
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &n0,
-            "projects/*/regions/*/vpcs/*",
-        )?;
-        request.parent = n0;
-        let query = ::origincloud_core::query(&request, &["parent"])?;
-        let call = ::origincloud_core::Request::new(
-                ::origincloud_core::Method::GET,
-                format!("/v1beta1/{p0}/dnsPolicyAssociations"),
-            )
-            .with_query(query)
-            .idempotent();
-        self.service.call(call).await
-    }
-    /// Returns everything [`list_dns_policy_associations`](Self::list_dns_policy_associations) lists from `request`'s page on, fetching the next page as the stream reaches it. A page that fails ends the stream with its error.
-    pub fn all_dns_policy_associations(
-        &self,
-        request: ListDnsPolicyAssociationsRequest,
-    ) -> ::origincloud_core::Pages<DnsPolicyAssociation> {
-        let client = self.clone();
-        ::origincloud_core::Pages::new(
-            request,
-            move |request: ListDnsPolicyAssociationsRequest| {
-                let client = client.clone();
-                async move {
-                    let page = client.list_dns_policy_associations(request).await?;
-                    Ok((page.dns_policy_associations, page.next_page_token))
-                }
-            },
-            |
-                request: &mut ListDnsPolicyAssociationsRequest,
-                token: ::std::string::String|
-            request.page_token = token,
-        )
-    }
-    /// Associates a DNS policy with a VPC. Refused with `FAILED_PRECONDITION`
-    /// when the VPC has a DNS policy association. The operation is done once
-    /// the change is recorded; the VPC's resolver applies it within seconds.
-    ///
-    /// It answers with an operation to wait on: [`Operation::wait`](origincloud_core::Operation::wait) returns the [`DnsPolicyAssociation`] once the change is done.
-    pub async fn create_dns_policy_association(
-        &self,
-        mut request: CreateDnsPolicyAssociationRequest,
-    ) -> ::core::result::Result<
-        ::origincloud_core::Operation<DnsPolicyAssociation>,
-        ::origincloud_core::Error,
-    > {
-        if request.request_id.is_empty() {
-            request.request_id = ::origincloud_core::new_request_id();
-        }
-        let n0 = self.service.relative_name("parent", &request.parent, &["network"])?;
-        let p0 = ::origincloud_core::path_value(
-            "parent",
-            &n0,
-            "projects/*/regions/*/vpcs/*",
-        )?;
-        request.parent = n0;
-        let body = ::origincloud_core::json_body(
-            request
-                .dns_policy_association
-                .as_ref()
-                .unwrap_or(&::core::default::Default::default()),
-        )?;
-        let query = ::origincloud_core::query(
-            &request,
-            &["parent", "dnsPolicyAssociation"],
-        )?;
-        let call = ::origincloud_core::Request::new(
-                ::origincloud_core::Method::POST,
-                format!("/v1beta1/{p0}/dnsPolicyAssociations"),
-            )
-            .with_body(body)
-            .with_query(query)
-            .idempotent();
-        let operation = self.service.call(call).await?;
-        Ok(
-            ::origincloud_core::Operation::new(
-                self.service.clone(),
-                operation,
-                "origincloud.network.v1beta1.DnsPolicyAssociation",
-            ),
-        )
-    }
-    /// Removes a VPC's DNS policy association: the VPC relays through the
-    /// project's default DNS policy in its region again. The operation is done
-    /// once the change is recorded; the VPC's resolver applies it within
-    /// seconds.
-    ///
-    /// It answers with an operation to wait on, which has no result: [`Operation::wait`](origincloud_core::Operation::wait) returns once the change is done.
-    pub async fn delete_dns_policy_association(
-        &self,
-        mut request: DeleteDnsPolicyAssociationRequest,
-    ) -> ::core::result::Result<
-        ::origincloud_core::Operation<::origincloud_core::protobuf::Empty>,
-        ::origincloud_core::Error,
-    > {
-        if request.request_id.is_empty() {
-            request.request_id = ::origincloud_core::new_request_id();
-        }
-        let n0 = self.service.relative_name("name", &request.name, &["network"])?;
-        let p0 = ::origincloud_core::path_value(
-            "name",
-            &n0,
-            "projects/*/regions/*/vpcs/*/dnsPolicyAssociations/*",
         )?;
         request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
@@ -22615,6 +22209,455 @@ impl NetworkInterfaceClient {
             "name",
             &n0,
             "projects/*/zones/*/networkInterfaces/*",
+        )?;
+        request.name = n0;
+        let query = ::origincloud_core::query(&request, &["name"])?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::DELETE,
+                format!("/v1beta1/{p0}"),
+            )
+            .with_query(query)
+            .idempotent();
+        let operation = self.service.call(call).await?;
+        Ok(
+            ::origincloud_core::Operation::new(
+                self.service.clone(),
+                operation,
+                "google.protobuf.Empty",
+            ),
+        )
+    }
+}
+/// Calls `ResolverPolicyService`.
+///
+/// Resolver policies: how a VPC's resolver answers names it isn't authoritative
+/// for. A VPC relays through the policy its resolver policy association names
+/// (`ResolverPolicyAssociationService`), or else through the project's default
+/// policy in its region.
+#[derive(Clone, Debug)]
+pub struct ResolverPolicyClient {
+    service: ::origincloud_core::Service,
+}
+impl ResolverPolicyClient {
+    /// Returns a client of `ResolverPolicyService` that sends its calls through `client`.
+    pub fn new(client: &::origincloud_core::Client) -> Self {
+        Self {
+            service: client.service("network", true),
+        }
+    }
+    /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
+    pub fn service(&self) -> &::origincloud_core::Service {
+        &self.service
+    }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
+    }
+    /// Returns a resolver policy.
+    pub async fn get_resolver_policy(
+        &self,
+        mut request: GetResolverPolicyRequest,
+    ) -> ::core::result::Result<ResolverPolicy, ::origincloud_core::Error> {
+        let n0 = self.service.relative_name("name", &request.name, &["network"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/resolverPolicies/*",
+        )?;
+        request.name = n0;
+        let query = ::origincloud_core::query(&request, &["name"])?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::GET,
+                format!("/v1beta1/{p0}"),
+            )
+            .with_query(query)
+            .idempotent();
+        self.service.call(call).await
+    }
+    /// Lists the resolver policies in a region, oldest first, the project's
+    /// default included.
+    pub async fn list_resolver_policies(
+        &self,
+        mut request: ListResolverPoliciesRequest,
+    ) -> ::core::result::Result<
+        ListResolverPoliciesResponse,
+        ::origincloud_core::Error,
+    > {
+        let n0 = self.service.relative_name("parent", &request.parent, &["network"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "projects/*/regions/*")?;
+        request.parent = n0;
+        let query = ::origincloud_core::query(&request, &["parent"])?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::GET,
+                format!("/v1beta1/{p0}/resolverPolicies"),
+            )
+            .with_query(query)
+            .idempotent();
+        self.service.call(call).await
+    }
+    /// Returns everything [`list_resolver_policies`](Self::list_resolver_policies) lists from `request`'s page on, fetching the next page as the stream reaches it. A page that fails ends the stream with its error.
+    pub fn all_resolver_policies(
+        &self,
+        request: ListResolverPoliciesRequest,
+    ) -> ::origincloud_core::Pages<ResolverPolicy> {
+        let client = self.clone();
+        ::origincloud_core::Pages::new(
+            request,
+            move |request: ListResolverPoliciesRequest| {
+                let client = client.clone();
+                async move {
+                    let page = client.list_resolver_policies(request).await?;
+                    Ok((page.resolver_policies, page.next_page_token))
+                }
+            },
+            |request: &mut ListResolverPoliciesRequest, token: ::std::string::String| {
+                request.page_token = token;
+            },
+        )
+    }
+    /// Creates a resolver policy. It isn't the default: associate it with a VPC,
+    /// or make it the default with `SetDefaultResolverPolicy`. The operation is
+    /// done once the resolver policy is recorded.
+    ///
+    /// It answers with an operation to wait on: [`Operation::wait`](origincloud_core::Operation::wait) returns the [`ResolverPolicy`] once the change is done.
+    pub async fn create_resolver_policy(
+        &self,
+        mut request: CreateResolverPolicyRequest,
+    ) -> ::core::result::Result<
+        ::origincloud_core::Operation<ResolverPolicy>,
+        ::origincloud_core::Error,
+    > {
+        if request.request_id.is_empty() {
+            request.request_id = ::origincloud_core::new_request_id();
+        }
+        let n0 = self.service.relative_name("parent", &request.parent, &["network"])?;
+        let p0 = ::origincloud_core::path_value("parent", &n0, "projects/*/regions/*")?;
+        request.parent = n0;
+        let body = ::origincloud_core::json_body(
+            request
+                .resolver_policy
+                .as_ref()
+                .unwrap_or(&::core::default::Default::default()),
+        )?;
+        let query = ::origincloud_core::query(&request, &["parent", "resolverPolicy"])?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::POST,
+                format!("/v1beta1/{p0}/resolverPolicies"),
+            )
+            .with_body(body)
+            .with_query(query)
+            .idempotent();
+        let operation = self.service.call(call).await?;
+        Ok(
+            ::origincloud_core::Operation::new(
+                self.service.clone(),
+                operation,
+                "origincloud.network.v1beta1.ResolverPolicy",
+            ),
+        )
+    }
+    /// Changes a resolver policy's relay settings or tags. The operation is done
+    /// once the change is recorded; the resolvers of every VPC relaying
+    /// through the policy apply it within seconds.
+    ///
+    /// It answers with an operation to wait on: [`Operation::wait`](origincloud_core::Operation::wait) returns the [`ResolverPolicy`] once the change is done.
+    pub async fn update_resolver_policy(
+        &self,
+        mut request: UpdateResolverPolicyRequest,
+    ) -> ::core::result::Result<
+        ::origincloud_core::Operation<ResolverPolicy>,
+        ::origincloud_core::Error,
+    > {
+        if request.request_id.is_empty() {
+            request.request_id = ::origincloud_core::new_request_id();
+        }
+        let n0 = self
+            .service
+            .relative_name(
+                "resolverPolicy.name",
+                request.resolver_policy.as_ref().map_or("", |m| m.name.as_str()),
+                &["network"],
+            )?;
+        let p0 = ::origincloud_core::path_value(
+            "resolverPolicy.name",
+            &n0,
+            "projects/*/regions/*/resolverPolicies/*",
+        )?;
+        if let Some(m) = request.resolver_policy.as_mut() {
+            m.name = n0;
+        }
+        let body = ::origincloud_core::json_body(
+            request
+                .resolver_policy
+                .as_ref()
+                .unwrap_or(&::core::default::Default::default()),
+        )?;
+        let query = ::origincloud_core::query(
+            &request,
+            &["resolverPolicy.name", "resolverPolicy"],
+        )?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::PATCH,
+                format!("/v1beta1/{p0}"),
+            )
+            .with_body(body)
+            .with_query(query)
+            .idempotent();
+        let operation = self.service.call(call).await?;
+        Ok(
+            ::origincloud_core::Operation::new(
+                self.service.clone(),
+                operation,
+                "origincloud.network.v1beta1.ResolverPolicy",
+            ),
+        )
+    }
+    /// Deletes a resolver policy. Refused for the project's default policy and
+    /// while a resolver policy association names it. The operation is done once
+    /// the change is recorded.
+    ///
+    /// It answers with an operation to wait on, which has no result: [`Operation::wait`](origincloud_core::Operation::wait) returns once the change is done.
+    pub async fn delete_resolver_policy(
+        &self,
+        mut request: DeleteResolverPolicyRequest,
+    ) -> ::core::result::Result<
+        ::origincloud_core::Operation<::origincloud_core::protobuf::Empty>,
+        ::origincloud_core::Error,
+    > {
+        if request.request_id.is_empty() {
+            request.request_id = ::origincloud_core::new_request_id();
+        }
+        let n0 = self.service.relative_name("name", &request.name, &["network"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/resolverPolicies/*",
+        )?;
+        request.name = n0;
+        let query = ::origincloud_core::query(&request, &["name"])?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::DELETE,
+                format!("/v1beta1/{p0}"),
+            )
+            .with_query(query)
+            .idempotent();
+        let operation = self.service.call(call).await?;
+        Ok(
+            ::origincloud_core::Operation::new(
+                self.service.clone(),
+                operation,
+                "google.protobuf.Empty",
+            ),
+        )
+    }
+    /// Makes a resolver policy the project's default in its region, in place of
+    /// the one before. Every VPC of the region without a resolver policy
+    /// association relays through it from then on. Making the default the
+    /// default changes nothing. The operation is done once the change is
+    /// recorded; the resolvers apply it within seconds.
+    ///
+    /// It answers with an operation to wait on: [`Operation::wait`](origincloud_core::Operation::wait) returns the [`ResolverPolicy`] once the change is done.
+    pub async fn set_default_resolver_policy(
+        &self,
+        mut request: SetDefaultResolverPolicyRequest,
+    ) -> ::core::result::Result<
+        ::origincloud_core::Operation<ResolverPolicy>,
+        ::origincloud_core::Error,
+    > {
+        if request.request_id.is_empty() {
+            request.request_id = ::origincloud_core::new_request_id();
+        }
+        let n0 = self.service.relative_name("name", &request.name, &["network"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/resolverPolicies/*",
+        )?;
+        request.name = n0;
+        let body = ::origincloud_core::json_body(&request)?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::POST,
+                format!("/v1beta1/{p0}:setDefault"),
+            )
+            .with_body(body)
+            .idempotent();
+        let operation = self.service.call(call).await?;
+        Ok(
+            ::origincloud_core::Operation::new(
+                self.service.clone(),
+                operation,
+                "origincloud.network.v1beta1.ResolverPolicy",
+            ),
+        )
+    }
+}
+/// Calls `ResolverPolicyAssociationService`.
+///
+/// Resolver policy associations: which resolver policy a VPC's resolver
+/// relays through. A VPC has at most one; without one, it relays through the
+/// project's default resolver policy in its region (see the VPC's
+/// `resolver_policy`). An association's id is the id of the resolver policy it
+/// names, so a client that knows the VPC and the policy names the association
+/// without listing. To move a VPC to another policy, delete its association
+/// and create another.
+#[derive(Clone, Debug)]
+pub struct ResolverPolicyAssociationClient {
+    service: ::origincloud_core::Service,
+}
+impl ResolverPolicyAssociationClient {
+    /// Returns a client of `ResolverPolicyAssociationService` that sends its calls through `client`.
+    pub fn new(client: &::origincloud_core::Client) -> Self {
+        Self {
+            service: client.service("network", true),
+        }
+    }
+    /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
+    pub fn service(&self) -> &::origincloud_core::Service {
+        &self.service
+    }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
+    }
+    /// Returns a resolver policy association.
+    pub async fn get_resolver_policy_association(
+        &self,
+        mut request: GetResolverPolicyAssociationRequest,
+    ) -> ::core::result::Result<ResolverPolicyAssociation, ::origincloud_core::Error> {
+        let n0 = self.service.relative_name("name", &request.name, &["network"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/vpcs/*/resolverPolicyAssociations/*",
+        )?;
+        request.name = n0;
+        let query = ::origincloud_core::query(&request, &["name"])?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::GET,
+                format!("/v1beta1/{p0}"),
+            )
+            .with_query(query)
+            .idempotent();
+        self.service.call(call).await
+    }
+    /// Lists a VPC's resolver policy associations: none or one.
+    pub async fn list_resolver_policy_associations(
+        &self,
+        mut request: ListResolverPolicyAssociationsRequest,
+    ) -> ::core::result::Result<
+        ListResolverPolicyAssociationsResponse,
+        ::origincloud_core::Error,
+    > {
+        let n0 = self.service.relative_name("parent", &request.parent, &["network"])?;
+        let p0 = ::origincloud_core::path_value(
+            "parent",
+            &n0,
+            "projects/*/regions/*/vpcs/*",
+        )?;
+        request.parent = n0;
+        let query = ::origincloud_core::query(&request, &["parent"])?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::GET,
+                format!("/v1beta1/{p0}/resolverPolicyAssociations"),
+            )
+            .with_query(query)
+            .idempotent();
+        self.service.call(call).await
+    }
+    /// Returns everything [`list_resolver_policy_associations`](Self::list_resolver_policy_associations) lists from `request`'s page on, fetching the next page as the stream reaches it. A page that fails ends the stream with its error.
+    pub fn all_resolver_policy_associations(
+        &self,
+        request: ListResolverPolicyAssociationsRequest,
+    ) -> ::origincloud_core::Pages<ResolverPolicyAssociation> {
+        let client = self.clone();
+        ::origincloud_core::Pages::new(
+            request,
+            move |request: ListResolverPolicyAssociationsRequest| {
+                let client = client.clone();
+                async move {
+                    let page = client.list_resolver_policy_associations(request).await?;
+                    Ok((page.resolver_policy_associations, page.next_page_token))
+                }
+            },
+            |
+                request: &mut ListResolverPolicyAssociationsRequest,
+                token: ::std::string::String|
+            request.page_token = token,
+        )
+    }
+    /// Associates a resolver policy with a VPC. Refused with `FAILED_PRECONDITION`
+    /// when the VPC has a resolver policy association. The operation is done once
+    /// the change is recorded; the VPC's resolver applies it within seconds.
+    ///
+    /// It answers with an operation to wait on: [`Operation::wait`](origincloud_core::Operation::wait) returns the [`ResolverPolicyAssociation`] once the change is done.
+    pub async fn create_resolver_policy_association(
+        &self,
+        mut request: CreateResolverPolicyAssociationRequest,
+    ) -> ::core::result::Result<
+        ::origincloud_core::Operation<ResolverPolicyAssociation>,
+        ::origincloud_core::Error,
+    > {
+        if request.request_id.is_empty() {
+            request.request_id = ::origincloud_core::new_request_id();
+        }
+        let n0 = self.service.relative_name("parent", &request.parent, &["network"])?;
+        let p0 = ::origincloud_core::path_value(
+            "parent",
+            &n0,
+            "projects/*/regions/*/vpcs/*",
+        )?;
+        request.parent = n0;
+        let body = ::origincloud_core::json_body(
+            request
+                .resolver_policy_association
+                .as_ref()
+                .unwrap_or(&::core::default::Default::default()),
+        )?;
+        let query = ::origincloud_core::query(
+            &request,
+            &["parent", "resolverPolicyAssociation"],
+        )?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::POST,
+                format!("/v1beta1/{p0}/resolverPolicyAssociations"),
+            )
+            .with_body(body)
+            .with_query(query)
+            .idempotent();
+        let operation = self.service.call(call).await?;
+        Ok(
+            ::origincloud_core::Operation::new(
+                self.service.clone(),
+                operation,
+                "origincloud.network.v1beta1.ResolverPolicyAssociation",
+            ),
+        )
+    }
+    /// Removes a VPC's resolver policy association: the VPC relays through the
+    /// project's default resolver policy in its region again. The operation is done
+    /// once the change is recorded; the VPC's resolver applies it within
+    /// seconds.
+    ///
+    /// It answers with an operation to wait on, which has no result: [`Operation::wait`](origincloud_core::Operation::wait) returns once the change is done.
+    pub async fn delete_resolver_policy_association(
+        &self,
+        mut request: DeleteResolverPolicyAssociationRequest,
+    ) -> ::core::result::Result<
+        ::origincloud_core::Operation<::origincloud_core::protobuf::Empty>,
+        ::origincloud_core::Error,
+    > {
+        if request.request_id.is_empty() {
+            request.request_id = ::origincloud_core::new_request_id();
+        }
+        let n0 = self.service.relative_name("name", &request.name, &["network"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/vpcs/*/resolverPolicyAssociations/*",
         )?;
         request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
@@ -24091,9 +24134,9 @@ impl VpcClient {
         )
     }
     /// Creates an empty VPC: no subnets, security groups, ACLs, route tables
-    /// or internet gateway. It relays DNS through the project's default DNS
-    /// policy in its region until a DNS policy association names another. The
-    /// operation is done once the VPC is recorded.
+    /// or internet gateway. It relays DNS through the project's default
+    /// resolver policy in its region until a resolver policy association names
+    /// another. The operation is done once the VPC is recorded.
     ///
     /// It answers with an operation to wait on: [`Operation::wait`](origincloud_core::Operation::wait) returns the [`Vpc`] once the change is done.
     pub async fn create_vpc(
@@ -24178,7 +24221,7 @@ impl VpcClient {
             ),
         )
     }
-    /// Deletes a VPC with its DNS policy association. Refused with
+    /// Deletes a VPC with its resolver policy association. Refused with
     /// `FAILED_PRECONDITION` while the VPC has subnets, security groups,
     /// ACLs, route tables or an internet gateway, except those the platform
     /// created with it, which are deleted with it. The operation is done once
