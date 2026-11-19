@@ -6680,8 +6680,10 @@ impl FederatedCredentialClient {
     /// the account yourself. Refused with `INVALID_ARGUMENT` when a condition
     /// contains `*`, or when no condition names an identity that never
     /// changes: `repository_id` or `repository_owner_id` for GitHub Actions'
-    /// issuer, `project_id` or `namespace_id` for GitLab.com's, `sub` for any
-    /// other.
+    /// issuer, `project_id` or `namespace_id` for GitLab.com's,
+    /// `terraform_organization_id` for HCP Terraform's, `sub` for any other.
+    /// A `terraform_run_phase` condition on HCP Terraform's issuer must be
+    /// `plan` or `apply`.
     pub async fn create_federated_credential(
         &self,
         mut request: CreateFederatedCredentialRequest,
