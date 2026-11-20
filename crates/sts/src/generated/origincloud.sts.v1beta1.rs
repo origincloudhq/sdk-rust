@@ -17,6 +17,12 @@ pub struct AssumeServiceAccountRequest {
     /// when unset.
     #[prost(message, optional, tag = "3")]
     pub lifetime: ::core::option::Option<::origincloud_core::protobuf::Duration>,
+    /// Who the access token is for: `origincloud:api`, the platform's APIs, when
+    /// unset, or `<https://mcp.origincloudapis.eu`,> the hosted MCP server. A
+    /// token for the hosted MCP server isn't accepted by the APIs. Any other
+    /// audience is refused with `INVALID_ARGUMENT`, before the token is checked.
+    #[prost(string, tag = "4")]
+    pub audience: ::prost::alloc::string::String,
 }
 /// The response of `AssumeServiceAccount`.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -54,6 +60,9 @@ impl serde::Serialize for AssumeServiceAccountRequest {
         if self.lifetime.is_some() {
             len += 1;
         }
+        if !self.audience.is_empty() {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct(
                 "origincloud.sts.v1beta1.AssumeServiceAccountRequest",
@@ -67,6 +76,9 @@ impl serde::Serialize for AssumeServiceAccountRequest {
         }
         if let Some(v) = self.lifetime.as_ref() {
             struct_ser.serialize_field("lifetime", v)?;
+        }
+        if !self.audience.is_empty() {
+            struct_ser.serialize_field("audience", &self.audience)?;
         }
         struct_ser.end()
     }
@@ -83,12 +95,14 @@ impl<'de> serde::Deserialize<'de> for AssumeServiceAccountRequest {
             "service_account",
             "serviceAccount",
             "lifetime",
+            "audience",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             OidcToken,
             ServiceAccount,
             Lifetime,
+            Audience,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -121,6 +135,7 @@ impl<'de> serde::Deserialize<'de> for AssumeServiceAccountRequest {
                                 Ok(GeneratedField::ServiceAccount)
                             }
                             "lifetime" => Ok(GeneratedField::Lifetime),
+                            "audience" => Ok(GeneratedField::Audience),
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -150,6 +165,7 @@ impl<'de> serde::Deserialize<'de> for AssumeServiceAccountRequest {
                 let mut oidc_token__ = None;
                 let mut service_account__ = None;
                 let mut lifetime__ = None;
+                let mut audience__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::OidcToken => {
@@ -172,6 +188,12 @@ impl<'de> serde::Deserialize<'de> for AssumeServiceAccountRequest {
                             }
                             lifetime__ = map_.next_value()?;
                         }
+                        GeneratedField::Audience => {
+                            if audience__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("audience"));
+                            }
+                            audience__ = Some(map_.next_value()?);
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -181,6 +203,7 @@ impl<'de> serde::Deserialize<'de> for AssumeServiceAccountRequest {
                     oidc_token: oidc_token__.unwrap_or_default(),
                     service_account: service_account__.unwrap_or_default(),
                     lifetime: lifetime__,
+                    audience: audience__.unwrap_or_default(),
                 })
             }
         }
@@ -410,7 +433,8 @@ impl SecurityTokenClient {
     /// conditions. The token is verified with its issuer's published keys
     /// (RS256), and a pull request's job is admitted only by a credential that
     /// names its `event_name`. Refused with `PERMISSION_DENIED` when the token
-    /// isn't trusted, without saying why, and with `UNAVAILABLE` when its
+    /// isn't trusted, without saying why, with `INVALID_ARGUMENT` when it asks
+    /// for an audience no token is issued for, and with `UNAVAILABLE` when its
     /// issuer or the trust can't be read now.
     pub async fn assume_service_account(
         &self,
