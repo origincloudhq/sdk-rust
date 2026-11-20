@@ -5,6 +5,7 @@
 // source: origincloud/iam/v1beta1/role.proto
 // source: origincloud/iam/v1beta1/role_binding.proto
 // source: origincloud/iam/v1beta1/service_account.proto
+// source: origincloud/iam/v1beta1/service_account_key.proto
 // source: origincloud/iam/v1beta1/user.proto
 
 /// One recorded change.
@@ -728,6 +729,193 @@ pub struct RotateServiceAccountSecretRequest {
     #[prost(string, tag = "3")]
     pub request_id: ::prost::alloc::string::String,
 }
+/// A key pair an `service_account::Type::External` service account authenticates with. The
+/// platform keeps only its public key.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ServiceAccountKey {
+    /// The key's resource name.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    /// The algorithm the key signs with: `service_account_key::Algorithm::Es256`.
+    #[prost(enumeration = "service_account_key::Algorithm", tag = "2")]
+    pub algorithm: i32,
+    /// Where the key is in its lifecycle.
+    #[prost(enumeration = "service_account_key::State", tag = "3")]
+    pub state: i32,
+    /// The full name of who created the key: `//iam.origincloudapis.eu/users/{user}`,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
+    /// `//iam.origincloudapis.eu/serviceAgents/{service_agent}` for a platform
+    /// service agent, or `//iam.origincloudapis.eu/services/{service}` for a
+    /// change the platform made itself.
+    #[prost(string, tag = "4")]
+    pub creator: ::prost::alloc::string::String,
+    /// When the key was created.
+    #[prost(message, optional, tag = "5")]
+    pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
+    /// When an assertion signed with the key was last exchanged; unset while
+    /// none has been.
+    #[prost(message, optional, tag = "6")]
+    pub last_use_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
+    /// When the key was deleted; unset while it is active.
+    #[prost(message, optional, tag = "7")]
+    pub delete_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
+    /// The credentials file, in the response that created the key and never
+    /// again: a JSON document to save as it is. It holds `type`
+    /// (`service_account_key`), `name` (the key's full name), `service_account`
+    /// (the service account's full name), `algorithm` (`service_account_key::Algorithm::Es256`), `private_key`
+    /// (the private key in PEM, `-----BEGIN PRIVATE KEY-----`) and `sts_endpoint`
+    /// (`<https://sts.origincloudapis.eu`,> where its assertions are exchanged).
+    /// The platform keeps no copy. Empty in every other response.
+    #[prost(string, tag = "8")]
+    pub credentials_file: ::prost::alloc::string::String,
+}
+/// Nested message and enum types in `ServiceAccountKey`.
+pub mod service_account_key {
+    /// Where the key is in its lifecycle.
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum State {
+        /// Not set.
+        Unspecified = 0,
+        /// Assertions signed with it are exchanged.
+        Active = 1,
+        /// Deleted: no assertion signed with it is exchanged.
+        Deleted = 2,
+    }
+    impl State {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                Self::Unspecified => "STATE_UNSPECIFIED",
+                Self::Active => "ACTIVE",
+                Self::Deleted => "DELETED",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "STATE_UNSPECIFIED" => Some(Self::Unspecified),
+                "ACTIVE" => Some(Self::Active),
+                "DELETED" => Some(Self::Deleted),
+                _ => None,
+            }
+        }
+    }
+    /// The algorithm a key signs with.
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum Algorithm {
+        /// Not set.
+        Unspecified = 0,
+        /// ECDSA on the P-256 curve with SHA-256 (RFC 7518, section 3.4).
+        Es256 = 1,
+    }
+    impl Algorithm {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                Self::Unspecified => "ALGORITHM_UNSPECIFIED",
+                Self::Es256 => "ES256",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "ALGORITHM_UNSPECIFIED" => Some(Self::Unspecified),
+                "ES256" => Some(Self::Es256),
+                _ => None,
+            }
+        }
+    }
+}
+/// The request for GetServiceAccountKey.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GetServiceAccountKeyRequest {
+    /// The key to return.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+}
+/// The request for ListServiceAccountKeys.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ListServiceAccountKeysRequest {
+    /// The service account whose keys to list,
+    /// `organizations/{organization}/serviceAccounts/{service_account}`.
+    #[prost(string, tag = "1")]
+    pub parent: ::prost::alloc::string::String,
+    /// The most keys to return; the server clamps it, and 0 means its
+    /// default.
+    #[prost(int32, tag = "2")]
+    pub page_size: i32,
+    /// A previous response's `next_page_token`, for the page after it.
+    #[prost(string, tag = "3")]
+    pub page_token: ::prost::alloc::string::String,
+    /// Whether deleted keys are listed too.
+    #[prost(bool, tag = "4")]
+    pub show_deleted: bool,
+}
+/// The response for ListServiceAccountKeys.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListServiceAccountKeysResponse {
+    /// The keys on this page.
+    #[prost(message, repeated, tag = "1")]
+    pub service_account_keys: ::prost::alloc::vec::Vec<ServiceAccountKey>,
+    /// The token for the next page; empty on the last one.
+    #[prost(string, tag = "2")]
+    pub next_page_token: ::prost::alloc::string::String,
+}
+/// The request for CreateServiceAccountKey.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct CreateServiceAccountKeyRequest {
+    /// The `service_account::Type::External` service account to create the key for,
+    /// `organizations/{organization}/serviceAccounts/{service_account}`.
+    #[prost(string, tag = "1")]
+    pub parent: ::prost::alloc::string::String,
+    /// The key to create. Every field of it is the platform's: send it empty,
+    /// `{}`.
+    #[prost(message, optional, tag = "2")]
+    pub service_account_key: ::core::option::Option<ServiceAccountKey>,
+    /// A UUID. A repeat of the request with the same `request_id` within a
+    /// day creates nothing and is refused with `CONFLICT`: the private key
+    /// went to the first request only. The error's `ErrorInfo` metadata names
+    /// the key under `serviceAccountKey`; delete it and create a new one. The
+    /// same `request_id` with a different request is refused with `CONFLICT`
+    /// without that metadata.
+    #[prost(string, tag = "3")]
+    pub request_id: ::prost::alloc::string::String,
+}
+/// The request for DeleteServiceAccountKey.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct DeleteServiceAccountKeyRequest {
+    /// The key to delete.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+}
 /// A person who signs in to the platform.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct User {
@@ -1404,6 +1592,161 @@ impl<'de> serde::Deserialize<'de> for CreateRoleBindingRequest {
             )
     }
 }
+impl serde::Serialize for CreateServiceAccountKeyRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.parent.is_empty() {
+            len += 1;
+        }
+        if self.service_account_key.is_some() {
+            len += 1;
+        }
+        if !self.request_id.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.iam.v1beta1.CreateServiceAccountKeyRequest",
+                len,
+            )?;
+        if !self.parent.is_empty() {
+            struct_ser.serialize_field("parent", &self.parent)?;
+        }
+        if let Some(v) = self.service_account_key.as_ref() {
+            struct_ser.serialize_field("serviceAccountKey", v)?;
+        }
+        if !self.request_id.is_empty() {
+            struct_ser.serialize_field("requestId", &self.request_id)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for CreateServiceAccountKeyRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "parent",
+            "service_account_key",
+            "serviceAccountKey",
+            "request_id",
+            "requestId",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Parent,
+            ServiceAccountKey,
+            RequestId,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "parent" => Ok(GeneratedField::Parent),
+                            "serviceAccountKey" | "service_account_key" => {
+                                Ok(GeneratedField::ServiceAccountKey)
+                            }
+                            "requestId" | "request_id" => Ok(GeneratedField::RequestId),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = CreateServiceAccountKeyRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.iam.v1beta1.CreateServiceAccountKeyRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<CreateServiceAccountKeyRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut parent__ = None;
+                let mut service_account_key__ = None;
+                let mut request_id__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Parent => {
+                            if parent__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("parent"));
+                            }
+                            parent__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::ServiceAccountKey => {
+                            if service_account_key__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("serviceAccountKey"),
+                                );
+                            }
+                            service_account_key__ = map_.next_value()?;
+                        }
+                        GeneratedField::RequestId => {
+                            if request_id__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("requestId"));
+                            }
+                            request_id__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(CreateServiceAccountKeyRequest {
+                    parent: parent__.unwrap_or_default(),
+                    service_account_key: service_account_key__,
+                    request_id: request_id__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.iam.v1beta1.CreateServiceAccountKeyRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
 impl serde::Serialize for CreateServiceAccountRequest {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -1813,6 +2156,119 @@ impl<'de> serde::Deserialize<'de> for DeleteRoleBindingRequest {
         deserializer
             .deserialize_struct(
                 "origincloud.iam.v1beta1.DeleteRoleBindingRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for DeleteServiceAccountKeyRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.iam.v1beta1.DeleteServiceAccountKeyRequest",
+                len,
+            )?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for DeleteServiceAccountKeyRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["name"];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = DeleteServiceAccountKeyRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.iam.v1beta1.DeleteServiceAccountKeyRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<DeleteServiceAccountKeyRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(DeleteServiceAccountKeyRequest {
+                    name: name__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.iam.v1beta1.DeleteServiceAccountKeyRequest",
                 FIELDS,
                 GeneratedVisitor,
             )
@@ -2817,6 +3273,119 @@ impl<'de> serde::Deserialize<'de> for GetRoleRequest {
         deserializer
             .deserialize_struct(
                 "origincloud.iam.v1beta1.GetRoleRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for GetServiceAccountKeyRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.iam.v1beta1.GetServiceAccountKeyRequest",
+                len,
+            )?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for GetServiceAccountKeyRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["name"];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = GetServiceAccountKeyRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.iam.v1beta1.GetServiceAccountKeyRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<GetServiceAccountKeyRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(GetServiceAccountKeyRequest {
+                    name: name__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.iam.v1beta1.GetServiceAccountKeyRequest",
                 FIELDS,
                 GeneratedVisitor,
             )
@@ -4434,6 +5003,326 @@ impl<'de> serde::Deserialize<'de> for ListRolesResponse {
             )
     }
 }
+impl serde::Serialize for ListServiceAccountKeysRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.parent.is_empty() {
+            len += 1;
+        }
+        if self.page_size != 0 {
+            len += 1;
+        }
+        if !self.page_token.is_empty() {
+            len += 1;
+        }
+        if self.show_deleted {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.iam.v1beta1.ListServiceAccountKeysRequest",
+                len,
+            )?;
+        if !self.parent.is_empty() {
+            struct_ser.serialize_field("parent", &self.parent)?;
+        }
+        if self.page_size != 0 {
+            struct_ser.serialize_field("pageSize", &self.page_size)?;
+        }
+        if !self.page_token.is_empty() {
+            struct_ser.serialize_field("pageToken", &self.page_token)?;
+        }
+        if self.show_deleted {
+            struct_ser.serialize_field("showDeleted", &self.show_deleted)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for ListServiceAccountKeysRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "parent",
+            "page_size",
+            "pageSize",
+            "page_token",
+            "pageToken",
+            "show_deleted",
+            "showDeleted",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Parent,
+            PageSize,
+            PageToken,
+            ShowDeleted,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "parent" => Ok(GeneratedField::Parent),
+                            "pageSize" | "page_size" => Ok(GeneratedField::PageSize),
+                            "pageToken" | "page_token" => Ok(GeneratedField::PageToken),
+                            "showDeleted" | "show_deleted" => {
+                                Ok(GeneratedField::ShowDeleted)
+                            }
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = ListServiceAccountKeysRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.iam.v1beta1.ListServiceAccountKeysRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<ListServiceAccountKeysRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut parent__ = None;
+                let mut page_size__ = None;
+                let mut page_token__ = None;
+                let mut show_deleted__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Parent => {
+                            if parent__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("parent"));
+                            }
+                            parent__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::PageSize => {
+                            if page_size__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("pageSize"));
+                            }
+                            page_size__ = Some(
+                                map_
+                                    .next_value::<::pbjson::private::NumberDeserialize<_>>()?
+                                    .0,
+                            );
+                        }
+                        GeneratedField::PageToken => {
+                            if page_token__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("pageToken"));
+                            }
+                            page_token__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::ShowDeleted => {
+                            if show_deleted__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("showDeleted"),
+                                );
+                            }
+                            show_deleted__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(ListServiceAccountKeysRequest {
+                    parent: parent__.unwrap_or_default(),
+                    page_size: page_size__.unwrap_or_default(),
+                    page_token: page_token__.unwrap_or_default(),
+                    show_deleted: show_deleted__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.iam.v1beta1.ListServiceAccountKeysRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for ListServiceAccountKeysResponse {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.service_account_keys.is_empty() {
+            len += 1;
+        }
+        if !self.next_page_token.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.iam.v1beta1.ListServiceAccountKeysResponse",
+                len,
+            )?;
+        if !self.service_account_keys.is_empty() {
+            struct_ser
+                .serialize_field("serviceAccountKeys", &self.service_account_keys)?;
+        }
+        if !self.next_page_token.is_empty() {
+            struct_ser.serialize_field("nextPageToken", &self.next_page_token)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for ListServiceAccountKeysResponse {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "service_account_keys",
+            "serviceAccountKeys",
+            "next_page_token",
+            "nextPageToken",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            ServiceAccountKeys,
+            NextPageToken,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "serviceAccountKeys" | "service_account_keys" => {
+                                Ok(GeneratedField::ServiceAccountKeys)
+                            }
+                            "nextPageToken" | "next_page_token" => {
+                                Ok(GeneratedField::NextPageToken)
+                            }
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = ListServiceAccountKeysResponse;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.iam.v1beta1.ListServiceAccountKeysResponse",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<ListServiceAccountKeysResponse, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut service_account_keys__ = None;
+                let mut next_page_token__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::ServiceAccountKeys => {
+                            if service_account_keys__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("serviceAccountKeys"),
+                                );
+                            }
+                            service_account_keys__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::NextPageToken => {
+                            if next_page_token__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("nextPageToken"),
+                                );
+                            }
+                            next_page_token__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(ListServiceAccountKeysResponse {
+                    service_account_keys: service_account_keys__.unwrap_or_default(),
+                    next_page_token: next_page_token__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.iam.v1beta1.ListServiceAccountKeysResponse",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
 impl serde::Serialize for ListServiceAccountsRequest {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -6040,6 +6929,428 @@ impl<'de> serde::Deserialize<'de> for service_account::Type {
         deserializer.deserialize_any(GeneratedVisitor)
     }
 }
+impl serde::Serialize for ServiceAccountKey {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        if self.algorithm != 0 {
+            len += 1;
+        }
+        if self.state != 0 {
+            len += 1;
+        }
+        if !self.creator.is_empty() {
+            len += 1;
+        }
+        if self.create_time.is_some() {
+            len += 1;
+        }
+        if self.last_use_time.is_some() {
+            len += 1;
+        }
+        if self.delete_time.is_some() {
+            len += 1;
+        }
+        if !self.credentials_file.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct("origincloud.iam.v1beta1.ServiceAccountKey", len)?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        if self.algorithm != 0 {
+            let v = service_account_key::Algorithm::try_from(self.algorithm)
+                .map_err(|_| serde::ser::Error::custom(
+                    format!("Invalid variant {}", self.algorithm),
+                ))?;
+            struct_ser.serialize_field("algorithm", &v)?;
+        }
+        if self.state != 0 {
+            let v = service_account_key::State::try_from(self.state)
+                .map_err(|_| serde::ser::Error::custom(
+                    format!("Invalid variant {}", self.state),
+                ))?;
+            struct_ser.serialize_field("state", &v)?;
+        }
+        if !self.creator.is_empty() {
+            struct_ser.serialize_field("creator", &self.creator)?;
+        }
+        if let Some(v) = self.create_time.as_ref() {
+            struct_ser.serialize_field("createTime", v)?;
+        }
+        if let Some(v) = self.last_use_time.as_ref() {
+            struct_ser.serialize_field("lastUseTime", v)?;
+        }
+        if let Some(v) = self.delete_time.as_ref() {
+            struct_ser.serialize_field("deleteTime", v)?;
+        }
+        if !self.credentials_file.is_empty() {
+            struct_ser.serialize_field("credentialsFile", &self.credentials_file)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for ServiceAccountKey {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "name",
+            "algorithm",
+            "state",
+            "creator",
+            "create_time",
+            "createTime",
+            "last_use_time",
+            "lastUseTime",
+            "delete_time",
+            "deleteTime",
+            "credentials_file",
+            "credentialsFile",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            Algorithm,
+            State,
+            Creator,
+            CreateTime,
+            LastUseTime,
+            DeleteTime,
+            CredentialsFile,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            "algorithm" => Ok(GeneratedField::Algorithm),
+                            "state" => Ok(GeneratedField::State),
+                            "creator" => Ok(GeneratedField::Creator),
+                            "createTime" | "create_time" => {
+                                Ok(GeneratedField::CreateTime)
+                            }
+                            "lastUseTime" | "last_use_time" => {
+                                Ok(GeneratedField::LastUseTime)
+                            }
+                            "deleteTime" | "delete_time" => {
+                                Ok(GeneratedField::DeleteTime)
+                            }
+                            "credentialsFile" | "credentials_file" => {
+                                Ok(GeneratedField::CredentialsFile)
+                            }
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = ServiceAccountKey;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter.write_str("struct origincloud.iam.v1beta1.ServiceAccountKey")
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<ServiceAccountKey, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                let mut algorithm__ = None;
+                let mut state__ = None;
+                let mut creator__ = None;
+                let mut create_time__ = None;
+                let mut last_use_time__ = None;
+                let mut delete_time__ = None;
+                let mut credentials_file__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::Algorithm => {
+                            if algorithm__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("algorithm"));
+                            }
+                            algorithm__ = Some(
+                                map_.next_value::<service_account_key::Algorithm>()? as i32,
+                            );
+                        }
+                        GeneratedField::State => {
+                            if state__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("state"));
+                            }
+                            state__ = Some(
+                                map_.next_value::<service_account_key::State>()? as i32,
+                            );
+                        }
+                        GeneratedField::Creator => {
+                            if creator__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("creator"));
+                            }
+                            creator__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::CreateTime => {
+                            if create_time__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("createTime"));
+                            }
+                            create_time__ = map_.next_value()?;
+                        }
+                        GeneratedField::LastUseTime => {
+                            if last_use_time__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("lastUseTime"),
+                                );
+                            }
+                            last_use_time__ = map_.next_value()?;
+                        }
+                        GeneratedField::DeleteTime => {
+                            if delete_time__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("deleteTime"));
+                            }
+                            delete_time__ = map_.next_value()?;
+                        }
+                        GeneratedField::CredentialsFile => {
+                            if credentials_file__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("credentialsFile"),
+                                );
+                            }
+                            credentials_file__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(ServiceAccountKey {
+                    name: name__.unwrap_or_default(),
+                    algorithm: algorithm__.unwrap_or_default(),
+                    state: state__.unwrap_or_default(),
+                    creator: creator__.unwrap_or_default(),
+                    create_time: create_time__,
+                    last_use_time: last_use_time__,
+                    delete_time: delete_time__,
+                    credentials_file: credentials_file__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.iam.v1beta1.ServiceAccountKey",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for service_account_key::Algorithm {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let variant = match self {
+            Self::Unspecified => "ALGORITHM_UNSPECIFIED",
+            Self::Es256 => "ES256",
+        };
+        serializer.serialize_str(variant)
+    }
+}
+impl<'de> serde::Deserialize<'de> for service_account_key::Algorithm {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["ALGORITHM_UNSPECIFIED", "ES256"];
+        struct GeneratedVisitor;
+        impl serde::de::Visitor<'_> for GeneratedVisitor {
+            type Value = service_account_key::Algorithm;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                write!(formatter, "expected one of: {:?}", & FIELDS)
+            }
+            fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                i32::try_from(v)
+                    .ok()
+                    .and_then(|x| {
+                        x
+                            .try_into()
+                            .ok()
+                            .or_else(|| Some(service_account_key::Algorithm::default()))
+                    })
+                    .ok_or_else(|| {
+                        serde::de::Error::invalid_value(
+                            serde::de::Unexpected::Signed(v),
+                            &self,
+                        )
+                    })
+            }
+            fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                i32::try_from(v)
+                    .ok()
+                    .and_then(|x| {
+                        x
+                            .try_into()
+                            .ok()
+                            .or_else(|| Some(service_account_key::Algorithm::default()))
+                    })
+                    .ok_or_else(|| {
+                        serde::de::Error::invalid_value(
+                            serde::de::Unexpected::Unsigned(v),
+                            &self,
+                        )
+                    })
+            }
+            fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match value {
+                    "ALGORITHM_UNSPECIFIED" => {
+                        Ok(service_account_key::Algorithm::Unspecified)
+                    }
+                    "ES256" => Ok(service_account_key::Algorithm::Es256),
+                    _ => Ok(service_account_key::Algorithm::default()),
+                }
+            }
+        }
+        deserializer.deserialize_any(GeneratedVisitor)
+    }
+}
+impl serde::Serialize for service_account_key::State {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let variant = match self {
+            Self::Unspecified => "STATE_UNSPECIFIED",
+            Self::Active => "ACTIVE",
+            Self::Deleted => "DELETED",
+        };
+        serializer.serialize_str(variant)
+    }
+}
+impl<'de> serde::Deserialize<'de> for service_account_key::State {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["STATE_UNSPECIFIED", "ACTIVE", "DELETED"];
+        struct GeneratedVisitor;
+        impl serde::de::Visitor<'_> for GeneratedVisitor {
+            type Value = service_account_key::State;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                write!(formatter, "expected one of: {:?}", & FIELDS)
+            }
+            fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                i32::try_from(v)
+                    .ok()
+                    .and_then(|x| {
+                        x
+                            .try_into()
+                            .ok()
+                            .or_else(|| Some(service_account_key::State::default()))
+                    })
+                    .ok_or_else(|| {
+                        serde::de::Error::invalid_value(
+                            serde::de::Unexpected::Signed(v),
+                            &self,
+                        )
+                    })
+            }
+            fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                i32::try_from(v)
+                    .ok()
+                    .and_then(|x| {
+                        x
+                            .try_into()
+                            .ok()
+                            .or_else(|| Some(service_account_key::State::default()))
+                    })
+                    .ok_or_else(|| {
+                        serde::de::Error::invalid_value(
+                            serde::de::Unexpected::Unsigned(v),
+                            &self,
+                        )
+                    })
+            }
+            fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match value {
+                    "STATE_UNSPECIFIED" => Ok(service_account_key::State::Unspecified),
+                    "ACTIVE" => Ok(service_account_key::State::Active),
+                    "DELETED" => Ok(service_account_key::State::Deleted),
+                    _ => Ok(service_account_key::State::default()),
+                }
+            }
+        }
+        deserializer.deserialize_any(GeneratedVisitor)
+    }
+}
 impl serde::Serialize for TestIamPermissionsRequest {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -7233,6 +8544,176 @@ impl ServiceAccountClient {
             "name",
             &n0,
             "organizations/*/serviceAccounts/*",
+        )?;
+        request.name = n0;
+        let query = ::origincloud_core::query(&request, &["name"])?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::DELETE,
+                format!("/v1beta1/{p0}"),
+            )
+            .with_query(query);
+        self.service.call(call).await
+    }
+}
+/// Calls `ServiceAccountKeyService`.
+///
+/// Service account keys: the credential of an `service_account::Type::External` service account
+/// for software that has no identity of its own to federate, such as a job
+/// on a server of your own. Prefer a federated credential or impersonation
+/// where you can: a key is a long-lived secret you have to keep. The
+/// platform generates the key pair, returns the private key once, in a
+/// credentials file, and keeps only the public key. Software signs a JWT
+/// assertion with the private key and exchanges it at
+/// `<https://sts.origincloudapis.eu`> for the service account's access token.
+/// A key is never updated: create a new one and delete the old.
+#[derive(Clone, Debug)]
+pub struct ServiceAccountKeyClient {
+    service: ::origincloud_core::Service,
+}
+impl ServiceAccountKeyClient {
+    /// Returns a client of `ServiceAccountKeyService` that sends its calls through `client`.
+    pub fn new(client: &::origincloud_core::Client) -> Self {
+        Self {
+            service: client.service("iam", false),
+        }
+    }
+    /// The endpoint the client sends its calls to, which also serves the operations its methods answer with.
+    pub fn service(&self) -> &::origincloud_core::Service {
+        &self.service
+    }
+    /// The same client, whose calls are sent as `options` says instead of as the [`Client`](origincloud_core::Client)'s settings do, such as a mutation that must not be sent twice: `.with_options(CallOptions::new().max_attempts(1))`. See [`CallOptions`](origincloud_core::CallOptions).
+    pub fn with_options(&self, options: ::origincloud_core::CallOptions) -> Self {
+        Self {
+            service: self.service.with_options(options),
+        }
+    }
+    /// Returns a service account key's public metadata, deleted or not; never
+    /// its private key. Needs `iam.service_account_key.get` on the
+    /// organization.
+    pub async fn get_service_account_key(
+        &self,
+        mut request: GetServiceAccountKeyRequest,
+    ) -> ::core::result::Result<ServiceAccountKey, ::origincloud_core::Error> {
+        let n0 = self.service.relative_name("name", &request.name, &["iam"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/serviceAccounts/*/keys/*",
+        )?;
+        request.name = n0;
+        let query = ::origincloud_core::query(&request, &["name"])?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::GET,
+                format!("/v1beta1/{p0}"),
+            )
+            .with_query(query)
+            .idempotent();
+        self.service.call(call).await
+    }
+    /// Lists a service account's keys, oldest first, by their public
+    /// metadata; never a private key. Deleted ones are listed only when
+    /// `show_deleted` is set. Needs `iam.service_account_key.list` on the
+    /// organization.
+    pub async fn list_service_account_keys(
+        &self,
+        mut request: ListServiceAccountKeysRequest,
+    ) -> ::core::result::Result<
+        ListServiceAccountKeysResponse,
+        ::origincloud_core::Error,
+    > {
+        let n0 = self.service.relative_name("parent", &request.parent, &["iam"])?;
+        let p0 = ::origincloud_core::path_value(
+            "parent",
+            &n0,
+            "organizations/*/serviceAccounts/*",
+        )?;
+        request.parent = n0;
+        let query = ::origincloud_core::query(&request, &["parent"])?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::GET,
+                format!("/v1beta1/{p0}/keys"),
+            )
+            .with_query(query)
+            .idempotent();
+        self.service.call(call).await
+    }
+    /// Returns everything [`list_service_account_keys`](Self::list_service_account_keys) lists from `request`'s page on, fetching the next page as the stream reaches it. A page that fails ends the stream with its error.
+    pub fn all_service_account_keys(
+        &self,
+        request: ListServiceAccountKeysRequest,
+    ) -> ::origincloud_core::Pages<ServiceAccountKey> {
+        let client = self.clone();
+        ::origincloud_core::Pages::new(
+            request,
+            move |request: ListServiceAccountKeysRequest| {
+                let client = client.clone();
+                async move {
+                    let page = client.list_service_account_keys(request).await?;
+                    Ok((page.service_account_keys, page.next_page_token))
+                }
+            },
+            |request: &mut ListServiceAccountKeysRequest, token: ::std::string::String| {
+                request.page_token = token;
+            },
+        )
+    }
+    /// Creates an `service_account_key::Algorithm::Es256` key for an active `service_account::Type::External` service account and
+    /// returns its private key in `credentials_file`, in this response only:
+    /// store it now. Whoever holds the file acts as the service account, so
+    /// creating a key needs `iam.service_account_key.create` and
+    /// `iam.service_account.act_as` on the organization. A service account has
+    /// at most 10 keys that aren't deleted; an 11th is refused with
+    /// `CONFLICT`. A `service_account::Type::Workload` service account never has a key: it is refused
+    /// with `INVALID_ARGUMENT`.
+    pub async fn create_service_account_key(
+        &self,
+        mut request: CreateServiceAccountKeyRequest,
+    ) -> ::core::result::Result<ServiceAccountKey, ::origincloud_core::Error> {
+        if request.request_id.is_empty() {
+            request.request_id = ::origincloud_core::new_request_id();
+        }
+        let n0 = self.service.relative_name("parent", &request.parent, &["iam"])?;
+        let p0 = ::origincloud_core::path_value(
+            "parent",
+            &n0,
+            "organizations/*/serviceAccounts/*",
+        )?;
+        request.parent = n0;
+        let body = ::origincloud_core::json_body(
+            request
+                .service_account_key
+                .as_ref()
+                .unwrap_or(&::core::default::Default::default()),
+        )?;
+        let query = ::origincloud_core::query(
+            &request,
+            &["parent", "serviceAccountKey"],
+        )?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::POST,
+                format!("/v1beta1/{p0}/keys"),
+            )
+            .with_body(body)
+            .with_query(query)
+            .idempotent();
+        self.service.call(call).await
+    }
+    /// Deletes a service account key: no assertion signed with it is
+    /// exchanged from then on. It stays readable as `service_account_key::State::Deleted`. Deleting a
+    /// deleted one succeeds. Needs `iam.service_account_key.delete` on the
+    /// organization.
+    pub async fn delete_service_account_key(
+        &self,
+        mut request: DeleteServiceAccountKeyRequest,
+    ) -> ::core::result::Result<
+        ::origincloud_core::protobuf::Empty,
+        ::origincloud_core::Error,
+    > {
+        let n0 = self.service.relative_name("name", &request.name, &["iam"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "organizations/*/serviceAccounts/*/keys/*",
         )?;
         request.name = n0;
         let query = ::origincloud_core::query(&request, &["name"])?;
