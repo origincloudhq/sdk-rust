@@ -1867,7 +1867,7 @@ pub struct Subnet {
     #[prost(string, tag = "5")]
     pub acl: ::prost::alloc::string::String,
     /// Whether a launch that creates its network interface in the subnet,
-    /// as the GraphQL API's `launchInstance` does, gives that interface a
+    /// as the compute API's `LaunchInstance` does from an interface spec, gives that interface a
     /// floating IP of its own, released when the instance is terminated. The
     /// interface is created with its address or not at all: with none free in
     /// the zone, or the public IP quota used up, the instance is `FAILED`
