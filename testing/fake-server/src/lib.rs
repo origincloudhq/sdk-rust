@@ -1,5 +1,7 @@
 //! A local HTTP server for the SDK's tests: each request it receives is
-//! answered by a handler the test gives it.
+//! answered by a handler the test gives it. [`FakeServer::start_tls`] serves
+//! HTTPS for given hosts instead, so that a test can let a client call the
+//! host it would call in production and see what arrived there.
 
 use std::convert::Infallible;
 use std::future::Future;
@@ -14,6 +16,10 @@ use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
+use tokio_rustls::TlsAcceptor;
+use tokio_rustls::rustls::ServerConfig;
+use tokio_rustls::rustls::crypto::aws_lc_rs;
+use tokio_rustls::rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
 
 /// A request as the server received it.
 #[derive(Clone, Debug)]
@@ -118,12 +124,50 @@ impl Response {
 /// A running server; it stops when dropped.
 pub struct FakeServer {
     addr: SocketAddr,
+    certificate: Option<String>,
     task: JoinHandle<()>,
 }
 
 impl FakeServer {
     /// Starts a server answering every request with `handler`.
     pub async fn start<F, Fut>(handler: F) -> Self
+    where
+        F: Fn(Received) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Response> + Send + 'static,
+    {
+        Self::serve(None, None, handler).await
+    }
+
+    /// Starts a server answering every request with `handler` over HTTPS,
+    /// with a self-signed certificate for `hosts`, such as
+    /// `compute.origincloudapis.eu`. A client reaches it as one of those
+    /// hosts by resolving the host to [`addr`](Self::addr) and trusting
+    /// [`certificate_pem`](Self::certificate_pem).
+    pub async fn start_tls<F, Fut>(hosts: &[&str], handler: F) -> Self
+    where
+        F: Fn(Received) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Response> + Send + 'static,
+    {
+        let hosts: Vec<String> = hosts.iter().map(|&h| h.to_owned()).collect();
+        let issued =
+            rcgen::generate_simple_self_signed(hosts).expect("a certificate for the hosts");
+        let key =
+            PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(issued.signing_key.serialize_der()));
+        let config = ServerConfig::builder_with_provider(Arc::new(aws_lc_rs::default_provider()))
+            .with_safe_default_protocol_versions()
+            .expect("the default protocol versions")
+            .with_no_client_auth()
+            .with_single_cert(vec![issued.cert.der().clone()], key)
+            .expect("the certificate and its key");
+        let acceptor = TlsAcceptor::from(Arc::new(config));
+        Self::serve(Some(acceptor), Some(issued.cert.pem()), handler).await
+    }
+
+    async fn serve<F, Fut>(
+        tls: Option<TlsAcceptor>,
+        certificate: Option<String>,
+        handler: F,
+    ) -> Self
     where
         F: Fn(Received) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Response> + Send + 'static,
@@ -139,54 +183,89 @@ impl FakeServer {
                     continue;
                 };
                 let handler = Arc::clone(&handler);
+                let tls = tls.clone();
                 tokio::spawn(async move {
                     let service = service_fn(move |request: hyper::Request<Incoming>| {
                         let handler = Arc::clone(&handler);
-                        async move {
-                            let (parts, body) = request.into_parts();
-                            let body = body
-                                .collect()
-                                .await
-                                .map(|b| b.to_bytes())
-                                .unwrap_or_default();
-                            let received = Received {
-                                method: parts.method.to_string(),
-                                path: parts.uri.path().to_owned(),
-                                query: parts.uri.query().unwrap_or_default().to_owned(),
-                                headers: parts
-                                    .headers
-                                    .iter()
-                                    .map(|(n, v)| {
-                                        (n.to_string(), v.to_str().unwrap_or_default().to_owned())
-                                    })
-                                    .collect(),
-                                body,
-                            };
-                            let answer = handler(received).await;
-                            let mut response = hyper::Response::builder().status(answer.status);
-                            for (name, value) in &answer.headers {
-                                response = response.header(name, value);
-                            }
-                            Ok::<_, Infallible>(
-                                response
-                                    .body(Full::new(Bytes::from(answer.body)))
-                                    .expect("a valid response"),
-                            )
-                        }
+                        async move { Ok::<_, Infallible>(answer(&*handler, request).await) }
                     });
-                    let _ = http1::Builder::new()
-                        .serve_connection(TokioIo::new(stream), service)
-                        .await;
+                    let connection = http1::Builder::new();
+                    let _ = match tls {
+                        Some(tls) => match tls.accept(stream).await {
+                            Ok(stream) => {
+                                connection
+                                    .serve_connection(TokioIo::new(stream), service)
+                                    .await
+                            }
+                            Err(_) => return,
+                        },
+                        None => {
+                            connection
+                                .serve_connection(TokioIo::new(stream), service)
+                                .await
+                        }
+                    };
                 });
             }
         });
-        Self { addr, task }
+        Self {
+            addr,
+            certificate,
+            task,
+        }
     }
 
     /// The server's base URL, such as `http://127.0.0.1:41234`.
     pub fn url(&self) -> String {
         format!("http://{}", self.addr)
     }
+
+    /// The local address the server listens on.
+    pub fn addr(&self) -> SocketAddr {
+        self.addr
+    }
+
+    /// The certificate of a server started with
+    /// [`start_tls`](Self::start_tls), PEM-encoded; `None` for plain HTTP.
+    pub fn certificate_pem(&self) -> Option<&str> {
+        self.certificate.as_deref()
+    }
+}
+
+/// Reads `request` into a [`Received`] and answers it with `handler`.
+async fn answer<F, Fut>(
+    handler: &F,
+    request: hyper::Request<Incoming>,
+) -> hyper::Response<Full<Bytes>>
+where
+    F: Fn(Received) -> Fut,
+    Fut: Future<Output = Response>,
+{
+    let (parts, body) = request.into_parts();
+    let body = body
+        .collect()
+        .await
+        .map(|b| b.to_bytes())
+        .unwrap_or_default();
+    let received = Received {
+        method: parts.method.to_string(),
+        path: parts.uri.path().to_owned(),
+        query: parts.uri.query().unwrap_or_default().to_owned(),
+        headers: parts
+            .headers
+            .iter()
+            .map(|(n, v)| (n.to_string(), v.to_str().unwrap_or_default().to_owned()))
+            .collect(),
+        body,
+    };
+    let answer = handler(received).await;
+    let mut response = hyper::Response::builder().status(answer.status);
+    for (name, value) in &answer.headers {
+        response = response.header(name, value);
+    }
+    response
+        .body(Full::new(Bytes::from(answer.body)))
+        .expect("a valid response")
 }
 
 impl Drop for FakeServer {

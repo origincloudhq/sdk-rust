@@ -174,3 +174,76 @@ async fn list_instance_types_reads_the_catalog() {
     assert_eq!(listed.method, "GET");
     assert_eq!(listed.path, "/v1beta1/instanceTypes");
 }
+
+/// A client given only a full name calls the resource: the name carries the
+/// project, the zone and the service, so nothing else is given and no table
+/// from collection to service is consulted. The client has no endpoint set:
+/// the request goes to the service's own host, which resolves to a fake
+/// server holding a certificate for it, at the name's relative path.
+#[tokio::test]
+async fn a_client_given_only_a_full_name_calls_the_resource() {
+    const HOST: &str = "compute.origincloudapis.eu";
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let log = Arc::clone(&calls);
+    let server = FakeServer::start_tls(&[HOST], move |r| {
+        log.lock().unwrap().push(r);
+        async move { Response::json(r#"{"name":"projects/p/zones/eu-central1-az1/instances/i-1"}"#) }
+    })
+    .await;
+    let certificate =
+        reqwest::Certificate::from_pem(server.certificate_pem().unwrap().as_bytes()).unwrap();
+    let http = reqwest::Client::builder()
+        .resolve(HOST, server.addr())
+        .tls_certs_only([certificate])
+        .no_proxy()
+        .build()
+        .unwrap();
+    let client = Client::builder()
+        .credentials(AccessToken::new("t"))
+        .http_client(http)
+        .build()
+        .unwrap();
+
+    InstanceClient::new(&client)
+        .get_instance(GetInstanceRequest {
+            name: "//compute.origincloudapis.eu/projects/p/zones/eu-central1-az1/instances/i-1"
+                .to_owned(),
+        })
+        .await
+        .unwrap();
+
+    let calls = calls.lock().unwrap();
+    let [get] = calls.as_slice() else {
+        panic!("{calls:?}");
+    };
+    assert_eq!(get.method, "GET");
+    assert_eq!(get.header("host"), Some(HOST));
+    assert_eq!(
+        get.path,
+        "/v1beta1/projects/p/zones/eu-central1-az1/instances/i-1"
+    );
+}
+
+/// A full name on another service's host is refused before anything is
+/// sent: the client doesn't send a name its service doesn't own.
+#[tokio::test]
+async fn a_full_name_of_another_service_is_refused_before_sending() {
+    let (_server, client, calls) = recording("{}").await;
+    let err = InstanceClient::new(&client)
+        .get_instance(GetInstanceRequest {
+            name: "//pvs.origincloudapis.eu/projects/p/zones/eu-central1-az1/instances/i-1"
+                .to_owned(),
+        })
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(err, origincloud_core::Error::InvalidRequest(_)),
+        "{err:?}"
+    );
+    assert!(
+        err.to_string()
+            .contains("name must be a name on compute.origincloudapis.eu"),
+        "{err}"
+    );
+    assert!(calls.lock().unwrap().is_empty());
+}
