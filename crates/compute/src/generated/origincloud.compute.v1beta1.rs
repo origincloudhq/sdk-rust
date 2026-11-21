@@ -362,17 +362,20 @@ pub struct DeleteImageRequest {
 /// the default.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LaunchTemplate {
-    /// The launch template's resource name.
+    /// The launch template's resource name. A template read at one version,
+    /// by `@{version}`, `@default` or `@latest`, is named with that version's
+    /// number, `projects/{project}/launchTemplates/{launch_template}@{version}`.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    /// The recipe of the default version. On creation, the recipe of version
-    /// 1.
+    /// The recipe of the version this shows, `version`: the default version's
+    /// unless the name named another. On creation, the recipe of version 1.
     #[prost(message, optional, tag = "2")]
     pub launch_template_data: ::core::option::Option<LaunchTemplateData>,
-    /// The number of the version launches use when they name no version.
+    /// The number of the version launches use when they name no version. 1 on
+    /// creation; an update sets it to another version the template has.
     #[prost(int32, tag = "3")]
     pub default_version: i32,
-    /// The number of the newest version.
+    /// The number of the newest version the template has.
     #[prost(int32, tag = "4")]
     pub latest_version: i32,
     /// When the launch template was created.
@@ -392,11 +395,21 @@ pub struct LaunchTemplate {
         ::prost::alloc::string::String,
         ::prost::alloc::string::String,
     >,
+    /// The number of the version whose recipe this shows.
+    #[prost(int32, tag = "8")]
+    pub version: i32,
+    /// When that version was created.
+    #[prost(message, optional, tag = "9")]
+    pub version_create_time: ::core::option::Option<
+        ::origincloud_core::protobuf::Timestamp,
+    >,
 }
 /// The request for GetLaunchTemplate.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct GetLaunchTemplateRequest {
-    /// The launch template to return.
+    /// The launch template to return: `projects/{project}/launchTemplates/{launch_template}`
+    /// for its default version, or with `@{version}`, `@default` or `@latest`
+    /// after it for that version.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
 }
@@ -442,11 +455,13 @@ pub struct CreateLaunchTemplateRequest {
 /// The request for UpdateLaunchTemplate.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UpdateLaunchTemplateRequest {
-    /// The launch template, by its name, with the tags to set.
+    /// The launch template, by its name, with the tags or the default version
+    /// to set.
     #[prost(message, optional, tag = "1")]
     pub launch_template: ::core::option::Option<LaunchTemplate>,
-    /// The fields to change: `tags`, the only field that changes. `*` is the
-    /// same.
+    /// The fields to change: `tags`, `default_version`, or both. `*` is both,
+    /// where a `default_version` of 0 leaves the default as it is. A
+    /// `default_version` must be a version the template has.
     #[prost(message, optional, tag = "2")]
     pub update_mask: ::core::option::Option<::origincloud_core::protobuf::FieldMask>,
 }
@@ -454,6 +469,49 @@ pub struct UpdateLaunchTemplateRequest {
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteLaunchTemplateRequest {
     /// The launch template to delete.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+}
+/// The request for CreateLaunchTemplateVersion.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CreateLaunchTemplateVersionRequest {
+    /// The launch template to add a version to.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    /// The new version's recipe.
+    #[prost(message, optional, tag = "2")]
+    pub launch_template_data: ::core::option::Option<LaunchTemplateData>,
+}
+/// The request for ListLaunchTemplateVersions.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ListLaunchTemplateVersionsRequest {
+    /// The launch template whose versions to list.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    /// The most versions to return; the server clamps it, and 0 means its
+    /// default.
+    #[prost(int32, tag = "2")]
+    pub page_size: i32,
+    /// A previous response's `next_page_token`, for the page after it.
+    #[prost(string, tag = "3")]
+    pub page_token: ::prost::alloc::string::String,
+}
+/// The response for ListLaunchTemplateVersions.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListLaunchTemplateVersionsResponse {
+    /// The template at each version on this page, newest first, each named
+    /// with its version's number.
+    #[prost(message, repeated, tag = "1")]
+    pub launch_templates: ::prost::alloc::vec::Vec<LaunchTemplate>,
+    /// The token for the next page; empty on the last one.
+    #[prost(string, tag = "2")]
+    pub next_page_token: ::prost::alloc::string::String,
+}
+/// The request for DeleteLaunchTemplateVersion.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct DeleteLaunchTemplateVersionRequest {
+    /// The version to delete, `projects/{project}/launchTemplates/{launch_template}@{version}`
+    /// with the version's number.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
 }
@@ -668,6 +726,14 @@ pub struct Instance {
     /// change. Empty for an instance that runs as none.
     #[prost(string, tag = "17")]
     pub service_account: ::prost::alloc::string::String,
+    /// The full name of the launch template version the instance was launched
+    /// from,
+    /// `//compute.origincloudapis.eu/projects/{project}/launchTemplates/{launch_template}@{version}`,
+    /// with the number the launch resolved `@default` or `@latest` to. Empty
+    /// for an instance launched without a template. The template may since
+    /// have been changed or deleted.
+    #[prost(string, tag = "18")]
+    pub launch_template: ::prost::alloc::string::String,
 }
 /// Nested message and enum types in `Instance`.
 pub mod instance {
@@ -1060,13 +1126,31 @@ pub struct LaunchInstanceRequest {
     /// The zone to launch the instance in, `projects/{project}/zones/{zone}`.
     #[prost(string, tag = "1")]
     pub parent: ::prost::alloc::string::String,
-    /// The recipe of the instance to launch.
+    /// The recipe of the instance to launch. Required unless
+    /// `launch_template` is set. With `launch_template`, the fields set here
+    /// override the version's for this launch only, and the version stays as
+    /// it is: a field left empty keeps the version's, so an override can't
+    /// clear one. `image` or `image_family` replaces both of the version's,
+    /// `size_gib` and `storage_class` of `boot_volume` each replace the
+    /// version's own, and `tags` and `network_interfaces` replace the
+    /// version's whole.
     #[prost(message, optional, tag = "2")]
     pub launch_template_data: ::core::option::Option<LaunchTemplateData>,
     /// A UUID; a repeat with the same id returns the first request's
     /// operation instead of launching a second instance.
     #[prost(string, tag = "3")]
     pub request_id: ::prost::alloc::string::String,
+    /// The full name of a launch template of the instance's project to launch
+    /// from,
+    /// `//compute.origincloudapis.eu/projects/{project}/launchTemplates/{launch_template}`
+    /// for its default version, or with `@{version}`, `@default` or `@latest`
+    /// after it for that version, resolved when the launch is made. Launching
+    /// from one needs `compute.launch_template.get` on it as well. An unknown
+    /// template or version is refused with `NOT_FOUND`, and a version whose
+    /// image, key pair or subnet is gone is refused naming that field of
+    /// `launch_template_data`.
+    #[prost(string, tag = "4")]
+    pub launch_template: ::prost::alloc::string::String,
 }
 /// The request for UpdateInstance.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -2179,6 +2263,139 @@ impl<'de> serde::Deserialize<'de> for CreateLaunchTemplateRequest {
             )
     }
 }
+impl serde::Serialize for CreateLaunchTemplateVersionRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        if self.launch_template_data.is_some() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.compute.v1beta1.CreateLaunchTemplateVersionRequest",
+                len,
+            )?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        if let Some(v) = self.launch_template_data.as_ref() {
+            struct_ser.serialize_field("launchTemplateData", v)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for CreateLaunchTemplateVersionRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["name", "launch_template_data", "launchTemplateData"];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            LaunchTemplateData,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            "launchTemplateData" | "launch_template_data" => {
+                                Ok(GeneratedField::LaunchTemplateData)
+                            }
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = CreateLaunchTemplateVersionRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.compute.v1beta1.CreateLaunchTemplateVersionRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<CreateLaunchTemplateVersionRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                let mut launch_template_data__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::LaunchTemplateData => {
+                            if launch_template_data__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("launchTemplateData"),
+                                );
+                            }
+                            launch_template_data__ = map_.next_value()?;
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(CreateLaunchTemplateVersionRequest {
+                    name: name__.unwrap_or_default(),
+                    launch_template_data: launch_template_data__,
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.compute.v1beta1.CreateLaunchTemplateVersionRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
 impl serde::Serialize for CreateVolumeAttachmentRequest {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -2784,6 +3001,119 @@ impl<'de> serde::Deserialize<'de> for DeleteLaunchTemplateRequest {
         deserializer
             .deserialize_struct(
                 "origincloud.compute.v1beta1.DeleteLaunchTemplateRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for DeleteLaunchTemplateVersionRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.compute.v1beta1.DeleteLaunchTemplateVersionRequest",
+                len,
+            )?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for DeleteLaunchTemplateVersionRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["name"];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = DeleteLaunchTemplateVersionRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.compute.v1beta1.DeleteLaunchTemplateVersionRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<DeleteLaunchTemplateVersionRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(DeleteLaunchTemplateVersionRequest {
+                    name: name__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.compute.v1beta1.DeleteLaunchTemplateVersionRequest",
                 FIELDS,
                 GeneratedVisitor,
             )
@@ -5223,6 +5553,9 @@ impl serde::Serialize for Instance {
         if !self.service_account.is_empty() {
             len += 1;
         }
+        if !self.launch_template.is_empty() {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.compute.v1beta1.Instance", len)?;
         if !self.name.is_empty() {
@@ -5277,6 +5610,9 @@ impl serde::Serialize for Instance {
         if !self.service_account.is_empty() {
             struct_ser.serialize_field("serviceAccount", &self.service_account)?;
         }
+        if !self.launch_template.is_empty() {
+            struct_ser.serialize_field("launchTemplate", &self.launch_template)?;
+        }
         struct_ser.end()
     }
 }
@@ -5313,6 +5649,8 @@ impl<'de> serde::Deserialize<'de> for Instance {
             "interfaceAddresses",
             "service_account",
             "serviceAccount",
+            "launch_template",
+            "launchTemplate",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -5332,6 +5670,7 @@ impl<'de> serde::Deserialize<'de> for Instance {
             Tags,
             InterfaceAddresses,
             ServiceAccount,
+            LaunchTemplate,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -5391,6 +5730,9 @@ impl<'de> serde::Deserialize<'de> for Instance {
                             "serviceAccount" | "service_account" => {
                                 Ok(GeneratedField::ServiceAccount)
                             }
+                            "launchTemplate" | "launch_template" => {
+                                Ok(GeneratedField::LaunchTemplate)
+                            }
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -5427,6 +5769,7 @@ impl<'de> serde::Deserialize<'de> for Instance {
                 let mut tags__ = None;
                 let mut interface_addresses__ = None;
                 let mut service_account__ = None;
+                let mut launch_template__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Name => {
@@ -5539,6 +5882,14 @@ impl<'de> serde::Deserialize<'de> for Instance {
                             }
                             service_account__ = Some(map_.next_value()?);
                         }
+                        GeneratedField::LaunchTemplate => {
+                            if launch_template__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("launchTemplate"),
+                                );
+                            }
+                            launch_template__ = Some(map_.next_value()?);
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -5561,6 +5912,7 @@ impl<'de> serde::Deserialize<'de> for Instance {
                     tags: tags__.unwrap_or_default(),
                     interface_addresses: interface_addresses__.unwrap_or_default(),
                     service_account: service_account__.unwrap_or_default(),
+                    launch_template: launch_template__.unwrap_or_default(),
                 })
             }
         }
@@ -6544,6 +6896,9 @@ impl serde::Serialize for LaunchInstanceRequest {
         if !self.request_id.is_empty() {
             len += 1;
         }
+        if !self.launch_template.is_empty() {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.compute.v1beta1.LaunchInstanceRequest", len)?;
         if !self.parent.is_empty() {
@@ -6554,6 +6909,9 @@ impl serde::Serialize for LaunchInstanceRequest {
         }
         if !self.request_id.is_empty() {
             struct_ser.serialize_field("requestId", &self.request_id)?;
+        }
+        if !self.launch_template.is_empty() {
+            struct_ser.serialize_field("launchTemplate", &self.launch_template)?;
         }
         struct_ser.end()
     }
@@ -6570,12 +6928,15 @@ impl<'de> serde::Deserialize<'de> for LaunchInstanceRequest {
             "launchTemplateData",
             "request_id",
             "requestId",
+            "launch_template",
+            "launchTemplate",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Parent,
             LaunchTemplateData,
             RequestId,
+            LaunchTemplate,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -6608,6 +6969,9 @@ impl<'de> serde::Deserialize<'de> for LaunchInstanceRequest {
                                 Ok(GeneratedField::LaunchTemplateData)
                             }
                             "requestId" | "request_id" => Ok(GeneratedField::RequestId),
+                            "launchTemplate" | "launch_template" => {
+                                Ok(GeneratedField::LaunchTemplate)
+                            }
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -6637,6 +7001,7 @@ impl<'de> serde::Deserialize<'de> for LaunchInstanceRequest {
                 let mut parent__ = None;
                 let mut launch_template_data__ = None;
                 let mut request_id__ = None;
+                let mut launch_template__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Parent => {
@@ -6659,6 +7024,14 @@ impl<'de> serde::Deserialize<'de> for LaunchInstanceRequest {
                             }
                             request_id__ = Some(map_.next_value()?);
                         }
+                        GeneratedField::LaunchTemplate => {
+                            if launch_template__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("launchTemplate"),
+                                );
+                            }
+                            launch_template__ = Some(map_.next_value()?);
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -6668,6 +7041,7 @@ impl<'de> serde::Deserialize<'de> for LaunchInstanceRequest {
                     parent: parent__.unwrap_or_default(),
                     launch_template_data: launch_template_data__,
                     request_id: request_id__.unwrap_or_default(),
+                    launch_template: launch_template__.unwrap_or_default(),
                 })
             }
         }
@@ -6708,6 +7082,12 @@ impl serde::Serialize for LaunchTemplate {
         if !self.tags.is_empty() {
             len += 1;
         }
+        if self.version != 0 {
+            len += 1;
+        }
+        if self.version_create_time.is_some() {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.compute.v1beta1.LaunchTemplate", len)?;
         if !self.name.is_empty() {
@@ -6731,6 +7111,12 @@ impl serde::Serialize for LaunchTemplate {
         if !self.tags.is_empty() {
             struct_ser.serialize_field("tags", &self.tags)?;
         }
+        if self.version != 0 {
+            struct_ser.serialize_field("version", &self.version)?;
+        }
+        if let Some(v) = self.version_create_time.as_ref() {
+            struct_ser.serialize_field("versionCreateTime", v)?;
+        }
         struct_ser.end()
     }
 }
@@ -6752,6 +7138,9 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplate {
             "createTime",
             "creator",
             "tags",
+            "version",
+            "version_create_time",
+            "versionCreateTime",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -6762,6 +7151,8 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplate {
             CreateTime,
             Creator,
             Tags,
+            Version,
+            VersionCreateTime,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -6804,6 +7195,10 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplate {
                             }
                             "creator" => Ok(GeneratedField::Creator),
                             "tags" => Ok(GeneratedField::Tags),
+                            "version" => Ok(GeneratedField::Version),
+                            "versionCreateTime" | "version_create_time" => {
+                                Ok(GeneratedField::VersionCreateTime)
+                            }
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -6834,6 +7229,8 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplate {
                 let mut create_time__ = None;
                 let mut creator__ = None;
                 let mut tags__ = None;
+                let mut version__ = None;
+                let mut version_create_time__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Name => {
@@ -6894,6 +7291,24 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplate {
                                 map_.next_value::<std::collections::BTreeMap<_, _>>()?,
                             );
                         }
+                        GeneratedField::Version => {
+                            if version__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("version"));
+                            }
+                            version__ = Some(
+                                map_
+                                    .next_value::<::pbjson::private::NumberDeserialize<_>>()?
+                                    .0,
+                            );
+                        }
+                        GeneratedField::VersionCreateTime => {
+                            if version_create_time__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("versionCreateTime"),
+                                );
+                            }
+                            version_create_time__ = map_.next_value()?;
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -6907,6 +7322,8 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplate {
                     create_time: create_time__,
                     creator: creator__.unwrap_or_default(),
                     tags: tags__.unwrap_or_default(),
+                    version: version__.unwrap_or_default(),
+                    version_create_time: version_create_time__,
                 })
             }
         }
@@ -8721,6 +9138,303 @@ impl<'de> serde::Deserialize<'de> for ListKeyPairsResponse {
         deserializer
             .deserialize_struct(
                 "origincloud.compute.v1beta1.ListKeyPairsResponse",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for ListLaunchTemplateVersionsRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        if self.page_size != 0 {
+            len += 1;
+        }
+        if !self.page_token.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.compute.v1beta1.ListLaunchTemplateVersionsRequest",
+                len,
+            )?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        if self.page_size != 0 {
+            struct_ser.serialize_field("pageSize", &self.page_size)?;
+        }
+        if !self.page_token.is_empty() {
+            struct_ser.serialize_field("pageToken", &self.page_token)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for ListLaunchTemplateVersionsRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "name",
+            "page_size",
+            "pageSize",
+            "page_token",
+            "pageToken",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            PageSize,
+            PageToken,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            "pageSize" | "page_size" => Ok(GeneratedField::PageSize),
+                            "pageToken" | "page_token" => Ok(GeneratedField::PageToken),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = ListLaunchTemplateVersionsRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.compute.v1beta1.ListLaunchTemplateVersionsRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<ListLaunchTemplateVersionsRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                let mut page_size__ = None;
+                let mut page_token__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::PageSize => {
+                            if page_size__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("pageSize"));
+                            }
+                            page_size__ = Some(
+                                map_
+                                    .next_value::<::pbjson::private::NumberDeserialize<_>>()?
+                                    .0,
+                            );
+                        }
+                        GeneratedField::PageToken => {
+                            if page_token__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("pageToken"));
+                            }
+                            page_token__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(ListLaunchTemplateVersionsRequest {
+                    name: name__.unwrap_or_default(),
+                    page_size: page_size__.unwrap_or_default(),
+                    page_token: page_token__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.compute.v1beta1.ListLaunchTemplateVersionsRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for ListLaunchTemplateVersionsResponse {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.launch_templates.is_empty() {
+            len += 1;
+        }
+        if !self.next_page_token.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.compute.v1beta1.ListLaunchTemplateVersionsResponse",
+                len,
+            )?;
+        if !self.launch_templates.is_empty() {
+            struct_ser.serialize_field("launchTemplates", &self.launch_templates)?;
+        }
+        if !self.next_page_token.is_empty() {
+            struct_ser.serialize_field("nextPageToken", &self.next_page_token)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for ListLaunchTemplateVersionsResponse {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "launch_templates",
+            "launchTemplates",
+            "next_page_token",
+            "nextPageToken",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            LaunchTemplates,
+            NextPageToken,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "launchTemplates" | "launch_templates" => {
+                                Ok(GeneratedField::LaunchTemplates)
+                            }
+                            "nextPageToken" | "next_page_token" => {
+                                Ok(GeneratedField::NextPageToken)
+                            }
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = ListLaunchTemplateVersionsResponse;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.compute.v1beta1.ListLaunchTemplateVersionsResponse",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<ListLaunchTemplateVersionsResponse, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut launch_templates__ = None;
+                let mut next_page_token__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::LaunchTemplates => {
+                            if launch_templates__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("launchTemplates"),
+                                );
+                            }
+                            launch_templates__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::NextPageToken => {
+                            if next_page_token__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("nextPageToken"),
+                                );
+                            }
+                            next_page_token__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(ListLaunchTemplateVersionsResponse {
+                    launch_templates: launch_templates__.unwrap_or_default(),
+                    next_page_token: next_page_token__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.compute.v1beta1.ListLaunchTemplateVersionsResponse",
                 FIELDS,
                 GeneratedVisitor,
             )
@@ -11686,8 +12400,11 @@ impl InstanceClient {
         )
     }
     /// Launches an instance from a recipe: the instance it describes, with a
-    /// network interface created from each interface spec it holds. Nothing
-    /// is created when the launch is refused, as for an invalid field, a
+    /// network interface created from each interface spec it holds. The
+    /// recipe is sent inline as `launch_template_data`, or is a version of a
+    /// launch template named by `launch_template`, with the fields set in
+    /// `launch_template_data` overriding that version's for this launch only.
+    /// Nothing is created when the launch is refused, as for an invalid field, a
     /// quota or a subnet with no address left. The operation is done once
     /// the instance is `instance::State::Running`, or failed once it is `instance::State::Failed`, with the
     /// reason in `state_reason`; a failed instance still exists, keeps the
@@ -12094,7 +12811,9 @@ impl LaunchTemplateClient {
             service: self.service.with_options(options),
         }
     }
-    /// Returns a launch template, with its default version's recipe.
+    /// Returns a launch template with one version's recipe: its default
+    /// version's for a bare name or `@default`, its newest for `@latest`, or
+    /// version `N` for `@N`.
     pub async fn get_launch_template(
         &self,
         mut request: GetLaunchTemplateRequest,
@@ -12189,7 +12908,8 @@ impl LaunchTemplateClient {
             .idempotent();
         self.service.call(call).await
     }
-    /// Changes a launch template's tags. A version's recipe never changes.
+    /// Changes a launch template's tags or its default version, or both. A
+    /// version's recipe never changes.
     pub async fn update_launch_template(
         &self,
         mut request: UpdateLaunchTemplateRequest,
@@ -12247,6 +12967,102 @@ impl LaunchTemplateClient {
         let call = ::origincloud_core::Request::new(
                 ::origincloud_core::Method::DELETE,
                 format!("/v1beta1/{p0}"),
+            )
+            .with_query(query);
+        self.service.call(call).await
+    }
+    /// Adds a version to a launch template with `launch_template_data` as its
+    /// recipe, numbered one past the highest number the template has ever
+    /// given, and returns the template at it. The default version stays as it
+    /// is. The recipe is checked as CreateLaunchTemplate checks it. A template
+    /// holds at most 100 versions.
+    pub async fn create_launch_template_version(
+        &self,
+        mut request: CreateLaunchTemplateVersionRequest,
+    ) -> ::core::result::Result<LaunchTemplate, ::origincloud_core::Error> {
+        let n0 = self.service.relative_name("name", &request.name, &["compute"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/launchTemplates/*",
+        )?;
+        request.name = n0;
+        let body = ::origincloud_core::json_body(&request)?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::POST,
+                format!("/v1beta1/{p0}:createVersion"),
+            )
+            .with_body(body);
+        self.service.call(call).await
+    }
+    /// Lists a launch template's versions, newest first, each as the template
+    /// at that version, named `{launch_template}@{version}`.
+    pub async fn list_launch_template_versions(
+        &self,
+        mut request: ListLaunchTemplateVersionsRequest,
+    ) -> ::core::result::Result<
+        ListLaunchTemplateVersionsResponse,
+        ::origincloud_core::Error,
+    > {
+        let n0 = self.service.relative_name("name", &request.name, &["compute"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/launchTemplates/*",
+        )?;
+        request.name = n0;
+        let query = ::origincloud_core::query(&request, &["name"])?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::GET,
+                format!("/v1beta1/{p0}:listVersions"),
+            )
+            .with_query(query)
+            .idempotent();
+        self.service.call(call).await
+    }
+    /// Returns everything [`list_launch_template_versions`](Self::list_launch_template_versions) lists from `request`'s page on, fetching the next page as the stream reaches it. A page that fails ends the stream with its error.
+    pub fn all_launch_templates(
+        &self,
+        request: ListLaunchTemplateVersionsRequest,
+    ) -> ::origincloud_core::Pages<LaunchTemplate> {
+        let client = self.clone();
+        ::origincloud_core::Pages::new(
+            request,
+            move |request: ListLaunchTemplateVersionsRequest| {
+                let client = client.clone();
+                async move {
+                    let page = client.list_launch_template_versions(request).await?;
+                    Ok((page.launch_templates, page.next_page_token))
+                }
+            },
+            |
+                request: &mut ListLaunchTemplateVersionsRequest,
+                token: ::std::string::String|
+            request.page_token = token,
+        )
+    }
+    /// Deletes one version of a launch template, named
+    /// `{launch_template}@{version}`. The default version can't be deleted:
+    /// set another default first. A deleted version's number is never given
+    /// to another version.
+    pub async fn delete_launch_template_version(
+        &self,
+        mut request: DeleteLaunchTemplateVersionRequest,
+    ) -> ::core::result::Result<
+        ::origincloud_core::protobuf::Empty,
+        ::origincloud_core::Error,
+    > {
+        let n0 = self.service.relative_name("name", &request.name, &["compute"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/launchTemplates/*",
+        )?;
+        request.name = n0;
+        let query = ::origincloud_core::query(&request, &["name"])?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::DELETE,
+                format!("/v1beta1/{p0}:deleteVersion"),
             )
             .with_query(query);
         self.service.call(call).await
