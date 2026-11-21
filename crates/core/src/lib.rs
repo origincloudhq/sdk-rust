@@ -28,7 +28,10 @@
 #![cfg_attr(target_arch = "wasm32", doc = "   (`Federated`):")]
 //!    from the
 //!    file `ORIGINCLOUD_OIDC_TOKEN_FILE` names, from `ORIGINCLOUD_OIDC_TOKEN`,
-//!    which holds the token itself, or in a GitHub Actions job granted
+//!    which holds the token itself, from an HCP Terraform run's
+//!    `TFC_WORKLOAD_IDENTITY_TOKEN` (`TFC_WORKLOAD_IDENTITY_TOKEN_<TAG>` when
+//!    `ORIGINCLOUD_TFC_WORKLOAD_IDENTITY_TAG` names a tag), or in a GitHub
+//!    Actions job granted
 //!    `permissions: id-token: write`. `ORIGINCLOUD_OIDC_DISABLED=true`
 //!    leaves this step out.
 //! 4. The session the `origin` CLI stored at its last login

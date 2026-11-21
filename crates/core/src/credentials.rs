@@ -56,6 +56,14 @@ const ENV_OIDC_TOKEN: &str = "ORIGINCLOUD_OIDC_TOKEN";
 const ENV_OIDC_AUDIENCE: &str = "ORIGINCLOUD_OIDC_AUDIENCE";
 #[cfg(not(target_arch = "wasm32"))]
 const ENV_STS_ENDPOINT: &str = "ORIGINCLOUD_STS_ENDPOINT";
+/// What an HCP Terraform workspace with dynamic credentials sets in a run:
+/// the workload identity token in `ENV_TFC_TOKEN`, or, for an audience
+/// variable with a tag (`TFC_WORKLOAD_IDENTITY_AUDIENCE_<TAG>`), in
+/// `ENV_TFC_TOKEN_<TAG>`. `ENV_TFC_TAG` names the tag to read.
+#[cfg(not(target_arch = "wasm32"))]
+const ENV_TFC_TOKEN: &str = "TFC_WORKLOAD_IDENTITY_TOKEN";
+#[cfg(not(target_arch = "wasm32"))]
+const ENV_TFC_TAG: &str = "ORIGINCLOUD_TFC_WORKLOAD_IDENTITY_TAG";
 #[cfg(not(target_arch = "wasm32"))]
 const ENV_GITHUB_REQUEST_URL: &str = "ACTIONS_ID_TOKEN_REQUEST_URL";
 #[cfg(not(target_arch = "wasm32"))]
@@ -155,8 +163,11 @@ pub trait Credentials: Send + Sync + fmt::Debug {
 /// 3. A CI job's OIDC token, exchanged at the security token service
 ///    ([`Federated`]): from the file `ORIGINCLOUD_OIDC_TOKEN_FILE` names,
 ///    or else from `ORIGINCLOUD_OIDC_TOKEN`, which holds the token itself
-///    (as GitLab CI's `id_tokens` set it), or else from GitHub Actions, in
-///    a job granted `permissions: id-token: write`. Once found, its errors
+///    (as GitLab CI's `id_tokens` set it), or else from an HCP Terraform
+///    run's workload identity token, `TFC_WORKLOAD_IDENTITY_TOKEN`, or
+///    `TFC_WORKLOAD_IDENTITY_TOKEN_<TAG>` when
+///    `ORIGINCLOUD_TFC_WORKLOAD_IDENTITY_TAG` names the tag of a tagged
+///    audience, or else from GitHub Actions, in a job granted `permissions: id-token: write`. Once found, its errors
 ///    are returned, not passed over. `ORIGINCLOUD_OIDC_DISABLED=true`
 ///    leaves this step out; `ORIGINCLOUD_STS_ENDPOINT` asks another address
 ///    than [`STS_ENDPOINT`], and `ORIGINCLOUD_OIDC_AUDIENCE` requests
@@ -225,7 +236,8 @@ pub(crate) fn from_environment(
 
 /// The federated step of the chain, when the environment holds a CI job's
 /// OIDC token: a token file, which can be rotated in place, before a token
-/// given as it is, before GitHub Actions.
+/// given as it is, before an HCP Terraform run's workload identity token,
+/// before GitHub Actions.
 #[cfg(not(target_arch = "wasm32"))]
 fn federated_from(var: &dyn Fn(&str) -> Option<String>) -> Option<Federated> {
     if var(ENV_OIDC_DISABLED).is_some_and(|v| v.eq_ignore_ascii_case("true")) {
@@ -236,7 +248,12 @@ fn federated_from(var: &dyn Fn(&str) -> Option<String>) -> Option<Federated> {
     } else if let Some(token) = var(ENV_OIDC_TOKEN) {
         Federated::with_source(JobToken::Given {
             token,
-            variable: Some(ENV_OIDC_TOKEN),
+            variable: Some(ENV_OIDC_TOKEN.to_owned()),
+        })
+    } else if let Some(variable) = tfc_token_variable(var) {
+        Federated::with_source(JobToken::Given {
+            token: var(&variable).unwrap_or_default(),
+            variable: Some(variable),
         })
     } else if let (Some(url), Some(token)) =
         (var(ENV_GITHUB_REQUEST_URL), var(ENV_GITHUB_REQUEST_TOKEN))
@@ -252,6 +269,18 @@ fn federated_from(var: &dyn Fn(&str) -> Option<String>) -> Option<Federated> {
         federated = federated.with_audience(audience);
     }
     Some(federated)
+}
+
+/// The variable an HCP Terraform run's workload identity token is read
+/// from: the tagged one when `ORIGINCLOUD_TFC_WORKLOAD_IDENTITY_TAG` names a
+/// tag, even if that variable is unset, so that the error names it; the
+/// untagged one otherwise, when it is set. `None` when the run has none.
+#[cfg(not(target_arch = "wasm32"))]
+fn tfc_token_variable(var: &dyn Fn(&str) -> Option<String>) -> Option<String> {
+    match var(ENV_TFC_TAG).map(|tag| tag.trim().to_owned()) {
+        Some(tag) if !tag.is_empty() => Some(format!("{ENV_TFC_TOKEN}_{tag}")),
+        _ => var(ENV_TFC_TOKEN).map(|_| ENV_TFC_TOKEN.to_owned()),
+    }
 }
 
 /// An access token, sent as it is. It is not renewed: a service account's
@@ -738,7 +767,7 @@ enum JobToken {
     /// names, if any.
     Given {
         token: String,
-        variable: Option<&'static str>,
+        variable: Option<String>,
     },
     GitHubActions {
         request_url: String,
@@ -857,8 +886,13 @@ impl Federated {
                 let token = token.trim();
                 if token.is_empty() {
                     return Err(Error::Credentials(format!(
-                        "the CI job's OIDC token{} is empty",
-                        in_variable(*variable)
+                        "the CI job's OIDC token{} is empty{}",
+                        in_variable(variable.as_deref()),
+                        if variable.is_some() {
+                            " or not set"
+                        } else {
+                            ""
+                        }
                     )));
                 }
                 if let Some(expiry) = job_token_expiry(token)
@@ -870,7 +904,7 @@ impl Federated {
                         "the CI job's OIDC token{} expired at {expiry}; a token given as it is \
                          can't be renewed: ask the CI provider for a longer-lived one, or use \
                          {ENV_OIDC_TOKEN_FILE}",
-                        in_variable(*variable)
+                        in_variable(variable.as_deref())
                     )));
                 }
                 Ok(token.to_owned())
@@ -1367,6 +1401,147 @@ mod tests {
         );
         assert!(message.contains("ORIGINCLOUD_OIDC_TOKEN_FILE"), "{message}");
         assert!(!message.contains(&token), "{message}");
+    }
+
+    /// The error of exchanging the token the environment `vars` holds: an
+    /// expired one, so that nothing is sent, which names the variable it
+    /// was read from.
+    async fn exchange_error(vars: &[(&str, &str)]) -> String {
+        let credentials = from_environment(&env(&with(
+            vars,
+            &[(ENV_STS_ENDPOINT, "http://127.0.0.1:9")],
+        )))
+        .unwrap();
+        credentials.token().await.unwrap_err().to_string()
+    }
+
+    fn expired() -> String {
+        jwt(r#"{"sub":"organization:org:project:p:workspace:w:run_phase:plan","exp":1577836800}"#)
+    }
+
+    #[test]
+    fn an_hcp_terraform_token_is_exchanged() {
+        let credentials = from_environment(&env(&[(ENV_TFC_TOKEN, "tfc-token")])).unwrap();
+        let debug = format!("{credentials:?}");
+        assert!(
+            debug.starts_with(r#"Federated { source: "token""#),
+            "{debug}"
+        );
+        assert!(!debug.contains("tfc-token"), "{debug}");
+    }
+
+    #[tokio::test]
+    async fn an_expired_hcp_terraform_token_names_its_variable() {
+        let token = expired();
+        let message = exchange_error(&[(ENV_TFC_TOKEN, &token)]).await;
+        assert!(
+            message.contains(
+                "the CI job's OIDC token in TFC_WORKLOAD_IDENTITY_TOKEN expired at 2020-01-01T00:00:00Z"
+            ),
+            "{message}"
+        );
+        assert!(!message.contains(&token), "{message}");
+    }
+
+    #[tokio::test]
+    async fn a_tagged_hcp_terraform_token_is_read_by_its_tag_alone() {
+        let token = expired();
+        let message = exchange_error(&[
+            (ENV_TFC_TAG, " ORIGIN "),
+            (ENV_TFC_TOKEN, "untagged-token"),
+            ("TFC_WORKLOAD_IDENTITY_TOKEN_ORIGIN", &token),
+            ("TFC_WORKLOAD_IDENTITY_TOKEN_OTHER", "other-token"),
+        ])
+        .await;
+        assert!(
+            message.contains("OIDC token in TFC_WORKLOAD_IDENTITY_TOKEN_ORIGIN expired"),
+            "{message}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_tag_without_its_token_fails_naming_the_variable() {
+        for vars in [
+            vec![(ENV_TFC_TAG, "ORIGIN"), (ENV_TFC_TOKEN, "untagged-token")],
+            vec![
+                (ENV_TFC_TAG, "ORIGIN"),
+                (ENV_TFC_TOKEN, "untagged-token"),
+                ("TFC_WORKLOAD_IDENTITY_TOKEN_ORIGIN", ""),
+            ],
+        ] {
+            let message = exchange_error(&vars).await;
+            assert!(
+                message.contains("in TFC_WORKLOAD_IDENTITY_TOKEN_ORIGIN is empty or not set"),
+                "{message}"
+            );
+            assert!(!message.contains("untagged-token"), "{message}");
+        }
+    }
+
+    #[test]
+    fn a_tagged_hcp_terraform_token_without_its_tag_is_left_out() {
+        let dir = data_home();
+        let credentials = from_environment(&env(&[
+            ("TFC_WORKLOAD_IDENTITY_TOKEN_ORIGIN", "tagged-token"),
+            ("XDG_DATA_HOME", dir.to_str().unwrap()),
+        ]))
+        .unwrap();
+        assert!(
+            format!("{credentials:?}").starts_with("InstanceMetadata"),
+            "{credentials:?}"
+        );
+    }
+
+    #[test]
+    fn an_hcp_terraform_token_is_left_out_with_the_federated_step() {
+        let dir = data_home();
+        let credentials = from_environment(&env(&[
+            (ENV_TFC_TOKEN, "tfc-token"),
+            (ENV_TFC_TAG, "ORIGIN"),
+            (ENV_OIDC_DISABLED, "true"),
+            ("XDG_DATA_HOME", dir.to_str().unwrap()),
+        ]))
+        .unwrap();
+        assert!(
+            format!("{credentials:?}").starts_with("InstanceMetadata"),
+            "{credentials:?}"
+        );
+    }
+
+    #[test]
+    fn an_hcp_terraform_token_comes_before_github_actions() {
+        let credentials =
+            from_environment(&env(&with(&GITHUB, &[(ENV_TFC_TOKEN, "tfc-token")]))).unwrap();
+        let debug = format!("{credentials:?}");
+        assert!(
+            debug.starts_with(r#"Federated { source: "token""#),
+            "{debug}"
+        );
+    }
+
+    #[test]
+    fn an_hcp_terraform_token_comes_after_a_token_file() {
+        let credentials = from_environment(&env(&[
+            (ENV_TFC_TOKEN, "tfc-token"),
+            (ENV_OIDC_TOKEN_FILE, "/var/run/secrets/token"),
+        ]))
+        .unwrap();
+        let debug = format!("{credentials:?}");
+        assert!(
+            debug.starts_with(r#"Federated { token_file: "/var/run/secrets/token""#),
+            "{debug}"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_hcp_terraform_token_comes_after_a_token_in_the_environment() {
+        let token = expired();
+        let message =
+            exchange_error(&[(ENV_OIDC_TOKEN, &token), (ENV_TFC_TOKEN, "tfc-token")]).await;
+        assert!(
+            message.contains("in ORIGINCLOUD_OIDC_TOKEN expired"),
+            "{message}"
+        );
     }
 
     #[test]
