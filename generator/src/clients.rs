@@ -174,10 +174,11 @@ fn generate_service(cx: &Generation<'_>, s: &ServiceDescriptor, out: &mut String
         "pub fn with_options(&self, options: {core}::CallOptions) -> Self {{ Self {{ service: self.service.with_options(options) }} }}"
     )?;
 
+    let pagers = pager_names(s)?;
     for m in s.methods() {
         generate_method(cx, &m, out).with_context(|| m.name().to_owned())?;
         if let Some(items) = list_items(&m) {
-            generate_all(cx, &m, &items, out)?;
+            generate_all(cx, &m, &items, &pagers[m.name()], out)?;
         }
     }
     writeln!(out, "}}")?;
@@ -466,10 +467,45 @@ fn list_items(m: &MethodDescriptor) -> Option<FieldDescriptor> {
     items.next().is_none().then_some(first)
 }
 
+/// The name of each list method's `all_...` method in the service: after
+/// its repeated field, `all_volumes` for `ListVolumes`. Where two list
+/// methods' fields share a name, as a resource's and its revisions' do
+/// (AIP-162: both list the resource itself), each of them is named after
+/// its method instead, `all_launch_template_versions` for
+/// `ListLaunchTemplateVersions`; a method named after its field keeps the
+/// name it had.
+fn pager_names(s: &ServiceDescriptor) -> Result<std::collections::HashMap<String, String>> {
+    let lists: Vec<(String, String)> = s
+        .methods()
+        .filter_map(|m| {
+            list_items(&m).map(|items| (m.name().to_owned(), items.name().to_lowercase()))
+        })
+        .collect();
+    let mut names = std::collections::HashMap::new();
+    let mut taken = std::collections::HashSet::new();
+    for (method, field) in &lists {
+        let shared = lists.iter().filter(|(_, f)| f == field).count() > 1;
+        let base = if shared {
+            heck::ToSnakeCase::to_snake_case(method.strip_prefix("List").unwrap_or(method))
+        } else {
+            field.clone()
+        };
+        let name = format!("all_{base}");
+        ensure!(
+            taken.insert(name.clone()),
+            "{}: two list methods' pagers are both named {name}",
+            s.name()
+        );
+        names.insert(method.clone(), name);
+    }
+    Ok(names)
+}
+
 fn generate_all(
     cx: &Generation<'_>,
     m: &MethodDescriptor,
     items: &FieldDescriptor,
+    name: &str,
     out: &mut String,
 ) -> Result<()> {
     let core = cx.core;
@@ -480,7 +516,6 @@ fn generate_all(
     let input = cx.rust_type(m.input().full_name())?;
     let list = names::snake(m.name());
     let field = names::snake(items.name());
-    let name = format!("all_{}", items.name().to_lowercase());
     out.push_str(&docs::line(&format!(
         "Returns everything [`{list}`](Self::{list}) lists from `request`'s page on, fetching the next page as the stream reaches it. A page that fails ends the stream with its error."
     )));

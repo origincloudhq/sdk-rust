@@ -13021,7 +13021,7 @@ impl LaunchTemplateClient {
         self.service.call(call).await
     }
     /// Returns everything [`list_launch_template_versions`](Self::list_launch_template_versions) lists from `request`'s page on, fetching the next page as the stream reaches it. A page that fails ends the stream with its error.
-    pub fn all_launch_templates(
+    pub fn all_launch_template_versions(
         &self,
         request: ListLaunchTemplateVersionsRequest,
     ) -> ::origincloud_core::Pages<LaunchTemplate> {
