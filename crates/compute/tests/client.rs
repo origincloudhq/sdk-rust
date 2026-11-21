@@ -6,7 +6,8 @@ use std::sync::{Arc, Mutex};
 use fake_server::{FakeServer, Received, Response};
 use origincloud_compute::v1beta1::{
     CreateKeyPairRequest, GetInstanceRequest, InstanceClient, InstanceTypeClient, KeyPair,
-    KeyPairClient, ListInstanceTypesRequest, ListKeyPairsRequest,
+    KeyPairClient, LaunchTemplateClient, ListInstanceTypesRequest, ListKeyPairsRequest,
+    ListLaunchTemplateVersionsRequest,
 };
 use origincloud_core::{AccessToken, Client};
 use serde_json::{Value, json};
@@ -246,4 +247,47 @@ async fn a_full_name_of_another_service_is_refused_before_sending() {
         "{err}"
     );
     assert!(calls.lock().unwrap().is_empty());
+}
+
+/// A launch template's versions are the template itself (AIP-162), so
+/// their pager is named after its method, not after the field it shares
+/// with `all_launch_templates`.
+#[tokio::test]
+async fn all_launch_template_versions_follows_the_pages() {
+    const TEMPLATE: &str = "projects/p/launchTemplates/web";
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let log = Arc::clone(&calls);
+    let server = FakeServer::start(move |r| {
+        log.lock().unwrap().push(r.clone());
+        async move {
+            let token = r.query_values("pageToken").pop().unwrap_or_default();
+            Response::json(match token.as_str() {
+                "" => format!(
+                    r#"{{"launchTemplates":[{{"name":"{TEMPLATE}@1"}},{{"name":"{TEMPLATE}@2"}}],"nextPageToken":"p2"}}"#
+                ),
+                "p2" => format!(r#"{{"launchTemplates":[{{"name":"{TEMPLATE}@3"}}]}}"#),
+                other => panic!("page token {other}"),
+            })
+        }
+    })
+    .await;
+    let client = Client::builder()
+        .endpoint(server.url())
+        .credentials(AccessToken::new("t"))
+        .build()
+        .unwrap();
+    let mut pages = LaunchTemplateClient::new(&client).all_launch_template_versions(
+        ListLaunchTemplateVersionsRequest {
+            name: TEMPLATE.to_owned(),
+            ..Default::default()
+        },
+    );
+    let mut names = Vec::new();
+    while let Some(version) = pages.next().await {
+        names.push(version.unwrap().name);
+    }
+    assert_eq!(names, [1, 2, 3].map(|n| format!("{TEMPLATE}@{n}")));
+    let calls = calls.lock().unwrap();
+    assert_eq!(calls.len(), 2);
+    assert_eq!(calls[0].path, format!("/v1beta1/{TEMPLATE}:listVersions"));
 }
