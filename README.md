@@ -88,9 +88,15 @@ async fn main() -> Result<(), origincloud_core::Error> {
    `ORIGINCLOUD_OIDC_TOKEN_FILE` names a file holding the token (any CI
    provider's, or a Kubernetes projected token), read again at every
    exchange, or `ORIGINCLOUD_OIDC_TOKEN` holds the token itself, as GitLab
-   CI sets it for an `id_tokens` entry of that name; the file comes first.
+   CI sets it for an `id_tokens` entry of that name, or else an HCP Terraform
+   run's workload identity token, `TFC_WORKLOAD_IDENTITY_TOKEN` (for a
+   workspace whose `TFC_WORKLOAD_IDENTITY_AUDIENCE` is
+   `https://sts.origincloudapis.eu`), or `TFC_WORKLOAD_IDENTITY_TOKEN_<TAG>`
+   when `ORIGINCLOUD_TFC_WORKLOAD_IDENTITY_TAG` names the tag of a tagged
+   audience; the file comes first, then the variable, then HCP Terraform, then
+   GitHub Actions.
    The token is exchanged again a minute before the access token expires,
-   with a fresh job token; a token given in `ORIGINCLOUD_OIDC_TOKEN` can't
+   with a fresh job token; a token given in an environment variable can't
    be renewed, so it is exchanged again as it is, until it expires itself.
    Once found, this step's errors are returned rather than passed over;
    `ORIGINCLOUD_OIDC_DISABLED=true` leaves it out, `ORIGINCLOUD_STS_ENDPOINT`
