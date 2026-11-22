@@ -1,42 +1,38 @@
-//! Credentials that exchange a secret, a refresh token or a CI job's
-//! token for access tokens, against local token endpoints.
+//! Credentials that exchange a refresh token, a CI job's token or an
+//! instance's session for access tokens, against local token endpoints. A
+//! service account key's are in `service_account.rs`.
 
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
 use fake_server::{FakeServer, Response};
-use origincloud_core::{
-    CliSession, Credentials, Error, Federated, InstanceMetadata, ServiceAccount,
-};
+use origincloud_core::{CliSession, Credentials, Error, Federated, InstanceMetadata};
 
 /// A token endpoint answering with access tokens numbered from 1 that
 /// expire after `expires_in` seconds, recording the last form it got.
 struct TokenEndpoint {
     server: FakeServer,
-    issued: Arc<AtomicU32>,
     form: Arc<Mutex<Vec<(String, String)>>>,
 }
 
 async fn token_endpoint(expires_in: u64) -> TokenEndpoint {
     let issued = Arc::new(AtomicU32::new(0));
     let form = Arc::new(Mutex::new(Vec::new()));
-    let (count, last) = (Arc::clone(&issued), Arc::clone(&form));
+    let (count, last) = (issued, Arc::clone(&form));
     let server = FakeServer::start(move |r| {
-        assert_eq!(r.header("content-type"), Some("application/x-www-form-urlencoded"));
+        assert_eq!(
+            r.header("content-type"),
+            Some("application/x-www-form-urlencoded")
+        );
         let received = fake_server::Received {
             query: r.text(),
             ..r
         }
         .query_pairs();
-        let refused = received.iter().any(|(k, v)| k == "client_secret" && v == "wrong");
         *last.lock().unwrap() = received;
-        let n = if refused { 0 } else { count.fetch_add(1, Ordering::SeqCst) + 1 };
+        let n = count.fetch_add(1, Ordering::SeqCst) + 1;
         async move {
-            if refused {
-                return Response::json(r#"{"error":"unauthorized_client","error_description":"Invalid client secret"}"#)
-                    .with_status(401);
-            }
             Response::json(
                 serde_json::json!({
                     "access_token": format!("token-{n}"),
@@ -49,11 +45,7 @@ async fn token_endpoint(expires_in: u64) -> TokenEndpoint {
         }
     })
     .await;
-    TokenEndpoint {
-        server,
-        issued,
-        form,
-    }
+    TokenEndpoint { server, form }
 }
 
 impl TokenEndpoint {
@@ -64,34 +56,6 @@ impl TokenEndpoint {
             .map(|(_, v)| v.clone())
             .unwrap_or_default()
     }
-}
-
-#[tokio::test]
-async fn a_service_account_token_is_reused_until_it_is_about_to_expire() {
-    let endpoint = token_endpoint(300).await;
-    let credentials = ServiceAccount::new("id", "secret").with_token_url(endpoint.server.url());
-    for _ in 0..3 {
-        assert_eq!(credentials.token().await.unwrap(), "token-1");
-    }
-    assert_eq!(endpoint.issued.load(Ordering::SeqCst), 1);
-    assert_eq!(endpoint.form("grant_type"), "client_credentials");
-    assert_eq!(endpoint.form("client_id"), "id");
-    assert_eq!(endpoint.form("client_secret"), "secret");
-
-    // A token within the margin of its expiry is replaced.
-    let endpoint = token_endpoint(10).await;
-    let expiring = ServiceAccount::new("id", "secret").with_token_url(endpoint.server.url());
-    assert_eq!(expiring.token().await.unwrap(), "token-1");
-    assert_eq!(expiring.token().await.unwrap(), "token-2");
-}
-
-#[tokio::test]
-async fn a_refused_service_account_says_why() {
-    let endpoint = token_endpoint(300).await;
-    let credentials = ServiceAccount::new("id", "wrong").with_token_url(endpoint.server.url());
-    let err = credentials.token().await.unwrap_err();
-    assert!(err.to_string().contains("Invalid client secret"), "{err}");
-    assert!(err.to_string().contains("HTTP 401"), "{err}");
 }
 
 fn rfc3339(t: SystemTime) -> String {

@@ -1,6 +1,6 @@
 //! The IAM clients call the global host, send each method as its HTTP
-//! binding says, read a new service account's client secret, and refuse a
-//! create repeated after its secret was shown.
+//! binding says, and refuse a key's create repeated after its credentials
+//! file was returned.
 
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
@@ -9,9 +9,10 @@ use std::time::Duration;
 use fake_server::{FakeServer, Received, Response};
 use origincloud_core::{AccessToken, Client};
 use origincloud_iam::v1beta1::{
-    AuditLogClient, CreateRoleBindingRequest, CreateServiceAccountRequest,
-    GetServiceAccountRequest, PermissionClient, RoleBinding, RoleBindingClient, RoleClient,
-    ServiceAccount, ServiceAccountClient, UserClient, service_account,
+    AuditLogClient, CreateRoleBindingRequest, CreateServiceAccountKeyRequest,
+    CreateServiceAccountRequest, GetServiceAccountRequest, PermissionClient, RoleBinding,
+    RoleBindingClient, RoleClient, ServiceAccount, ServiceAccountClient, ServiceAccountKey,
+    ServiceAccountKeyClient, UserClient, service_account,
 };
 use serde_json::{Value, json};
 
@@ -63,9 +64,9 @@ fn a_regional_client_still_calls_the_regionless_host() {
 }
 
 #[tokio::test]
-async fn get_service_account_reads_it_without_a_secret() {
+async fn get_service_account_reads_it() {
     let (_server, client, calls) = recording(
-        r#"{"name":"organizations/o/serviceAccounts/s","displayName":"CI","member":"serviceAccount:s","clientId":"sa-s","state":"ACTIVE"}"#,
+        r#"{"name":"organizations/o/serviceAccounts/s","displayName":"CI","member":"serviceAccount:s","state":"ACTIVE"}"#,
     )
     .await;
 
@@ -76,8 +77,6 @@ async fn get_service_account_reads_it_without_a_secret() {
         .await
         .unwrap();
     assert_eq!(account.member, "serviceAccount:s");
-    assert_eq!(account.client_id, "sa-s");
-    assert_eq!(account.client_secret, "");
     assert_eq!(account.state(), service_account::State::Active);
 
     let calls = calls.lock().unwrap();
@@ -89,12 +88,12 @@ async fn get_service_account_reads_it_without_a_secret() {
     assert!(get.query.is_empty() && get.body.is_empty(), "{get:?}");
 }
 
-/// The client secret is shown once, in the response that created the
-/// service account.
+/// A service account is created with no credential: its keys are created
+/// apart from it.
 #[tokio::test]
-async fn create_service_account_answers_with_its_client_secret() {
+async fn create_service_account_sends_it_as_the_body() {
     let (_server, client, calls) = recording(
-        r#"{"name":"organizations/o/serviceAccounts/s","displayName":"CI","member":"serviceAccount:s","clientId":"sa-s","clientSecret":"shown-once","state":"ACTIVE"}"#,
+        r#"{"name":"organizations/o/serviceAccounts/s","displayName":"CI","member":"serviceAccount:s","state":"ACTIVE"}"#,
     )
     .await;
 
@@ -109,8 +108,7 @@ async fn create_service_account_answers_with_its_client_secret() {
         })
         .await
         .unwrap();
-    assert_eq!(account.client_secret, "shown-once");
-    assert_eq!(account.client_id, "sa-s");
+    assert_eq!(account.name, "organizations/o/serviceAccounts/s");
 
     let calls = calls.lock().unwrap();
     let [created] = calls.as_slice() else {
@@ -126,12 +124,12 @@ async fn create_service_account_answers_with_its_client_secret() {
     assert_eq!(created.query_pairs().len(), 1, "{created:?}");
 }
 
-/// A create whose answer was lost is sent again with the same request id.
-/// The account exists by then, but its secret went to the lost answer, so
-/// the API refuses the repeat and names the account; the refusal is not
-/// sent again.
+/// A key's create whose answer was lost is sent again with the same
+/// request id. The key exists by then, but its credentials file went to the
+/// lost answer, so the API refuses the repeat and names the key; the
+/// refusal is not sent again.
 #[tokio::test]
-async fn a_create_repeated_after_its_answer_was_lost_names_the_account() {
+async fn a_key_s_create_repeated_after_its_answer_was_lost_names_the_key() {
     let calls = Arc::new(Mutex::new(Vec::<Received>::new()));
     let log = Arc::clone(&calls);
     let attempts = Arc::new(AtomicU32::new(0));
@@ -144,12 +142,12 @@ async fn a_create_repeated_after_its_answer_was_lost_names_the_account() {
                 // Created, but the answer doesn't arrive in time.
                 tokio::time::sleep(Duration::from_secs(5)).await;
                 return Response::json(
-                    r#"{"name":"organizations/o/serviceAccounts/s","clientSecret":"lost"}"#,
+                    r#"{"name":"organizations/o/serviceAccounts/s/keys/k","credentialsFile":"lost"}"#,
                 );
             }
             Response::json(
-                r#"{"error":{"code":409,"status":"FAILED_PRECONDITION","message":"the service account organizations/o/serviceAccounts/s was created by an earlier request with this request_id; its client secret was returned only to that request. To get a working secret, delete that account and create a new one","details":[
-                    {"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"CONFLICT","domain":"origincloudapis.eu","metadata":{"serviceAccount":"organizations/o/serviceAccounts/s"}},
+                r#"{"error":{"code":409,"status":"FAILED_PRECONDITION","message":"the service account key organizations/o/serviceAccounts/s/keys/k was created by an earlier request with this request_id; its credentials file was returned only to that request. Delete that key and create a new one","details":[
+                    {"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"CONFLICT","domain":"origincloudapis.eu","metadata":{"serviceAccountKey":"organizations/o/serviceAccounts/s/keys/k"}},
                     {"@type":"type.googleapis.com/google.rpc.RequestInfo","requestId":"4bf92f3577b34da6"}]}}"#,
             )
             .with_status(409)
@@ -163,13 +161,10 @@ async fn a_create_repeated_after_its_answer_was_lost_names_the_account() {
         .build()
         .unwrap();
 
-    let err = ServiceAccountClient::new(&client)
-        .create_service_account(CreateServiceAccountRequest {
-            parent: "organizations/o".to_owned(),
-            service_account: Some(ServiceAccount {
-                display_name: "CI".to_owned(),
-                ..Default::default()
-            }),
+    let err = ServiceAccountKeyClient::new(&client)
+        .create_service_account_key(CreateServiceAccountKeyRequest {
+            parent: "organizations/o/serviceAccounts/s".to_owned(),
+            service_account_key: Some(ServiceAccountKey::default()),
             ..Default::default()
         })
         .await
@@ -180,12 +175,12 @@ async fn a_create_repeated_after_its_answer_was_lost_names_the_account() {
     let api = err.api().expect("an API error");
     assert_eq!(api.http_status, Some(409));
     assert_eq!(
-        api.metadata.get("serviceAccount").map(String::as_str),
-        Some("organizations/o/serviceAccounts/s")
+        api.metadata.get("serviceAccountKey").map(String::as_str),
+        Some("organizations/o/serviceAccounts/s/keys/k")
     );
     assert!(
         err.to_string()
-            .contains("organizations/o/serviceAccounts/s was created by an earlier request"),
+            .contains("organizations/o/serviceAccounts/s/keys/k was created by an earlier request"),
         "{err}"
     );
 
@@ -196,7 +191,11 @@ async fn a_create_repeated_after_its_answer_was_lost_names_the_account() {
     let [first_id] = first.query_values("requestId").try_into().unwrap();
     assert!(is_uuid(&first_id), "{first:?}");
     assert_eq!(repeat.query_values("requestId"), [first_id]);
-    assert_eq!(json_of(repeat), json!({"displayName": "CI"}));
+    assert_eq!(
+        repeat.path,
+        "/v1beta1/organizations/o/serviceAccounts/s/keys"
+    );
+    assert_eq!(json_of(repeat), json!({}));
 }
 
 #[tokio::test]

@@ -20,8 +20,11 @@
 //! [`credentials`]):
 //!
 //! 1. `ORIGINCLOUD_ACCESS_TOKEN`: an access token, sent as it is.
-//! 2. `ORIGINCLOUD_CLIENT_ID` and `ORIGINCLOUD_CLIENT_SECRET`: a service
-//!    account's credential, exchanged for access tokens as they expire.
+//! 2. `ORIGINCLOUD_CREDENTIALS_FILE`: the path of a service account key's
+//!    credentials file, whose signed assertions are exchanged for access
+//!    tokens as they expire
+#![cfg_attr(not(target_arch = "wasm32"), doc = "   ([`ServiceAccount`]).")]
+#![cfg_attr(target_arch = "wasm32", doc = "   (`ServiceAccount`).")]
 //! 3. A CI job's OIDC token, exchanged at the security token service for a
 //!    `WORKLOAD` service account's access tokens
 #![cfg_attr(not(target_arch = "wasm32"), doc = "   ([`Federated`]):")]
