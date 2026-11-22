@@ -78,9 +78,13 @@ async fn main() -> Result<(), origincloud_core::Error> {
 `Client::new` takes the first of:
 
 1. `ORIGINCLOUD_ACCESS_TOKEN`: an access token, sent as it is.
-2. `ORIGINCLOUD_CLIENT_ID` and `ORIGINCLOUD_CLIENT_SECRET`: a service account's
-   credential, exchanged for access tokens as they expire. This is what
-   automation should use where it can't present an OIDC token.
+2. `ORIGINCLOUD_CREDENTIALS_FILE`: the path of a service account key's
+   credentials file (see [A service account key](#a-service-account-key)).
+   An assertion signed with the key is exchanged at the security token
+   service for the account's access tokens, again a minute before each
+   expires. This is what automation should use where it can't present an
+   OIDC token (step 3) and doesn't run on an instance (step 5). A file that
+   can't be read is an error, not passed over.
 3. A CI job's OIDC token, exchanged at the security token service for the
    access token of the `WORKLOAD` service account whose federated credential
    trusts the job: no secret to store. In a GitHub Actions job granted
@@ -111,6 +115,41 @@ async fn main() -> Result<(), origincloud_core::Error> {
    `ORIGINCLOUD_METADATA_ENDPOINT` points it at another address.
 
 `Client::builder().credentials(...)` sets them explicitly instead.
+
+### A service account key
+
+An `EXTERNAL` service account authenticates with a key that IAM holds. Creating
+one returns its credentials file once, a JSON file with the private key in it;
+IAM keeps only the public half. Save it where only the software that needs it
+can read it, and point the SDK at it:
+
+```sh
+export ORIGINCLOUD_CREDENTIALS_FILE=/etc/myapp/origincloud-credentials.json
+```
+
+or name it in code:
+
+```rust,ignore
+use origincloud_core::{Client, ServiceAccount};
+
+let client = Client::builder()
+    .credentials(ServiceAccount::from_file("/etc/myapp/origincloud-credentials.json")?)
+    .build()?;
+```
+
+`ServiceAccount::from_json` takes the file's content instead, such as the
+`credentialsFile` that `ServiceAccountKeyClient::create_service_account_key`
+answers with. Each token request signs a fresh assertion with the key (`ES256`,
+`kid` the key's full name, `iss` and `sub` the account's, `aud` the file's
+`sts_endpoint`, valid for five minutes, with a new `jti`) and exchanges it at
+the file's `sts_endpoint` (`/v1/token`, the JWT bearer grant). The access token
+is reused until a minute before it expires; callers that need one while it is
+being renewed wait for that renewal and share its token. Deleting the key stops
+its access tokens at their next call.
+
+The client ID and secret of earlier versions, `ORIGINCLOUD_CLIENT_ID` and
+`ORIGINCLOUD_CLIENT_SECRET`, are gone: they are no longer read, and the API no
+longer issues them. Create a key for the account and use its credentials file.
 
 ## Behaviour
 
@@ -174,9 +213,10 @@ these credentials exist there, and `Client::new` without them fails with
   OIDC login.
 - Your own `Credentials`, for a token the page renews itself.
 - `ServiceAccount` only with the feature `service-account-wasm`, for a
-  wasm runtime that isn't a browser (Node.js, Deno, an edge worker). It is
-  left out by default because a browser app, its Web Workers included, is
-  downloaded by whoever loads it, and a client secret in it with it.
+  wasm runtime that isn't a browser (Node.js, Deno, an edge worker), from the
+  credentials file's content (`ServiceAccount::from_json`). It is left out by
+  default because a browser app, its Web Workers included, is downloaded by
+  whoever loads it, and a private key in it with it.
 
 ```rust,ignore
 let client = Client::builder()

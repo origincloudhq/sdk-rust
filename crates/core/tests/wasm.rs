@@ -147,10 +147,21 @@ async fn a_retry_delay_longer_than_a_browser_timer_still_waits() {
 
 #[cfg(feature = "service-account-wasm")]
 #[wasm_bindgen_test]
-async fn a_service_account_token_is_cached_by_the_javascript_clock() {
-    // The identity provider answers with a token for five minutes.
+async fn a_service_account_s_token_is_cached_by_the_javascript_clock() {
+    // The STS answers with a token for five minutes.
     let stub = stub_fetch(200, r#"{"access_token":"granted","expires_in":300}"#);
-    let account = ServiceAccount::new("client", "secret");
+    let account = ServiceAccount::from_json(
+        serde_json::json!({
+            "type": "service_account_key",
+            "name": "//iam.origincloudapis.eu/organizations/o/serviceAccounts/s/keys/k",
+            "service_account": "//iam.origincloudapis.eu/organizations/o/serviceAccounts/s",
+            "algorithm": "ES256",
+            "private_key": "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgyHvHtkzp0fjy/hHK\n/yt/j0yihbwhkfpFzHsrSjh6OqOhRANCAARxfaIx32RdN3JO0GPH8ght/CFjaoE3\nao6XiaIxhBdJ6jPPWX/9086Bti4LIfP+qzNTxPn85k7f+yGc6aQoBkr1\n-----END PRIVATE KEY-----\n",
+            "sts_endpoint": "https://sts.origincloudapis.eu",
+        })
+        .to_string(),
+    )
+    .unwrap();
 
     // The first token is requested, and its expiry set from the clock; the
     // second is the first, which the clock says is still valid.

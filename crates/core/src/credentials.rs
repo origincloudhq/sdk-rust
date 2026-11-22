@@ -8,7 +8,8 @@
 //! [`ClientBuilder::build`](crate::ClientBuilder::build) without
 //! credentials fails with [`Error::NoCredentials`] there. `ServiceAccount`
 //! is there only with the feature `service-account-wasm`, for runtimes
-//! that aren't a browser.
+//! that aren't a browser, and only from a credentials file's content
+//! (`ServiceAccount::from_json`).
 
 use std::fmt;
 #[cfg(not(target_arch = "wasm32"))]
@@ -31,17 +32,15 @@ use crate::runtime::{Mutex, now};
 #[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 use crate::transport::read_capped;
 
-/// The identity provider's token endpoint, where service account
-/// credentials and the CLI's session are exchanged for access tokens.
+/// The identity provider's token endpoint, where the CLI's session is
+/// renewed.
 pub const TOKEN_URL: &str =
     "https://auth.origincloud.eu/realms/origincloud/protocol/openid-connect/token";
 
 #[cfg(not(target_arch = "wasm32"))]
 const ENV_ACCESS_TOKEN: &str = "ORIGINCLOUD_ACCESS_TOKEN";
 #[cfg(not(target_arch = "wasm32"))]
-const ENV_CLIENT_ID: &str = "ORIGINCLOUD_CLIENT_ID";
-#[cfg(not(target_arch = "wasm32"))]
-const ENV_CLIENT_SECRET: &str = "ORIGINCLOUD_CLIENT_SECRET";
+const ENV_CREDENTIALS_FILE: &str = "ORIGINCLOUD_CREDENTIALS_FILE";
 #[cfg(not(target_arch = "wasm32"))]
 const ENV_METADATA_DISABLED: &str = "ORIGINCLOUD_METADATA_DISABLED";
 #[cfg(not(target_arch = "wasm32"))]
@@ -70,7 +69,8 @@ const ENV_GITHUB_REQUEST_URL: &str = "ACTIONS_ID_TOKEN_REQUEST_URL";
 const ENV_GITHUB_REQUEST_TOKEN: &str = "ACTIONS_ID_TOKEN_REQUEST_TOKEN";
 
 /// The security token service, where a CI job's OIDC token is exchanged
-/// for an access token.
+/// for an access token. A service account key's assertions are exchanged
+/// where its credentials file says.
 pub const STS_ENDPOINT: &str = "https://sts.origincloudapis.eu";
 
 /// The audience a GitHub Actions job's OIDC token is requested for.
@@ -85,6 +85,26 @@ const FEDERATED_EXPIRY_MARGIN: Duration = Duration::from_secs(60);
 #[cfg(not(target_arch = "wasm32"))]
 const STS_RETRY_DELAYS: [Duration; 2] = [Duration::from_millis(200), Duration::from_millis(400)];
 
+/// The `type` of a service account key's credentials file.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+const CREDENTIALS_FILE_TYPE: &str = "service_account_key";
+
+/// The algorithm a service account key's assertions are signed with.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+const ASSERTION_ALGORITHM: &str = "ES256";
+
+/// How long an assertion is valid: the STS refuses one valid for longer
+/// than an hour, and each is sent at once.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+const ASSERTION_LIFETIME: Duration = Duration::from_secs(5 * 60);
+
+/// How long before its expiry a service account's access token is
+/// replaced.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+const SERVICE_ACCOUNT_EXPIRY_MARGIN: Duration = Duration::from_secs(60);
+
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+const JWT_BEARER_GRANT: &str = "urn:ietf:params:oauth:grant-type:jwt-bearer";
 #[cfg(not(target_arch = "wasm32"))]
 const TOKEN_EXCHANGE_GRANT: &str = "urn:ietf:params:oauth:grant-type:token-exchange";
 #[cfg(not(target_arch = "wasm32"))]
@@ -130,7 +150,7 @@ const CLI_CLIENT_ID: &str = "origin-cli";
 
 /// How long before its expiry a token is replaced, so that it doesn't
 /// expire on the way.
-#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+#[cfg(not(target_arch = "wasm32"))]
 const EXPIRY_MARGIN: Duration = Duration::from_secs(30);
 
 /// The most of a token response that is read.
@@ -157,9 +177,10 @@ pub trait Credentials: Send + Sync + fmt::Debug {
 /// The first credentials found, in this order:
 ///
 /// 1. `ORIGINCLOUD_ACCESS_TOKEN`: an access token, sent as it is.
-/// 2. `ORIGINCLOUD_CLIENT_ID` and `ORIGINCLOUD_CLIENT_SECRET`: a service
-///    account's credential, exchanged for access tokens as they expire.
-///    Only one of the two set is an error.
+/// 2. `ORIGINCLOUD_CREDENTIALS_FILE`: the path of a service account key's
+///    credentials file ([`ServiceAccount`]), whose assertions are exchanged
+///    for access tokens as they expire. A file that can't be read is an
+///    error, not passed over.
 /// 3. A CI job's OIDC token, exchanged at the security token service
 ///    ([`Federated`]): from the file `ORIGINCLOUD_OIDC_TOKEN_FILE` names,
 ///    or else from `ORIGINCLOUD_OIDC_TOKEN`, which holds the token itself
@@ -197,14 +218,8 @@ pub(crate) fn from_environment(
     if let Some(token) = var(ENV_ACCESS_TOKEN) {
         return Ok(Arc::new(AccessToken::new(token)));
     }
-    match (var(ENV_CLIENT_ID), var(ENV_CLIENT_SECRET)) {
-        (Some(id), Some(secret)) => return Ok(Arc::new(ServiceAccount::new(id, secret))),
-        (None, None) => {}
-        _ => {
-            return Err(Error::Config(format!(
-                "{ENV_CLIENT_ID} and {ENV_CLIENT_SECRET} must be set together"
-            )));
-        }
+    if let Some(path) = var(ENV_CREDENTIALS_FILE) {
+        return Ok(Arc::new(ServiceAccount::from_file(path)?));
     }
     if let Some(federated) = federated_from(&var) {
         return Ok(Arc::new(federated));
@@ -225,7 +240,7 @@ pub(crate) fn from_environment(
 }
 
 /// In a browser there is no environment, no file system and no metadata
-/// service, and a secret in a page is anybody's: the page supplies its own
+/// service, and a private key in a page is anybody's: the page supplies its own
 /// [`Credentials`] (an [`AccessToken`], or one that refreshes its session).
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn from_environment(
@@ -307,39 +322,127 @@ impl Credentials for AccessToken {
     }
 }
 
-/// A service account's client ID and secret, exchanged for access tokens
-/// with the client credentials grant as they expire.
+/// A service account key's credentials file, as IAM returns it once when
+/// the key is created: the key's and the account's full names, the private
+/// key, and the security token service its assertions are exchanged at.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+#[derive(Deserialize)]
+struct CredentialsFile {
+    #[serde(rename = "type", default)]
+    kind: String,
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    service_account: String,
+    #[serde(default)]
+    algorithm: String,
+    #[serde(default)]
+    private_key: String,
+    #[serde(default)]
+    sts_endpoint: String,
+}
+
+/// An `EXTERNAL` service account, authenticated with one of its keys: an
+/// assertion signed with the key from its credentials file (RFC 7523,
+/// `ES256`) is exchanged at the security token service for the account's
+/// access token, which is reused until a minute before it expires. Callers
+/// that need a token while it is being renewed wait for that renewal and
+/// share its token.
 ///
 /// On `wasm32-unknown-unknown` it exists only with the feature
 /// `service-account-wasm`, for runtimes that aren't a browser: a web
-/// page, and a Web Worker too, is shipped to whoever loads it, secret and
-/// all.
+/// page, and a Web Worker too, is shipped to whoever loads it, private key
+/// and all.
 #[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 pub struct ServiceAccount {
-    client_id: String,
-    client_secret: String,
-    token_url: String,
+    key: String,
+    service_account: String,
+    signing_key: p256::ecdsa::SigningKey,
+    sts_endpoint: String,
     http: Option<reqwest::Client>,
     cache: Mutex<Cached>,
 }
 
 #[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 impl ServiceAccount {
-    /// The service account `client_id` with the secret `client_secret`.
-    pub fn new(client_id: impl Into<String>, client_secret: impl Into<String>) -> Self {
-        Self {
-            client_id: client_id.into(),
-            client_secret: client_secret.into(),
-            token_url: TOKEN_URL.to_owned(),
-            http: None,
-            cache: Mutex::default(),
-        }
+    /// The service account whose key's credentials file is at `path`.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<Self, Error> {
+        let path = path.as_ref();
+        let data = std::fs::read(path).map_err(|e| {
+            Error::Credentials(format!(
+                "reading the credentials file {}: {e}",
+                path.display()
+            ))
+        })?;
+        Self::parse(&data).map_err(|reason| {
+            Error::Credentials(format!(
+                "reading the credentials file {}: {reason}",
+                path.display()
+            ))
+        })
     }
 
-    /// Requests tokens at `url` instead of [`TOKEN_URL`].
-    pub fn with_token_url(mut self, url: impl Into<String>) -> Self {
-        self.token_url = url.into();
-        self
+    /// The service account whose key's credentials file is `json`, such as
+    /// the `credentialsFile` a key's creation answers with.
+    pub fn from_json(json: impl AsRef<[u8]>) -> Result<Self, Error> {
+        Self::parse(json.as_ref())
+            .map_err(|reason| Error::Credentials(format!("reading the credentials file: {reason}")))
+    }
+
+    fn parse(json: &[u8]) -> Result<Self, String> {
+        use p256::pkcs8::DecodePrivateKey as _;
+
+        // serde_json's errors name a position, never the file's content.
+        let file: CredentialsFile = serde_json::from_slice(json).map_err(|e| e.to_string())?;
+        if file.kind != CREDENTIALS_FILE_TYPE {
+            return Err(format!(
+                "its type is {:?}, not {CREDENTIALS_FILE_TYPE:?}",
+                file.kind
+            ));
+        }
+        if file.algorithm != ASSERTION_ALGORITHM {
+            return Err(format!(
+                "its algorithm is {:?}; this SDK signs with {ASSERTION_ALGORITHM}",
+                file.algorithm
+            ));
+        }
+        for (field, value) in [
+            ("name", &file.name),
+            ("service_account", &file.service_account),
+            ("private_key", &file.private_key),
+            ("sts_endpoint", &file.sts_endpoint),
+        ] {
+            if value.is_empty() {
+                return Err(format!("it has no {field}"));
+            }
+        }
+        if !secure_endpoint(&file.sts_endpoint) {
+            return Err(format!(
+                "its sts_endpoint {:?} is not an https URL",
+                file.sts_endpoint
+            ));
+        }
+        let signing_key = p256::ecdsa::SigningKey::from_pkcs8_pem(&file.private_key)
+            .map_err(|_| "its private_key is not a PKCS #8 P-256 key in PEM".to_owned())?;
+        Ok(Self {
+            key: file.name,
+            service_account: file.service_account,
+            signing_key,
+            sts_endpoint: file.sts_endpoint,
+            http: None,
+            cache: Mutex::default(),
+        })
+    }
+
+    /// The service account's full name, as the file names it.
+    pub fn service_account(&self) -> &str {
+        &self.service_account
+    }
+
+    /// The key's full name, as the file names it.
+    pub fn key(&self) -> &str {
+        &self.key
     }
 
     /// Sends the token requests with `http`, instead of the client all
@@ -348,14 +451,48 @@ impl ServiceAccount {
         self.http = Some(http);
         self
     }
+
+    /// A fresh assertion: a JWT signed with the key, for the STS the file
+    /// names, valid for five minutes, with an ID never used before.
+    fn assertion(&self) -> String {
+        use base64::Engine as _;
+        use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        use p256::ecdsa::signature::Signer as _;
+
+        let issued = now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let header = serde_json::json!({
+            "alg": ASSERTION_ALGORITHM,
+            "typ": "JWT",
+            "kid": self.key,
+        });
+        let claims = serde_json::json!({
+            "iss": self.service_account,
+            "sub": self.service_account,
+            "aud": self.sts_endpoint,
+            "iat": issued,
+            "exp": issued + ASSERTION_LIFETIME.as_secs(),
+            "jti": uuid::Uuid::new_v4().to_string(),
+        });
+        let signed = format!(
+            "{}.{}",
+            URL_SAFE_NO_PAD.encode(header.to_string()),
+            URL_SAFE_NO_PAD.encode(claims.to_string())
+        );
+        let signature: p256::ecdsa::Signature = self.signing_key.sign(signed.as_bytes());
+        format!("{signed}.{}", URL_SAFE_NO_PAD.encode(signature.to_bytes()))
+    }
 }
 
 #[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 impl fmt::Debug for ServiceAccount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ServiceAccount")
-            .field("client_id", &self.client_id)
-            .field("token_url", &self.token_url)
+            .field("service_account", &self.service_account)
+            .field("key", &self.key)
+            .field("sts_endpoint", &self.sts_endpoint)
             .finish_non_exhaustive()
     }
 }
@@ -365,21 +502,27 @@ impl Credentials for ServiceAccount {
     fn token(&self) -> TokenFuture<'_> {
         Box::pin(async move {
             let mut cache = self.cache.lock().await;
-            if let Some(token) = cache.valid() {
+            if let Some(token) = cache.valid_for(SERVICE_ACCOUNT_EXPIRY_MARGIN) {
                 return Ok(token);
             }
+            let assertion = self.assertion();
             let granted = request_token(
                 self.http.as_ref(),
-                &self.token_url,
-                &[
-                    ("grant_type", "client_credentials"),
-                    ("client_id", &self.client_id),
-                    ("client_secret", &self.client_secret),
-                ],
+                &format!("{}/v1/token", self.sts_endpoint.trim_end_matches('/')),
+                &[("grant_type", JWT_BEARER_GRANT), ("assertion", &assertion)],
             )
-            .await?;
-            cache.token = granted.access_token.clone();
-            cache.expiry = Some(granted.expiry());
+            .await
+            .map_err(|e| match e {
+                Error::Credentials(message) => Error::Credentials(format!(
+                    "exchanging an assertion of the service account key {}: {message}",
+                    self.key
+                )),
+                other => other,
+            })?;
+            *cache = Cached {
+                token: granted.access_token.clone(),
+                expiry: Some(granted.expiry()),
+            };
             Ok(granted.access_token)
         })
     }
@@ -1087,6 +1230,7 @@ struct Cached {
 
 #[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
 impl Cached {
+    #[cfg(not(target_arch = "wasm32"))]
     fn valid(&self) -> Option<String> {
         self.valid_for(EXPIRY_MARGIN)
     }
@@ -1189,6 +1333,23 @@ async fn read_bounded(
     Ok((status, body))
 }
 
+/// Whether an assertion may be sent to `endpoint`: over https, or over http
+/// to the loopback interface, as a local test server answers. An assertion
+/// sent in the clear could be replayed until it expires.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+fn secure_endpoint(endpoint: &str) -> bool {
+    let Ok(url) = url::Url::parse(endpoint) else {
+        return false;
+    };
+    match (url.scheme(), url.host()) {
+        ("https", Some(_)) => true,
+        ("http", Some(url::Host::Domain(host))) => host == "localhost",
+        ("http", Some(url::Host::Ipv4(ip))) => ip.is_loopback(),
+        ("http", Some(url::Host::Ipv6(ip))) => ip.is_loopback(),
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1231,26 +1392,56 @@ mod tests {
         path
     }
 
+    /// A P-256 key for the tests alone, in PKCS #8 PEM.
+    const TEST_KEY: &str = "-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgyHvHtkzp0fjy/hHK
+/yt/j0yihbwhkfpFzHsrSjh6OqOhRANCAARxfaIx32RdN3JO0GPH8ght/CFjaoE3
+ao6XiaIxhBdJ6jPPWX/9086Bti4LIfP+qzNTxPn85k7f+yGc6aQoBkr1
+-----END PRIVATE KEY-----
+";
+
+    fn credentials_file(fields: serde_json::Value) -> serde_json::Value {
+        let mut file = serde_json::json!({
+            "type": "service_account_key",
+            "name": "//iam.origincloudapis.eu/organizations/o/serviceAccounts/s/keys/k",
+            "service_account": "//iam.origincloudapis.eu/organizations/o/serviceAccounts/s",
+            "algorithm": "ES256",
+            "private_key": TEST_KEY,
+            "sts_endpoint": "https://sts.origincloudapis.eu",
+        });
+        for (k, v) in fields.as_object().unwrap() {
+            file[k] = v.clone();
+        }
+        file
+    }
+
+    /// A credentials file in a directory of its own, and its path.
+    fn write_credentials_file(file: &serde_json::Value) -> String {
+        let path = data_home().join("credentials.json");
+        std::fs::write(&path, file.to_string()).unwrap();
+        path.to_str().unwrap().to_owned()
+    }
+
     #[tokio::test]
     async fn an_access_token_in_the_environment_comes_first() {
+        let file = write_credentials_file(&credentials_file(serde_json::json!({})));
         let credentials = from_environment(&env(&[
             (ENV_ACCESS_TOKEN, "from-env"),
-            (ENV_CLIENT_ID, "id"),
-            (ENV_CLIENT_SECRET, "secret"),
+            (ENV_CREDENTIALS_FILE, &file),
         ]))
         .unwrap();
         assert_eq!(credentials.token().await.unwrap(), "from-env");
     }
 
     #[test]
-    fn a_service_account_in_the_environment_comes_before_the_cli_session() {
+    fn a_credentials_file_comes_before_the_cli_session() {
         let dir = data_home();
         let hour = chrono::Duration::hours(1);
         write_session(&dir, now() + hour, now() + hour);
+        let file = write_credentials_file(&credentials_file(serde_json::json!({})));
         let credentials = from_environment(&env(&[
             ("XDG_DATA_HOME", dir.to_str().unwrap()),
-            (ENV_CLIENT_ID, "id"),
-            (ENV_CLIENT_SECRET, "secret"),
+            (ENV_CREDENTIALS_FILE, &file),
         ]))
         .unwrap();
         assert!(
@@ -1275,10 +1466,11 @@ mod tests {
     }
 
     #[test]
-    fn a_service_account_comes_before_a_ci_job_s_token() {
+    fn a_credentials_file_comes_before_a_ci_job_s_token() {
+        let file = write_credentials_file(&credentials_file(serde_json::json!({})));
         let credentials = from_environment(&env(&with(
             &GITHUB,
-            &[(ENV_CLIENT_ID, "id"), (ENV_CLIENT_SECRET, "secret")],
+            &[(ENV_OIDC_TOKEN, "job-token"), (ENV_CREDENTIALS_FILE, &file)],
         )))
         .unwrap();
         assert!(
@@ -1624,11 +1816,67 @@ mod tests {
     }
 
     #[test]
-    fn half_a_service_account_is_refused() {
-        let err = from_environment(&env(&[(ENV_CLIENT_ID, "id")])).unwrap_err();
-        assert!(err.to_string().contains("must be set together"), "{err}");
-        let err = from_environment(&env(&[(ENV_CLIENT_SECRET, "secret")])).unwrap_err();
-        assert!(err.to_string().contains("must be set together"), "{err}");
+    fn a_credentials_file_that_cant_be_read_is_an_error_not_passed_over() {
+        let missing = data_home().join("missing.json");
+        let err = from_environment(&env(&with(
+            &GITHUB,
+            &[(ENV_CREDENTIALS_FILE, missing.to_str().unwrap())],
+        )))
+        .unwrap_err();
+        assert!(
+            err.to_string().contains(&format!(
+                "reading the credentials file {}",
+                missing.display()
+            )),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn a_credentials_file_is_checked_when_it_is_read() {
+        let refused = |fields: serde_json::Value| {
+            ServiceAccount::from_json(credentials_file(fields).to_string())
+                .unwrap_err()
+                .to_string()
+        };
+        let err = refused(serde_json::json!({"type": "authorized_user"}));
+        assert!(err.contains(r#"its type is "authorized_user""#), "{err}");
+        let err = refused(serde_json::json!({"algorithm": "RS256"}));
+        assert!(err.contains(r#"its algorithm is "RS256""#), "{err}");
+        let err = refused(serde_json::json!({"sts_endpoint": ""}));
+        assert!(err.contains("it has no sts_endpoint"), "{err}");
+        let err = refused(serde_json::json!({"sts_endpoint": "http://sts.example.com"}));
+        assert!(err.contains("is not an https URL"), "{err}");
+        let err = refused(serde_json::json!({"sts_endpoint": "sts.origincloudapis.eu"}));
+        assert!(err.contains("is not an https URL"), "{err}");
+        let err = refused(
+            serde_json::json!({"private_key": "-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n"}),
+        );
+        assert!(err.contains("not a PKCS #8 P-256 key"), "{err}");
+        let err = ServiceAccount::from_json("not json")
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.starts_with("origincloud: reading the credentials file: "),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn a_service_account_s_debug_names_the_key_but_shows_no_private_key() {
+        let account =
+            ServiceAccount::from_json(credentials_file(serde_json::json!({})).to_string()).unwrap();
+        let debug = format!("{account:?}");
+        assert!(
+            debug.contains(
+                r#"key: "//iam.origincloudapis.eu/organizations/o/serviceAccounts/s/keys/k""#
+            ),
+            "{debug}"
+        );
+        assert!(
+            !debug.contains("PRIVATE KEY") && !debug.contains("MIGHAgEA"),
+            "{debug}"
+        );
     }
 
     #[test]

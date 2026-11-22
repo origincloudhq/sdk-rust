@@ -21,8 +21,8 @@ const BAD_REQUEST: &str = r#"{"error":{"code":400,"status":"INVALID_ARGUMENT","m
     {"@type":"type.googleapis.com/google.rpc.RequestInfo","requestId":"4bf92f3577b34da6"},
     {"@type":"type.googleapis.com/google.rpc.BadRequest","fieldViolations":[{"field":"volume.sizeGib","description":"must be at least 1"}]}]}}"#;
 
-const REPLAYED_CREATE: &str = r#"{"error":{"code":409,"status":"FAILED_PRECONDITION","message":"the service account organizations/o/serviceAccounts/s was created by an earlier request with this request_id; its client secret was returned only to that request. To get a working secret, delete that account and create a new one","details":[
-    {"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"CONFLICT","domain":"origincloudapis.eu","metadata":{"serviceAccount":"organizations/o/serviceAccounts/s"}},
+const REPLAYED_CREATE: &str = r#"{"error":{"code":409,"status":"FAILED_PRECONDITION","message":"the service account key organizations/o/serviceAccounts/s/keys/k was created by an earlier request with this request_id; its credentials file was returned only to that request. Delete that key and create a new one","details":[
+    {"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"CONFLICT","domain":"origincloudapis.eu","metadata":{"serviceAccountKey":"organizations/o/serviceAccounts/s/keys/k"}},
     {"@type":"type.googleapis.com/google.rpc.RequestInfo","requestId":"4bf92f3577b34da6"}]}}"#;
 
 const OPERATION_NAME: &str = "projects/p/zones/z/operations/op-1";
@@ -286,10 +286,10 @@ async fn a_conflict_is_returned_at_once_with_its_metadata() {
     assert_eq!(api.http_status, Some(409));
     assert_eq!(api.status, "FAILED_PRECONDITION");
     assert_eq!(api.request_id, "4bf92f3577b34da6");
-    assert!(api.message.starts_with("the service account organizations/o/serviceAccounts/s was created by an earlier request"), "{}", api.message);
+    assert!(api.message.starts_with("the service account key organizations/o/serviceAccounts/s/keys/k was created by an earlier request"), "{}", api.message);
     assert_eq!(
-        api.metadata.get("serviceAccount").map(String::as_str),
-        Some("organizations/o/serviceAccounts/s")
+        api.metadata.get("serviceAccountKey").map(String::as_str),
+        Some("organizations/o/serviceAccounts/s/keys/k")
     );
     assert_eq!(api.metadata.len(), 1);
 }
