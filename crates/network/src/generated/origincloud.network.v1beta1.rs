@@ -1198,7 +1198,7 @@ pub struct DeleteResolverPolicyAssociationRequest {
     pub request_id: ::prost::alloc::string::String,
 }
 /// A route: traffic to `destination` leaves through one gateway. Set exactly
-/// one of `internet_gateway` and `nat_gateway`.
+/// one of `internet_gateway` and `nat_gateway`: they are the oneof `target`.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct Route {
     /// The route's resource name.
@@ -1209,17 +1209,28 @@ pub struct Route {
     /// decides only where traffic to the internet goes.
     #[prost(string, tag = "2")]
     pub destination: ::prost::alloc::string::String,
-    /// The full name of the internet gateway of the table's VPC to send the
-    /// traffic to.
-    #[prost(string, tag = "3")]
-    pub internet_gateway: ::prost::alloc::string::String,
-    /// The full name of the NAT gateway in the table's VPC to send the traffic
-    /// to, for the
-    /// IPv4 default route only: a NAT gateway translates IPv4 only. Named in
-    /// the gateway's own zone; a name with another zone is refused with
-    /// `INVALID_ARGUMENT`.
-    #[prost(string, tag = "4")]
-    pub nat_gateway: ::prost::alloc::string::String,
+    /// Where the traffic leaves: exactly one of these. None, or more than one,
+    /// is refused with `INVALID_ARGUMENT`.
+    #[prost(oneof = "route::Target", tags = "3, 4")]
+    pub target: ::core::option::Option<route::Target>,
+}
+/// Nested message and enum types in `Route`.
+pub mod route {
+    /// Where the traffic leaves: exactly one of these. None, or more than one,
+    /// is refused with `INVALID_ARGUMENT`.
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    pub enum Target {
+        /// The full name of the internet gateway of the table's VPC to send the
+        /// traffic to.
+        #[prost(string, tag = "3")]
+        InternetGateway(::prost::alloc::string::String),
+        /// The full name of the NAT gateway in the table's VPC to send the
+        /// traffic to, for the IPv4 default route only: a NAT gateway
+        /// translates IPv4 only. Named in the gateway's own zone; a name with
+        /// another zone is refused with `INVALID_ARGUMENT`.
+        #[prost(string, tag = "4")]
+        NatGateway(::prost::alloc::string::String),
+    }
 }
 /// The request for GetRoute.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -1639,7 +1650,7 @@ pub struct DeleteSecurityGroupAssociationRequest {
 }
 /// A security group rule: the traffic it allows in one direction, to or from
 /// one peer. Set exactly one of `cidr_block`, `peer_security_group` and
-/// `same_group`.
+/// `same_group`: they are the oneof `peer`.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SecurityGroupRule {
     /// The rule's resource name.
@@ -1664,22 +1675,13 @@ pub struct SecurityGroupRule {
     /// port `first_port`, or with `first_port` 0 for every port.
     #[prost(int32, tag = "5")]
     pub last_port: i32,
-    /// The peer as an address range: where admitted traffic comes from, or
-    /// where sent traffic goes to.
-    #[prost(string, tag = "6")]
-    pub cidr_block: ::prost::alloc::string::String,
-    /// The peer as another security group of the same VPC, by its full name:
-    /// its members'
-    /// addresses. The rule's own group is refused here with
-    /// `INVALID_ARGUMENT`: it is `same_group`.
-    #[prost(string, tag = "7")]
-    pub peer_security_group: ::prost::alloc::string::String,
-    /// The peer as the rule's own group's members.
-    #[prost(bool, tag = "8")]
-    pub same_group: bool,
     /// What the rule is for.
     #[prost(string, tag = "9")]
     pub description: ::prost::alloc::string::String,
+    /// The rule's peer: exactly one of these. None, or more than one, is
+    /// refused with `INVALID_ARGUMENT`.
+    #[prost(oneof = "security_group_rule::Peer", tags = "6, 7, 8")]
+    pub peer: ::core::option::Option<security_group_rule::Peer>,
 }
 /// Nested message and enum types in `SecurityGroupRule`.
 pub mod security_group_rule {
@@ -1777,6 +1779,23 @@ pub mod security_group_rule {
                 _ => None,
             }
         }
+    }
+    /// The rule's peer: exactly one of these. None, or more than one, is
+    /// refused with `INVALID_ARGUMENT`.
+    #[derive(Clone, PartialEq, Eq, Hash, ::prost::Oneof)]
+    pub enum Peer {
+        /// The peer as an address range: where admitted traffic comes from, or
+        /// where sent traffic goes to.
+        #[prost(string, tag = "6")]
+        CidrBlock(::prost::alloc::string::String),
+        /// The peer as another security group of the same VPC, by its full
+        /// name: its members' addresses. The rule's own group is refused here
+        /// with `INVALID_ARGUMENT`: it is `same_group`.
+        #[prost(string, tag = "7")]
+        PeerSecurityGroup(::prost::alloc::string::String),
+        /// The peer as the rule's own group's members; only `true` is a peer.
+        #[prost(bool, tag = "8")]
+        SameGroup(bool),
     }
 }
 /// The request for GetSecurityGroupRule.
@@ -16901,10 +16920,7 @@ impl serde::Serialize for Route {
         if !self.destination.is_empty() {
             len += 1;
         }
-        if !self.internet_gateway.is_empty() {
-            len += 1;
-        }
-        if !self.nat_gateway.is_empty() {
+        if self.target.is_some() {
             len += 1;
         }
         let mut struct_ser = serializer
@@ -16915,11 +16931,15 @@ impl serde::Serialize for Route {
         if !self.destination.is_empty() {
             struct_ser.serialize_field("destination", &self.destination)?;
         }
-        if !self.internet_gateway.is_empty() {
-            struct_ser.serialize_field("internetGateway", &self.internet_gateway)?;
-        }
-        if !self.nat_gateway.is_empty() {
-            struct_ser.serialize_field("natGateway", &self.nat_gateway)?;
+        if let Some(v) = self.target.as_ref() {
+            match v {
+                route::Target::InternetGateway(v) => {
+                    struct_ser.serialize_field("internetGateway", v)?;
+                }
+                route::Target::NatGateway(v) => {
+                    struct_ser.serialize_field("natGateway", v)?;
+                }
+            }
         }
         struct_ser.end()
     }
@@ -17001,8 +17021,7 @@ impl<'de> serde::Deserialize<'de> for Route {
             {
                 let mut name__ = None;
                 let mut destination__ = None;
-                let mut internet_gateway__ = None;
-                let mut nat_gateway__ = None;
+                let mut target__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Name => {
@@ -17020,18 +17039,22 @@ impl<'de> serde::Deserialize<'de> for Route {
                             destination__ = Some(map_.next_value()?);
                         }
                         GeneratedField::InternetGateway => {
-                            if internet_gateway__.is_some() {
+                            if target__.is_some() {
                                 return Err(
                                     serde::de::Error::duplicate_field("internetGateway"),
                                 );
                             }
-                            internet_gateway__ = Some(map_.next_value()?);
+                            target__ = map_
+                                .next_value::<::std::option::Option<_>>()?
+                                .map(route::Target::InternetGateway);
                         }
                         GeneratedField::NatGateway => {
-                            if nat_gateway__.is_some() {
+                            if target__.is_some() {
                                 return Err(serde::de::Error::duplicate_field("natGateway"));
                             }
-                            nat_gateway__ = Some(map_.next_value()?);
+                            target__ = map_
+                                .next_value::<::std::option::Option<_>>()?
+                                .map(route::Target::NatGateway);
                         }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
@@ -17041,8 +17064,7 @@ impl<'de> serde::Deserialize<'de> for Route {
                 Ok(Route {
                     name: name__.unwrap_or_default(),
                     destination: destination__.unwrap_or_default(),
-                    internet_gateway: internet_gateway__.unwrap_or_default(),
-                    nat_gateway: nat_gateway__.unwrap_or_default(),
+                    target: target__,
                 })
             }
         }
@@ -17761,16 +17783,10 @@ impl serde::Serialize for SecurityGroupRule {
         if self.last_port != 0 {
             len += 1;
         }
-        if !self.cidr_block.is_empty() {
-            len += 1;
-        }
-        if !self.peer_security_group.is_empty() {
-            len += 1;
-        }
-        if self.same_group {
-            len += 1;
-        }
         if !self.description.is_empty() {
+            len += 1;
+        }
+        if self.peer.is_some() {
             len += 1;
         }
         let mut struct_ser = serializer
@@ -17798,17 +17814,21 @@ impl serde::Serialize for SecurityGroupRule {
         if self.last_port != 0 {
             struct_ser.serialize_field("lastPort", &self.last_port)?;
         }
-        if !self.cidr_block.is_empty() {
-            struct_ser.serialize_field("cidrBlock", &self.cidr_block)?;
-        }
-        if !self.peer_security_group.is_empty() {
-            struct_ser.serialize_field("peerSecurityGroup", &self.peer_security_group)?;
-        }
-        if self.same_group {
-            struct_ser.serialize_field("sameGroup", &self.same_group)?;
-        }
         if !self.description.is_empty() {
             struct_ser.serialize_field("description", &self.description)?;
+        }
+        if let Some(v) = self.peer.as_ref() {
+            match v {
+                security_group_rule::Peer::CidrBlock(v) => {
+                    struct_ser.serialize_field("cidrBlock", v)?;
+                }
+                security_group_rule::Peer::PeerSecurityGroup(v) => {
+                    struct_ser.serialize_field("peerSecurityGroup", v)?;
+                }
+                security_group_rule::Peer::SameGroup(v) => {
+                    struct_ser.serialize_field("sameGroup", v)?;
+                }
+            }
         }
         struct_ser.end()
     }
@@ -17827,13 +17847,13 @@ impl<'de> serde::Deserialize<'de> for SecurityGroupRule {
             "firstPort",
             "last_port",
             "lastPort",
+            "description",
             "cidr_block",
             "cidrBlock",
             "peer_security_group",
             "peerSecurityGroup",
             "same_group",
             "sameGroup",
-            "description",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -17842,10 +17862,10 @@ impl<'de> serde::Deserialize<'de> for SecurityGroupRule {
             Protocol,
             FirstPort,
             LastPort,
+            Description,
             CidrBlock,
             PeerSecurityGroup,
             SameGroup,
-            Description,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -17878,12 +17898,12 @@ impl<'de> serde::Deserialize<'de> for SecurityGroupRule {
                             "protocol" => Ok(GeneratedField::Protocol),
                             "firstPort" | "first_port" => Ok(GeneratedField::FirstPort),
                             "lastPort" | "last_port" => Ok(GeneratedField::LastPort),
+                            "description" => Ok(GeneratedField::Description),
                             "cidrBlock" | "cidr_block" => Ok(GeneratedField::CidrBlock),
                             "peerSecurityGroup" | "peer_security_group" => {
                                 Ok(GeneratedField::PeerSecurityGroup)
                             }
                             "sameGroup" | "same_group" => Ok(GeneratedField::SameGroup),
-                            "description" => Ok(GeneratedField::Description),
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -17913,10 +17933,8 @@ impl<'de> serde::Deserialize<'de> for SecurityGroupRule {
                 let mut protocol__ = None;
                 let mut first_port__ = None;
                 let mut last_port__ = None;
-                let mut cidr_block__ = None;
-                let mut peer_security_group__ = None;
-                let mut same_group__ = None;
                 let mut description__ = None;
+                let mut peer__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Name => {
@@ -17961,26 +17979,6 @@ impl<'de> serde::Deserialize<'de> for SecurityGroupRule {
                                     .0,
                             );
                         }
-                        GeneratedField::CidrBlock => {
-                            if cidr_block__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("cidrBlock"));
-                            }
-                            cidr_block__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::PeerSecurityGroup => {
-                            if peer_security_group__.is_some() {
-                                return Err(
-                                    serde::de::Error::duplicate_field("peerSecurityGroup"),
-                                );
-                            }
-                            peer_security_group__ = Some(map_.next_value()?);
-                        }
-                        GeneratedField::SameGroup => {
-                            if same_group__.is_some() {
-                                return Err(serde::de::Error::duplicate_field("sameGroup"));
-                            }
-                            same_group__ = Some(map_.next_value()?);
-                        }
                         GeneratedField::Description => {
                             if description__.is_some() {
                                 return Err(
@@ -17988,6 +17986,32 @@ impl<'de> serde::Deserialize<'de> for SecurityGroupRule {
                                 );
                             }
                             description__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::CidrBlock => {
+                            if peer__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("cidrBlock"));
+                            }
+                            peer__ = map_
+                                .next_value::<::std::option::Option<_>>()?
+                                .map(security_group_rule::Peer::CidrBlock);
+                        }
+                        GeneratedField::PeerSecurityGroup => {
+                            if peer__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("peerSecurityGroup"),
+                                );
+                            }
+                            peer__ = map_
+                                .next_value::<::std::option::Option<_>>()?
+                                .map(security_group_rule::Peer::PeerSecurityGroup);
+                        }
+                        GeneratedField::SameGroup => {
+                            if peer__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("sameGroup"));
+                            }
+                            peer__ = map_
+                                .next_value::<::std::option::Option<_>>()?
+                                .map(security_group_rule::Peer::SameGroup);
                         }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
@@ -18000,10 +18024,8 @@ impl<'de> serde::Deserialize<'de> for SecurityGroupRule {
                     protocol: protocol__.unwrap_or_default(),
                     first_port: first_port__.unwrap_or_default(),
                     last_port: last_port__.unwrap_or_default(),
-                    cidr_block: cidr_block__.unwrap_or_default(),
-                    peer_security_group: peer_security_group__.unwrap_or_default(),
-                    same_group: same_group__.unwrap_or_default(),
                     description: description__.unwrap_or_default(),
+                    peer: peer__,
                 })
             }
         }
