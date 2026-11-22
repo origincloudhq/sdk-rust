@@ -417,6 +417,12 @@ impl ServiceAccount {
                 return Err(format!("it has no {field}"));
             }
         }
+        if !secure_endpoint(&file.sts_endpoint) {
+            return Err(format!(
+                "its sts_endpoint {:?} is not an https URL",
+                file.sts_endpoint
+            ));
+        }
         let signing_key = p256::ecdsa::SigningKey::from_pkcs8_pem(&file.private_key)
             .map_err(|_| "its private_key is not a PKCS #8 P-256 key in PEM".to_owned())?;
         Ok(Self {
@@ -1327,6 +1333,23 @@ async fn read_bounded(
     Ok((status, body))
 }
 
+/// Whether an assertion may be sent to `endpoint`: over https, or over http
+/// to the loopback interface, as a local test server answers. An assertion
+/// sent in the clear could be replayed until it expires.
+#[cfg(any(not(target_arch = "wasm32"), feature = "service-account-wasm"))]
+fn secure_endpoint(endpoint: &str) -> bool {
+    let Ok(url) = url::Url::parse(endpoint) else {
+        return false;
+    };
+    match (url.scheme(), url.host()) {
+        ("https", Some(_)) => true,
+        ("http", Some(url::Host::Domain(host))) => host == "localhost",
+        ("http", Some(url::Host::Ipv4(ip))) => ip.is_loopback(),
+        ("http", Some(url::Host::Ipv6(ip))) => ip.is_loopback(),
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1822,6 +1845,10 @@ ao6XiaIxhBdJ6jPPWX/9086Bti4LIfP+qzNTxPn85k7f+yGc6aQoBkr1
         assert!(err.contains(r#"its algorithm is "RS256""#), "{err}");
         let err = refused(serde_json::json!({"sts_endpoint": ""}));
         assert!(err.contains("it has no sts_endpoint"), "{err}");
+        let err = refused(serde_json::json!({"sts_endpoint": "http://sts.example.com"}));
+        assert!(err.contains("is not an https URL"), "{err}");
+        let err = refused(serde_json::json!({"sts_endpoint": "sts.origincloudapis.eu"}));
+        assert!(err.contains("is not an https URL"), "{err}");
         let err = refused(
             serde_json::json!({"private_key": "-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n"}),
         );
