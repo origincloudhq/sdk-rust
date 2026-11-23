@@ -136,6 +136,8 @@ pub struct ClientBuilder {
     timeout: Option<Duration>,
     operation_wait: Option<Duration>,
     tokens: Option<Arc<dyn ConsistencyTokenStore>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    impersonate: Option<String>,
 }
 
 impl ClientBuilder {
@@ -220,6 +222,25 @@ impl ClientBuilder {
         self
     }
 
+    /// Acts as the service account `service_account`, by its full name
+    /// (`//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`):
+    /// the credentials' token, whichever they are, is exchanged at the
+    /// security token service for the account's, which every call is sent
+    /// with ([`Impersonated`](crate::Impersonated)). The caller needs
+    /// `roles/iam.service-account-token-creator` on the account; a refused
+    /// exchange fails the call, naming the account, and the caller's own
+    /// token is never sent instead. It overrides
+    /// `ORIGINCLOUD_IMPERSONATE_SERVICE_ACCOUNT`; an empty name
+    /// impersonates no one. `ORIGINCLOUD_STS_ENDPOINT` asks another STS
+    /// than [`STS_ENDPOINT`](crate::credentials::STS_ENDPOINT).
+    /// [`ClientBuilder::build`] refuses a name that isn't a service
+    /// account's.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn impersonate_service_account(mut self, service_account: impl Into<String>) -> Self {
+        self.impersonate = Some(service_account.into());
+        self
+    }
+
     /// The client. It fails when no credentials are found or an option is
     /// invalid.
     pub fn build(self) -> Result<Client, Error> {
@@ -275,6 +296,8 @@ impl ClientBuilder {
             Some(credentials) => credentials,
             None => credentials::from_environment(env)?,
         };
+        #[cfg(not(target_arch = "wasm32"))]
+        let credentials = credentials::impersonating(credentials, self.impersonate, env)?;
         Ok(Client {
             inner: Arc::new(Inner {
                 http,

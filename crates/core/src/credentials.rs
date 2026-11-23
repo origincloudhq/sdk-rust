@@ -109,6 +109,17 @@ const JWT_BEARER_GRANT: &str = "urn:ietf:params:oauth:grant-type:jwt-bearer";
 const TOKEN_EXCHANGE_GRANT: &str = "urn:ietf:params:oauth:grant-type:token-exchange";
 #[cfg(not(target_arch = "wasm32"))]
 const JWT_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:jwt";
+#[cfg(not(target_arch = "wasm32"))]
+const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
+
+/// How long before its expiry an impersonated service account's access
+/// token, which lives five minutes at most, is replaced.
+#[cfg(not(target_arch = "wasm32"))]
+const IMPERSONATED_EXPIRY_MARGIN: Duration = Duration::from_secs(60);
+
+/// The environment variable naming a service account to impersonate.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) const ENV_IMPERSONATE_SERVICE_ACCOUNT: &str = "ORIGINCLOUD_IMPERSONATE_SERVICE_ACCOUNT";
 
 /// The instance metadata service, which software on an instance reaches
 /// at this link-local address.
@@ -237,6 +248,31 @@ pub(crate) fn from_environment(
         Some(endpoint) => metadata.with_endpoint(endpoint),
         None => metadata,
     }))
+}
+
+/// `credentials`, impersonating the service account `chosen` names (from
+/// the builder), or else `ORIGINCLOUD_IMPERSONATE_SERVICE_ACCOUNT` does,
+/// at the STS `ORIGINCLOUD_STS_ENDPOINT` names, if any. An empty name
+/// impersonates no one.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn impersonating(
+    credentials: Arc<dyn Credentials>,
+    chosen: Option<String>,
+    env: &dyn Fn(&str) -> Option<String>,
+) -> Result<Arc<dyn Credentials>, Error> {
+    let var = |name: &str| env(name).filter(|v| !v.is_empty());
+    let Some(service_account) = chosen
+        .or_else(|| var(ENV_IMPERSONATE_SERVICE_ACCOUNT))
+        .map(|name| name.trim().to_owned())
+        .filter(|name| !name.is_empty())
+    else {
+        return Ok(credentials);
+    };
+    let mut impersonated = Impersonated::new(credentials, service_account)?;
+    if let Some(endpoint) = var(ENV_STS_ENDPOINT) {
+        impersonated = impersonated.with_endpoint(endpoint);
+    }
+    Ok(Arc::new(impersonated))
 }
 
 /// In a browser there is no environment, no file system and no metadata
@@ -1176,6 +1212,181 @@ impl Credentials for Federated {
     }
 }
 
+/// Another credential's token exchanged at the security token service for
+/// a service account's (impersonation, RFC 8693): the caller, typically a
+/// person logged in with `origin id login`, acts as the account, with the
+/// account's roles alone, and the audit log names both. The STS issues the
+/// token only to a caller granted `roles/iam.service-account-token-creator`
+/// on the account (or its project or organization), and only for an
+/// `EXTERNAL` or `WORKLOAD` account that is active.
+///
+/// The account's token lives five minutes at most, and is reused until a
+/// minute before it expires; then the underlying credential's current
+/// token is exchanged again. Callers that need a token while it is being
+/// renewed wait for that renewal and share its token. A refused exchange is
+/// an error naming the account: the caller's own token is never sent in
+/// its place. An exchange the STS can't answer right now (`503`) is sent
+/// again twice.
+///
+/// [`ClientBuilder::impersonate_service_account`](crate::ClientBuilder::impersonate_service_account),
+/// or `ORIGINCLOUD_IMPERSONATE_SERVICE_ACCOUNT`, wraps a client's
+/// credentials in it.
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Impersonated {
+    base: Arc<dyn Credentials>,
+    service_account: String,
+    endpoint: String,
+    http: Option<reqwest::Client>,
+    cache: Mutex<Cached>,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Impersonated {
+    /// Acts as the service account `service_account`, its full name
+    /// (`//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`),
+    /// with the tokens `base` supplies, such as those
+    /// [`default_credentials`] finds. A name that isn't a service
+    /// account's is refused.
+    pub fn new(
+        base: Arc<dyn Credentials>,
+        service_account: impl Into<String>,
+    ) -> Result<Self, Error> {
+        let service_account = service_account.into();
+        let is_account = crate::FullName::parse(&service_account)
+            .ok()
+            .is_some_and(|name| {
+                matches!(
+                    name.principal(),
+                    Some(crate::names::Principal::ServiceAccount { .. })
+                )
+            });
+        if !is_account {
+            return Err(Error::Config(format!(
+                "the service account to impersonate must be its full name, \
+                 //iam.origincloudapis.eu/organizations/{{organization}}/serviceAccounts/{{service_account}}, \
+                 got {service_account:?}"
+            )));
+        }
+        Ok(Self {
+            base,
+            service_account,
+            endpoint: STS_ENDPOINT.to_owned(),
+            http: None,
+            cache: Mutex::default(),
+        })
+    }
+
+    /// The full name of the service account it acts as.
+    pub fn service_account(&self) -> &str {
+        &self.service_account
+    }
+
+    /// Exchanges the tokens at the STS at `url` instead of
+    /// [`STS_ENDPOINT`]: an https URL, or http to the loopback interface,
+    /// as the caller's token must not travel in the clear.
+    pub fn with_endpoint(mut self, url: impl Into<String>) -> Self {
+        self.endpoint = url.into().trim_end_matches('/').to_owned();
+        self
+    }
+
+    /// Sends the exchanges with `http`, instead of the client all
+    /// credentials share. Each exchange is bounded by 30 seconds either way.
+    pub fn with_http_client(mut self, http: reqwest::Client) -> Self {
+        self.http = Some(http);
+        self
+    }
+
+    /// `message` about impersonating the account, as an error.
+    fn failed(&self, message: impl fmt::Display) -> Error {
+        Error::Credentials(format!(
+            "impersonating the service account {}: {message}",
+            self.service_account
+        ))
+    }
+
+    /// The caller's token `subject_token` exchanged for the account's.
+    async fn exchange(&self, subject_token: &str) -> Result<Granted, Error> {
+        let http = match &self.http {
+            Some(http) => http,
+            None => default_http_client().map_err(|e| self.failed(e))?,
+        };
+        let request = http
+            .post(format!("{}/v1/token", self.endpoint))
+            .timeout(TOKEN_REQUEST_TIMEOUT)
+            .header(reqwest::header::ACCEPT, "application/json")
+            .form(&[
+                ("grant_type", TOKEN_EXCHANGE_GRANT),
+                ("subject_token", subject_token),
+                ("subject_token_type", ACCESS_TOKEN_TYPE),
+                ("service_account", &self.service_account),
+            ]);
+        let (status, body) = send_retrying(request, &STS_RETRY_DELAYS)
+            .await
+            .map_err(|e| self.failed(e))?;
+        let parsed = serde_json::from_slice::<Granted>(&body);
+        let granted = parsed.as_ref().ok();
+        let error = granted.map_or("", |g| g.error.as_str());
+        match status.as_u16() {
+            200 => match parsed {
+                Ok(granted) if !granted.access_token.is_empty() => Ok(granted),
+                _ => Err(self.failed("the STS's answer is not a token response")),
+            },
+            503 => Err(self
+                .failed("the STS can't answer right now (HTTP 503, 3 attempts); try again later")),
+            _ if error == "invalid_grant" => Err(Error::Credentials(format!(
+                "the STS refused to impersonate the service account {} (invalid_grant): \
+                 the caller needs roles/iam.service-account-token-creator on it, and the \
+                 account must exist and be active",
+                self.service_account
+            ))),
+            status => {
+                let reason = match granted {
+                    Some(g) if !g.error_description.is_empty() => &g.error_description,
+                    Some(g) if !g.error.is_empty() => &g.error,
+                    _ => "not a token response",
+                };
+                Err(self.failed(format_args!("the STS answered HTTP {status}: {reason}")))
+            }
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl fmt::Debug for Impersonated {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Impersonated")
+            .field("service_account", &self.service_account)
+            .field("base", &self.base)
+            .field("endpoint", &self.endpoint)
+            .finish_non_exhaustive()
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Credentials for Impersonated {
+    fn token(&self) -> TokenFuture<'_> {
+        Box::pin(async move {
+            let mut cache = self.cache.lock().await;
+            if let Some(token) = cache.valid_for(IMPERSONATED_EXPIRY_MARGIN) {
+                return Ok(token);
+            }
+            if !secure_endpoint(&self.endpoint) {
+                return Err(self.failed(format_args!(
+                    "the STS endpoint {:?} is not an https URL",
+                    self.endpoint
+                )));
+            }
+            let subject_token = self.base.token().await?;
+            let granted = self.exchange(&subject_token).await?;
+            *cache = Cached {
+                token: granted.access_token.clone(),
+                expiry: Some(granted.expiry()),
+            };
+            Ok(granted.access_token)
+        })
+    }
+}
+
 /// ` in VARIABLE`, naming where a given job token came from, if anywhere.
 #[cfg(not(target_arch = "wasm32"))]
 fn in_variable(variable: Option<&str>) -> String {
@@ -1952,5 +2163,113 @@ ao6XiaIxhBdJ6jPPWX/9086Bti4LIfP+qzNTxPn85k7f+yGc6aQoBkr1
         let session = CliSession::load_from(path).unwrap().unwrap();
         let err = session.token().await.unwrap_err();
         assert!(err.to_string().contains("origin id login"), "{err}");
+    }
+
+    const IMPERSONATED: &str = "//iam.origincloudapis.eu/organizations/o/serviceAccounts/deployer";
+
+    /// The chain's credentials for `vars`, impersonating as the builder
+    /// would without a name of its own.
+    fn chain_impersonating(vars: &[(&str, &str)]) -> Arc<dyn Credentials> {
+        let env = env(vars);
+        impersonating(from_environment(&env).unwrap(), None, &env).unwrap()
+    }
+
+    #[test]
+    fn every_step_of_the_chain_can_be_impersonated_from() {
+        let dir = data_home();
+        let hour = chrono::Duration::hours(1);
+        write_session(&dir, now() + hour, now() + hour);
+        let file = write_credentials_file(&credentials_file(serde_json::json!({})));
+        let data_home = dir.to_str().unwrap();
+        let impersonate = (ENV_IMPERSONATE_SERVICE_ACCOUNT, IMPERSONATED);
+        for (vars, base) in [
+            (vec![(ENV_ACCESS_TOKEN, "t")], "AccessToken"),
+            (
+                vec![(ENV_CREDENTIALS_FILE, file.as_str())],
+                "ServiceAccount",
+            ),
+            (vec![(ENV_OIDC_TOKEN, "job-token")], "Federated"),
+            (vec![("XDG_DATA_HOME", data_home)], "CliSession"),
+            (
+                vec![(ENV_METADATA_ENDPOINT, "http://127.0.0.1:1")],
+                "InstanceMetadata",
+            ),
+        ] {
+            let credentials = chain_impersonating(&with(&vars, &[impersonate]));
+            let debug = format!("{credentials:?}");
+            assert!(debug.starts_with("Impersonated"), "{debug}");
+            assert!(debug.contains(IMPERSONATED), "{debug}");
+            assert!(debug.contains(&format!("base: {base}")), "{debug}");
+            assert!(debug.contains(&format!("{STS_ENDPOINT:?}")), "{debug}");
+        }
+    }
+
+    #[test]
+    fn without_the_variable_no_one_is_impersonated() {
+        for value in ["", "  "] {
+            let credentials = chain_impersonating(&[
+                (ENV_ACCESS_TOKEN, "t"),
+                (ENV_IMPERSONATE_SERVICE_ACCOUNT, value),
+            ]);
+            assert!(format!("{credentials:?}").starts_with("AccessToken"));
+        }
+    }
+
+    #[test]
+    fn the_builder_s_name_overrides_the_variable() {
+        let env = env(&[
+            (ENV_ACCESS_TOKEN, "t"),
+            (ENV_IMPERSONATE_SERVICE_ACCOUNT, "not a name"),
+        ]);
+        let base = || from_environment(&env).unwrap();
+        let chosen = impersonating(base(), Some(IMPERSONATED.to_owned()), &env).unwrap();
+        assert!(format!("{chosen:?}").contains(IMPERSONATED));
+        let off = impersonating(base(), Some(String::new()), &env).unwrap();
+        assert!(format!("{off:?}").starts_with("AccessToken"));
+        let refused = impersonating(base(), None, &env).unwrap_err();
+        assert!(matches!(refused, Error::Config(_)), "{refused:?}");
+        assert!(refused.to_string().contains("not a name"), "{refused}");
+    }
+
+    /// A person logged in with `origin id login` acts as the account: the
+    /// CLI session's token is what the STS gets, at the address
+    /// `ORIGINCLOUD_STS_ENDPOINT` names.
+    #[tokio::test]
+    async fn a_person_s_cli_login_is_exchanged_for_the_account_s_token() {
+        let form = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let seen = Arc::clone(&form);
+        let sts = fake_server::FakeServer::start(move |r| {
+            *seen.lock().unwrap() = fake_server::Received {
+                query: r.text(),
+                ..r
+            }
+            .query_pairs();
+            async {
+                fake_server::Response::json(
+                    serde_json::json!({"access_token": "account-token", "expires_in": 300})
+                        .to_string(),
+                )
+            }
+        })
+        .await;
+        let dir = data_home();
+        let hour = chrono::Duration::hours(1);
+        write_session(&dir, now() + hour, now() + hour);
+        let credentials = chain_impersonating(&[
+            ("XDG_DATA_HOME", dir.to_str().unwrap()),
+            (ENV_IMPERSONATE_SERVICE_ACCOUNT, IMPERSONATED),
+            (ENV_STS_ENDPOINT, &sts.url()),
+            (ENV_METADATA_DISABLED, "true"),
+        ]);
+
+        assert_eq!(credentials.token().await.unwrap(), "account-token");
+        let form = form.lock().unwrap();
+        let field = |name: &str| {
+            form.iter()
+                .find(|(k, _)| k == name)
+                .map(|(_, v)| v.as_str())
+        };
+        assert_eq!(field("subject_token"), Some("stored-access"));
+        assert_eq!(field("service_account"), Some(IMPERSONATED));
     }
 }

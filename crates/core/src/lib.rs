@@ -43,6 +43,16 @@
 //!    the instance's metadata service. `ORIGINCLOUD_METADATA_DISABLED=true`
 //!    leaves this step out.
 //!
+#![cfg_attr(
+    not(target_arch = "wasm32"),
+    doc = "[`ClientBuilder::impersonate_service_account`], or
+`ORIGINCLOUD_IMPERSONATE_SERVICE_ACCOUNT`, names a service account to act
+as instead: the token of the credentials found is exchanged at the
+security token service for the account's, which every call is sent with
+([`Impersonated`]).
+"
+)]
+//!
 //! # Endpoints
 //!
 //! Every service answers at `{service}.origincloudapis.eu`, which serves
@@ -129,7 +139,7 @@ pub use consistency::{ConsistencyTokenCell, ConsistencyTokenStore};
 pub use credentials::ServiceAccount;
 pub use credentials::{AccessToken, Credentials};
 #[cfg(not(target_arch = "wasm32"))]
-pub use credentials::{CliSession, Federated, InstanceMetadata, default_credentials};
+pub use credentials::{CliSession, Federated, Impersonated, InstanceMetadata, default_credentials};
 pub use error::{ApiError, Error, FieldViolation};
 pub use names::{FullName, FullNameError};
 pub use operation::Operation;
