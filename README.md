@@ -116,6 +116,11 @@ async fn main() -> Result<(), origincloud_core::Error> {
 
 `Client::builder().credentials(...)` sets them explicitly instead.
 
+With `ORIGINCLOUD_IMPERSONATE_SERVICE_ACCOUNT` set, or
+`Client::builder().impersonate_service_account(...)`, the client acts as a
+service account instead (see
+[Impersonating a service account](#impersonating-a-service-account)).
+
 ### A service account key
 
 An `EXTERNAL` service account authenticates with a key that IAM holds. Creating
@@ -150,6 +155,56 @@ its access tokens at their next call.
 The client ID and secret of earlier versions, `ORIGINCLOUD_CLIENT_ID` and
 `ORIGINCLOUD_CLIENT_SECRET`, are gone: they are no longer read, and the API no
 longer issues them. Create a key for the account and use its credentials file.
+
+### Impersonating a service account
+
+A person can act as a service account without holding its key: the SDK takes the token the credentials above give, exchanges it at
+the security token service for the account's token, and sends every call with
+that token. The calls then have the account's roles alone, such as a
+deployment account's narrow ones, and the audit log names the account as the
+principal and the caller as the actor. Name the account by its full name:
+
+```sh
+export ORIGINCLOUD_IMPERSONATE_SERVICE_ACCOUNT=//iam.origincloudapis.eu/organizations/my-org/serviceAccounts/deployer
+```
+
+or in code, on top of the person's credentials:
+
+```rust,ignore
+use origincloud_core::Client;
+
+let client = Client::builder()
+    .impersonate_service_account(
+        "//iam.origincloudapis.eu/organizations/my-org/serviceAccounts/deployer",
+    )
+    .build()?;
+```
+
+The builder's name overrides the variable, and an empty one impersonates no
+one. `origincloud_core::Impersonated` wraps any `Credentials` the same way.
+
+- **Who may.** The caller needs the role
+  `roles/iam.service-account-token-creator` on the account, its project or its
+  organization. The STS impersonates `EXTERNAL` and `WORKLOAD` accounts that
+  are active, and takes a person's token, such as the session of
+  `origin id login`; it refuses another service account's.
+- **The exchange.** `POST {sts}/v1/token`, an RFC 8693 token exchange:
+  `grant_type` `urn:ietf:params:oauth:grant-type:token-exchange`, the caller's
+  token as `subject_token` (`subject_token_type`
+  `urn:ietf:params:oauth:token-type:access_token`), and the account's full
+  name as `service_account`. The STS is `https://sts.origincloudapis.eu`, or
+  the one `ORIGINCLOUD_STS_ENDPOINT` names; the caller's token is sent over
+  https only (or plain http to the loopback interface, for a local test
+  server).
+- **Renewal.** The account's token lives five minutes at most. It is reused
+  until a minute before it expires; then the caller's current token is
+  exchanged again. Callers that need one while it is being renewed wait for
+  that renewal and share its token.
+- **Refusal.** A refused exchange fails the call with an error naming the
+  account, and nothing is sent to the API: the caller's own token is never
+  used in the account's place. The STS answers every refusal alike
+  (`invalid_grant`), whether the binding is missing or the account doesn't
+  exist or is deleted.
 
 ## Behaviour
 
