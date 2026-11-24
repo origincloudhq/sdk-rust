@@ -24035,8 +24035,9 @@ impl SubnetClient {
     }
     /// Deletes a subnet with its route table and ACL associations and its
     /// unattached network interfaces. Refused while an interface in it is
-    /// attached or a NAT gateway lives in it. The operation is done once the
-    /// change is recorded; the network applies it within seconds.
+    /// attached, a Floating IP you allocated is still associated with one of
+    /// its interfaces, or a NAT gateway lives in it. The operation is done once
+    /// the change is recorded; the network applies it within seconds.
     ///
     /// It answers with an operation to wait on, which has no result: [`Operation::wait`](origincloud_core::Operation::wait) returns once the change is done.
     pub async fn delete_subnet(
