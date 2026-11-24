@@ -158,8 +158,7 @@ longer issues them. Create a key for the account and use its credentials file.
 
 ### Impersonating a service account
 
-A person, or any other caller, can act as a service account without holding
-its key: the SDK takes the token the credentials above give, exchanges it at
+A person can act as a service account without holding its key: the SDK takes the token the credentials above give, exchanges it at
 the security token service for the account's token, and sends every call with
 that token. The calls then have the account's roles alone, such as a
 deployment account's narrow ones, and the audit log names the account as the
@@ -169,7 +168,7 @@ principal and the caller as the actor. Name the account by its full name:
 export ORIGINCLOUD_IMPERSONATE_SERVICE_ACCOUNT=//iam.origincloudapis.eu/organizations/my-org/serviceAccounts/deployer
 ```
 
-or in code, on top of whichever credentials the client has:
+or in code, on top of the person's credentials:
 
 ```rust,ignore
 use origincloud_core::Client;

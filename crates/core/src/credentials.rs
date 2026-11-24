@@ -1335,8 +1335,10 @@ impl Impersonated {
                 .failed("the STS can't answer right now (HTTP 503, 3 attempts); try again later")),
             _ if error == "invalid_grant" => Err(Error::Credentials(format!(
                 "the STS refused to impersonate the service account {} (invalid_grant): \
-                 the caller needs roles/iam.service-account-token-creator on it, and the \
-                 account must exist and be active",
+                 the caller must be a person (a service account's or a workload's token \
+                 can't impersonate), such as the session of `origin id login`, holding \
+                 roles/iam.service-account-token-creator on it, and the account must exist \
+                 and be active",
                 self.service_account
             ))),
             status => {

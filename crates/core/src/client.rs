@@ -224,9 +224,11 @@ impl ClientBuilder {
 
     /// Acts as the service account `service_account`, by its full name
     /// (`//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`):
-    /// the credentials' token, whichever they are, is exchanged at the
-    /// security token service for the account's, which every call is sent
-    /// with ([`Impersonated`](crate::Impersonated)). The caller needs
+    /// the credentials' token is exchanged at the security token service
+    /// for the account's, which every call is sent with
+    /// ([`Impersonated`](crate::Impersonated)). The credentials must give a
+    /// person's token, such as the session of `origin id login`: the STS
+    /// refuses a service account's or a workload's. The caller needs
     /// `roles/iam.service-account-token-creator` on the account; a refused
     /// exchange fails the call, naming the account, and the caller's own
     /// token is never sent instead. It overrides
