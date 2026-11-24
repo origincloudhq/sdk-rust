@@ -408,6 +408,10 @@ pub struct Volume {
         ::prost::alloc::string::String,
         ::prost::alloc::string::String,
     >,
+    /// How the volume is encrypted at rest; unset for a volume that isn't
+    /// encrypted.
+    #[prost(message, optional, tag = "17")]
+    pub encryption: ::core::option::Option<Encryption>,
 }
 /// Nested message and enum types in `Volume`.
 pub mod volume {
@@ -515,6 +519,65 @@ pub mod volume {
                 "RESIZE_COMPLETED" => Some(Self::ResizeCompleted),
                 "RESIZING" => Some(Self::Resizing),
                 "RESIZE_FAILED" => Some(Self::ResizeFailed),
+                _ => None,
+            }
+        }
+    }
+}
+/// How a volume is encrypted at rest: with a data key of its own, which the
+/// KMS key named here wraps. The data key itself is never shown.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct Encryption {
+    /// The on-disk format.
+    #[prost(enumeration = "encryption::Format", tag = "1")]
+    pub format: i32,
+    /// The full name of the KMS key that wraps the volume's data key, the
+    /// project's volumes key:
+    /// `//kms.origincloudapis.eu/projects/{project}/regions/{region}/keys/{key}`.
+    #[prost(string, tag = "2")]
+    pub kms_key: ::prost::alloc::string::String,
+}
+/// Nested message and enum types in `Encryption`.
+pub mod encryption {
+    /// The on-disk format of the encryption.
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum Format {
+        /// Not set.
+        Unspecified = 0,
+        /// LUKS2: a persistent volume.
+        Luks2 = 1,
+        /// LUKS inside a qcow2 file: a host-local volume.
+        QcowLuks = 2,
+    }
+    impl Format {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                Self::Unspecified => "FORMAT_UNSPECIFIED",
+                Self::Luks2 => "LUKS2",
+                Self::QcowLuks => "QCOW_LUKS",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "FORMAT_UNSPECIFIED" => Some(Self::Unspecified),
+                "LUKS2" => Some(Self::Luks2),
+                "QCOW_LUKS" => Some(Self::QcowLuks),
                 _ => None,
             }
         }
@@ -1134,6 +1197,212 @@ impl<'de> serde::Deserialize<'de> for DeleteVolumeRequest {
                 FIELDS,
                 GeneratedVisitor,
             )
+    }
+}
+impl serde::Serialize for Encryption {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if self.format != 0 {
+            len += 1;
+        }
+        if !self.kms_key.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct("origincloud.pvs.v1beta1.Encryption", len)?;
+        if self.format != 0 {
+            let v = encryption::Format::try_from(self.format)
+                .map_err(|_| serde::ser::Error::custom(
+                    format!("Invalid variant {}", self.format),
+                ))?;
+            struct_ser.serialize_field("format", &v)?;
+        }
+        if !self.kms_key.is_empty() {
+            struct_ser.serialize_field("kmsKey", &self.kms_key)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for Encryption {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["format", "kms_key", "kmsKey"];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Format,
+            KmsKey,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "format" => Ok(GeneratedField::Format),
+                            "kmsKey" | "kms_key" => Ok(GeneratedField::KmsKey),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = Encryption;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter.write_str("struct origincloud.pvs.v1beta1.Encryption")
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<Encryption, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut format__ = None;
+                let mut kms_key__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Format => {
+                            if format__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("format"));
+                            }
+                            format__ = Some(
+                                map_.next_value::<encryption::Format>()? as i32,
+                            );
+                        }
+                        GeneratedField::KmsKey => {
+                            if kms_key__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("kmsKey"));
+                            }
+                            kms_key__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(Encryption {
+                    format: format__.unwrap_or_default(),
+                    kms_key: kms_key__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.pvs.v1beta1.Encryption",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for encryption::Format {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let variant = match self {
+            Self::Unspecified => "FORMAT_UNSPECIFIED",
+            Self::Luks2 => "LUKS2",
+            Self::QcowLuks => "QCOW_LUKS",
+        };
+        serializer.serialize_str(variant)
+    }
+}
+impl<'de> serde::Deserialize<'de> for encryption::Format {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["FORMAT_UNSPECIFIED", "LUKS2", "QCOW_LUKS"];
+        struct GeneratedVisitor;
+        impl serde::de::Visitor<'_> for GeneratedVisitor {
+            type Value = encryption::Format;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                write!(formatter, "expected one of: {:?}", & FIELDS)
+            }
+            fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                i32::try_from(v)
+                    .ok()
+                    .and_then(|x| {
+                        x.try_into().ok().or_else(|| Some(encryption::Format::default()))
+                    })
+                    .ok_or_else(|| {
+                        serde::de::Error::invalid_value(
+                            serde::de::Unexpected::Signed(v),
+                            &self,
+                        )
+                    })
+            }
+            fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                i32::try_from(v)
+                    .ok()
+                    .and_then(|x| {
+                        x.try_into().ok().or_else(|| Some(encryption::Format::default()))
+                    })
+                    .ok_or_else(|| {
+                        serde::de::Error::invalid_value(
+                            serde::de::Unexpected::Unsigned(v),
+                            &self,
+                        )
+                    })
+            }
+            fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match value {
+                    "FORMAT_UNSPECIFIED" => Ok(encryption::Format::Unspecified),
+                    "LUKS2" => Ok(encryption::Format::Luks2),
+                    "QCOW_LUKS" => Ok(encryption::Format::QcowLuks),
+                    _ => Ok(encryption::Format::default()),
+                }
+            }
+        }
+        deserializer.deserialize_any(GeneratedVisitor)
     }
 }
 impl serde::Serialize for GetSnapshotRequest {
@@ -3758,6 +4027,9 @@ impl serde::Serialize for Volume {
         if !self.tags.is_empty() {
             len += 1;
         }
+        if self.encryption.is_some() {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.pvs.v1beta1.Volume", len)?;
         if !self.name.is_empty() {
@@ -3813,6 +4085,9 @@ impl serde::Serialize for Volume {
         if !self.tags.is_empty() {
             struct_ser.serialize_field("tags", &self.tags)?;
         }
+        if let Some(v) = self.encryption.as_ref() {
+            struct_ser.serialize_field("encryption", v)?;
+        }
         struct_ser.end()
     }
 }
@@ -3847,6 +4122,7 @@ impl<'de> serde::Deserialize<'de> for Volume {
             "throughputMibps",
             "creator",
             "tags",
+            "encryption",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -3865,6 +4141,7 @@ impl<'de> serde::Deserialize<'de> for Volume {
             ThroughputMibps,
             Creator,
             Tags,
+            Encryption,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -3923,6 +4200,7 @@ impl<'de> serde::Deserialize<'de> for Volume {
                             }
                             "creator" => Ok(GeneratedField::Creator),
                             "tags" => Ok(GeneratedField::Tags),
+                            "encryption" => Ok(GeneratedField::Encryption),
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -3958,6 +4236,7 @@ impl<'de> serde::Deserialize<'de> for Volume {
                 let mut throughput_mibps__ = None;
                 let mut creator__ = None;
                 let mut tags__ = None;
+                let mut encryption__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Name => {
@@ -4086,6 +4365,12 @@ impl<'de> serde::Deserialize<'de> for Volume {
                                 map_.next_value::<std::collections::BTreeMap<_, _>>()?,
                             );
                         }
+                        GeneratedField::Encryption => {
+                            if encryption__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("encryption"));
+                            }
+                            encryption__ = map_.next_value()?;
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -4107,6 +4392,7 @@ impl<'de> serde::Deserialize<'de> for Volume {
                     throughput_mibps: throughput_mibps__.unwrap_or_default(),
                     creator: creator__.unwrap_or_default(),
                     tags: tags__.unwrap_or_default(),
+                    encryption: encryption__,
                 })
             }
         }
