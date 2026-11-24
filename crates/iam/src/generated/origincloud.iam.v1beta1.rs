@@ -47,11 +47,23 @@ pub struct AuditLogEntry {
         ::prost::alloc::string::String,
         ::prost::alloc::string::String,
     >,
-    /// Who acted for `actor` when the change was made: the hosted MCP server,
-    /// by the SPIFFE id of its workload, when `actor` made the change through
-    /// it. Empty when no one acted for `actor`.
+    /// Who acted for `actor` when the change was made: the first of
+    /// `acting_parties`. That is the hosted MCP server, by the SPIFFE id of its
+    /// workload, when `actor` made the change through it, and the person, by
+    /// full resource name, when the person made it as the service account
+    /// `actor` with a token impersonating it. Empty when no one acted for
+    /// `actor`.
     #[prost(string, tag = "9")]
     pub acting_party: ::prost::alloc::string::String,
+    /// Every party that acted for `actor` when the change was made, outermost
+    /// first. For a change a person made as the service account `actor` with a
+    /// token impersonating it, the person, then the hosted MCP server when the
+    /// person made it through it. For a change `actor` made through the MCP
+    /// server with its own token, the MCP server alone. Empty when no one
+    /// acted for `actor`, and on every entry recorded before the chain was
+    /// recorded, which name `acting_party` alone.
+    #[prost(string, repeated, tag = "10")]
+    pub acting_parties: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// Nested message and enum types in `AuditLogEntry`.
 pub mod audit_log_entry {
@@ -958,6 +970,9 @@ impl serde::Serialize for AuditLogEntry {
         if !self.acting_party.is_empty() {
             len += 1;
         }
+        if !self.acting_parties.is_empty() {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.iam.v1beta1.AuditLogEntry", len)?;
         if !self.name.is_empty() {
@@ -991,6 +1006,9 @@ impl serde::Serialize for AuditLogEntry {
         if !self.acting_party.is_empty() {
             struct_ser.serialize_field("actingParty", &self.acting_party)?;
         }
+        if !self.acting_parties.is_empty() {
+            struct_ser.serialize_field("actingParties", &self.acting_parties)?;
+        }
         struct_ser.end()
     }
 }
@@ -1012,6 +1030,8 @@ impl<'de> serde::Deserialize<'de> for AuditLogEntry {
             "details",
             "acting_party",
             "actingParty",
+            "acting_parties",
+            "actingParties",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -1024,6 +1044,7 @@ impl<'de> serde::Deserialize<'de> for AuditLogEntry {
             OccurTime,
             Details,
             ActingParty,
+            ActingParties,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -1062,6 +1083,9 @@ impl<'de> serde::Deserialize<'de> for AuditLogEntry {
                             "actingParty" | "acting_party" => {
                                 Ok(GeneratedField::ActingParty)
                             }
+                            "actingParties" | "acting_parties" => {
+                                Ok(GeneratedField::ActingParties)
+                            }
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -1094,6 +1118,7 @@ impl<'de> serde::Deserialize<'de> for AuditLogEntry {
                 let mut occur_time__ = None;
                 let mut details__ = None;
                 let mut acting_party__ = None;
+                let mut acting_parties__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Name => {
@@ -1156,6 +1181,14 @@ impl<'de> serde::Deserialize<'de> for AuditLogEntry {
                             }
                             acting_party__ = Some(map_.next_value()?);
                         }
+                        GeneratedField::ActingParties => {
+                            if acting_parties__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("actingParties"),
+                                );
+                            }
+                            acting_parties__ = Some(map_.next_value()?);
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -1171,6 +1204,7 @@ impl<'de> serde::Deserialize<'de> for AuditLogEntry {
                     occur_time: occur_time__,
                     details: details__.unwrap_or_default(),
                     acting_party: acting_party__.unwrap_or_default(),
+                    acting_parties: acting_parties__.unwrap_or_default(),
                 })
             }
         }
