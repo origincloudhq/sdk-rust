@@ -424,7 +424,8 @@ pub struct RoleBinding {
     /// or a platform service agent,
     /// `//iam.origincloudapis.eu/serviceAgents/{service_agent}`. A pending
     /// binding's member is `user:{email}`, the address it was granted to,
-    /// until it becomes active.
+    /// as typed, until it becomes active. On create, `user:{email}` names a
+    /// user by email address: see CreateRoleBinding.
     #[prost(string, tag = "3")]
     pub member: ::prost::alloc::string::String,
     /// The full name of the role granted,
@@ -8144,7 +8145,7 @@ impl RoleClient {
 /// of its bindings. Each binding is managed on its own, so creating or
 /// deleting one never touches another, whoever made it.
 ///
-/// A member is named by its full name, and only by it, one of:
+/// A member is named by its full name, one of:
 /// - `//iam.origincloudapis.eu/users/{user}`: a user, by the id of their
 ///    account, which must exist and be enabled.
 /// - `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`:
@@ -8158,11 +8159,16 @@ impl RoleClient {
 ///    agent bound to `roles/kms.grant-delegate`; delete that binding and
 ///    compute makes no new grants on the organization's keys.
 ///
-/// A user known only by an email address is found with
-/// `UserService.LookupUser`, which answers their name.
+/// A user known only by an email address can be granted a role as
+/// `user:{email}`. If one enabled account has verified the address, the
+/// binding is made to that account and names it by its full name, as if
+/// it had been named so. If none has, the binding is pending, and the
+/// platform sends the address an invitation email. `UserService.LookupUser`
+/// answers the account's name without granting anything.
 ///
 /// A binding is `ACTIVE` or `role_binding::State::Pending`. A pending binding is an invitation:
-/// a role granted to an email address that has no account yet. It grants
+/// a role granted to an email address that has no account yet. An address
+/// holds at most one pending binding of a role in an organization. It grants
 /// nothing and counts toward no permission check. When someone signs up
 /// with that address and verifies it, the binding becomes active under the
 /// same name, and its member becomes the new user. It is activated only
@@ -8264,6 +8270,17 @@ impl RoleBindingClient {
     /// scope, and with `BAD_REQUEST` when the member is a deleted service
     /// account, names no service agent the platform has, or is a service
     /// agent and the role isn't one its service needs.
+    ///
+    /// With `member` set to `user:{email}`, the account that verified the
+    /// address is bound, as above. If no enabled account has verified it, the
+    /// binding is created `role_binding::State::Pending`, organization-wide, and an invitation
+    /// email is sent to the address. That also needs `iam.member.create` on
+    /// the organization, and is refused with `BAD_REQUEST` when `project` is
+    /// set and with `CONFLICT` when the address already holds a pending
+    /// binding of the role in the organization. An address more than one
+    /// account has verified is refused with `CONFLICT`. Repeated under its
+    /// `request_id`, the call answers with the binding it created, pending or
+    /// since activated.
     pub async fn create_role_binding(
         &self,
         mut request: CreateRoleBindingRequest,
