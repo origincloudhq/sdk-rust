@@ -413,7 +413,8 @@ pub struct ListRolesResponse {
 /// binding can't be changed: delete it and create another.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct RoleBinding {
-    /// The binding's resource name.
+    /// The binding's resource name. A pending binding keeps its name when it
+    /// becomes active.
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
     /// The full name of who holds the role: a user,
@@ -421,7 +422,9 @@ pub struct RoleBinding {
     /// service accounts,
     /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
     /// or a platform service agent,
-    /// `//iam.origincloudapis.eu/serviceAgents/{service_agent}`.
+    /// `//iam.origincloudapis.eu/serviceAgents/{service_agent}`. A pending
+    /// binding's member is `user:{email}`, the address it was granted to,
+    /// until it becomes active.
     #[prost(string, tag = "3")]
     pub member: ::prost::alloc::string::String,
     /// The full name of the role granted,
@@ -444,6 +447,56 @@ pub struct RoleBinding {
     /// When the binding was created.
     #[prost(message, optional, tag = "7")]
     pub create_time: ::core::option::Option<::origincloud_core::protobuf::Timestamp>,
+    /// Whether the binding grants its role yet.
+    #[prost(enumeration = "role_binding::State", tag = "8")]
+    pub state: i32,
+}
+/// Nested message and enum types in `RoleBinding`.
+pub mod role_binding {
+    /// Whether the binding grants its role yet.
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum State {
+        /// Not set.
+        Unspecified = 0,
+        /// The member holds the role.
+        Active = 1,
+        /// An invitation to an email address with no account yet: it grants
+        /// nothing until someone signs up with the address and verifies it.
+        Pending = 2,
+    }
+    impl State {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                Self::Unspecified => "STATE_UNSPECIFIED",
+                Self::Active => "ACTIVE",
+                Self::Pending => "PENDING",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "STATE_UNSPECIFIED" => Some(Self::Unspecified),
+                "ACTIVE" => Some(Self::Active),
+                "PENDING" => Some(Self::Pending),
+                _ => None,
+            }
+        }
+    }
 }
 /// The request for GetRoleBinding.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -461,7 +514,8 @@ pub struct ListRoleBindingsRequest {
     #[prost(string, tag = "1")]
     pub parent: ::prost::alloc::string::String,
     /// Only the bindings of this member, by its full name, as a binding's
-    /// `member` names it. Every member's when empty.
+    /// `member` names it, or a pending binding's `user:{email}`, matched
+    /// without regard to case. Every member's when empty.
     #[prost(string, tag = "2")]
     pub member: ::prost::alloc::string::String,
     /// Only the bindings limited to this project, by its full name,
@@ -6121,6 +6175,9 @@ impl serde::Serialize for RoleBinding {
         if self.create_time.is_some() {
             len += 1;
         }
+        if self.state != 0 {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.iam.v1beta1.RoleBinding", len)?;
         if !self.name.is_empty() {
@@ -6141,6 +6198,13 @@ impl serde::Serialize for RoleBinding {
         if let Some(v) = self.create_time.as_ref() {
             struct_ser.serialize_field("createTime", v)?;
         }
+        if self.state != 0 {
+            let v = role_binding::State::try_from(self.state)
+                .map_err(|_| serde::ser::Error::custom(
+                    format!("Invalid variant {}", self.state),
+                ))?;
+            struct_ser.serialize_field("state", &v)?;
+        }
         struct_ser.end()
     }
 }
@@ -6158,6 +6222,7 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
             "creator",
             "create_time",
             "createTime",
+            "state",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -6167,6 +6232,7 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
             Project,
             Creator,
             CreateTime,
+            State,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -6202,6 +6268,7 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                             "createTime" | "create_time" => {
                                 Ok(GeneratedField::CreateTime)
                             }
+                            "state" => Ok(GeneratedField::State),
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -6231,6 +6298,7 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                 let mut project__ = None;
                 let mut creator__ = None;
                 let mut create_time__ = None;
+                let mut state__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Name => {
@@ -6269,6 +6337,14 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                             }
                             create_time__ = map_.next_value()?;
                         }
+                        GeneratedField::State => {
+                            if state__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("state"));
+                            }
+                            state__ = Some(
+                                map_.next_value::<role_binding::State>()? as i32,
+                            );
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -6281,6 +6357,7 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                     project: project__.unwrap_or_default(),
                     creator: creator__.unwrap_or_default(),
                     create_time: create_time__,
+                    state: state__.unwrap_or_default(),
                 })
             }
         }
@@ -6290,6 +6367,89 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                 FIELDS,
                 GeneratedVisitor,
             )
+    }
+}
+impl serde::Serialize for role_binding::State {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let variant = match self {
+            Self::Unspecified => "STATE_UNSPECIFIED",
+            Self::Active => "ACTIVE",
+            Self::Pending => "PENDING",
+        };
+        serializer.serialize_str(variant)
+    }
+}
+impl<'de> serde::Deserialize<'de> for role_binding::State {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["STATE_UNSPECIFIED", "ACTIVE", "PENDING"];
+        struct GeneratedVisitor;
+        impl serde::de::Visitor<'_> for GeneratedVisitor {
+            type Value = role_binding::State;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                write!(formatter, "expected one of: {:?}", & FIELDS)
+            }
+            fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                i32::try_from(v)
+                    .ok()
+                    .and_then(|x| {
+                        x
+                            .try_into()
+                            .ok()
+                            .or_else(|| Some(role_binding::State::default()))
+                    })
+                    .ok_or_else(|| {
+                        serde::de::Error::invalid_value(
+                            serde::de::Unexpected::Signed(v),
+                            &self,
+                        )
+                    })
+            }
+            fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                i32::try_from(v)
+                    .ok()
+                    .and_then(|x| {
+                        x
+                            .try_into()
+                            .ok()
+                            .or_else(|| Some(role_binding::State::default()))
+                    })
+                    .ok_or_else(|| {
+                        serde::de::Error::invalid_value(
+                            serde::de::Unexpected::Unsigned(v),
+                            &self,
+                        )
+                    })
+            }
+            fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match value {
+                    "STATE_UNSPECIFIED" => Ok(role_binding::State::Unspecified),
+                    "ACTIVE" => Ok(role_binding::State::Active),
+                    "PENDING" => Ok(role_binding::State::Pending),
+                    _ => Ok(role_binding::State::default()),
+                }
+            }
+        }
+        deserializer.deserialize_any(GeneratedVisitor)
     }
 }
 impl serde::Serialize for ServiceAccount {
@@ -8000,6 +8160,15 @@ impl RoleClient {
 ///
 /// A user known only by an email address is found with
 /// `UserService.LookupUser`, which answers their name.
+///
+/// A binding is `ACTIVE` or `role_binding::State::Pending`. A pending binding is an invitation:
+/// a role granted to an email address that has no account yet. It grants
+/// nothing and counts toward no permission check. When someone signs up
+/// with that address and verifies it, the binding becomes active under the
+/// same name, and its member becomes the new user. It is activated only
+/// while whoever created it still holds every permission of the role in
+/// the organization; otherwise it is dropped. A pending binding is always
+/// on the whole organization.
 #[derive(Clone, Debug)]
 pub struct RoleBindingClient {
     service: ::origincloud_core::Service,
@@ -8042,11 +8211,11 @@ impl RoleBindingClient {
             .idempotent();
         self.service.call(call).await
     }
-    /// Lists an organization's role bindings, oldest first, optionally only a
-    /// member's or a project's. Needs `iam.member.list` on the organization.
-    /// With the parent `organizations/-` it lists the caller's own bindings in
-    /// every organization and needs no permission; `member` must be empty
-    /// there.
+    /// Lists an organization's role bindings, active and pending, oldest
+    /// first, optionally only a member's or a project's. Needs
+    /// `iam.member.list` on the organization. With the parent
+    /// `organizations/-` it lists the caller's own active bindings in every
+    /// organization and needs no permission; `member` must be empty there.
     pub async fn list_role_bindings(
         &self,
         mut request: ListRoleBindingsRequest,
@@ -8124,7 +8293,9 @@ impl RoleBindingClient {
     /// and every permission of the role at the binding's scope, as
     /// CreateRoleBinding does. Refused with `CONFLICT`, removing nothing,
     /// when it is the organization's last organization-wide binding of
-    /// `roles/owner`: bind another owner first.
+    /// `roles/owner`: bind another owner first. Deleting a pending binding
+    /// withdraws the invitation: signing up with its address afterwards
+    /// grants nothing.
     pub async fn delete_role_binding(
         &self,
         mut request: DeleteRoleBindingRequest,
