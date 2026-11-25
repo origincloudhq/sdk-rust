@@ -5101,8 +5101,8 @@ impl KeyClient {
     /// Restores a deleted key whose material isn't destroyed yet: it becomes
     /// `key::State::Disabled`, to be enabled with UpdateKey. Refused with `CONFLICT` for a
     /// key that isn't deleted, or whose `purge_time` has passed, and with
-    /// `FORBIDDEN` for a key the platform manages. Needs `kms.key.delete` on
-    /// the project.
+    /// `FORBIDDEN` for a key the platform manages. Needs `kms.key.undelete` on
+    /// the project, which `kms.key.delete` doesn't include.
     pub async fn undelete_key(
         &self,
         mut request: UndeleteKeyRequest,
