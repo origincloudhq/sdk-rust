@@ -965,7 +965,7 @@ pub struct PriceList {
     /// catalog order: `compute_instance`, `network_floating_ip`,
     /// `network_nat_gateway`, `network_vpc_egress`, `network_vpc_ingress`,
     /// `network_vpc_internal`, `storage_volume`, `storage_snapshot`,
-    /// `observability_custom_metric`, `observability_api_request`,
+    /// `storage_host_local`, `observability_custom_metric`, `observability_api_request`,
     /// `observability_ingested_sample`, `dns_hosted_zone`, `dns_query`.
     #[prost(message, repeated, tag = "4")]
     pub families: ::prost::alloc::vec::Vec<PriceFamily>,
