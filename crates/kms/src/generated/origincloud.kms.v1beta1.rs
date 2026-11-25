@@ -12,8 +12,9 @@ pub struct Grant {
     /// What the host may do with the key.
     #[prost(enumeration = "grant::Operation", tag = "2")]
     pub operation: i32,
-    /// The platform host the grant is for, by the SPIFFE ID its certificate
-    /// names, which ends in `/zones/{zone}/hosts/{host}`.
+    /// The platform host or zone workload the grant is for, by the SPIFFE ID
+    /// its certificate names, which ends in `/zones/{zone}/hosts/{host}` or
+    /// `/zones/{zone}/workloads/{workload}`.
     #[prost(string, tag = "3")]
     pub grantee: ::prost::alloc::string::String,
     /// The encryption context a use must carry, exactly; never empty.
