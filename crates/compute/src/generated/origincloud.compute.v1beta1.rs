@@ -573,6 +573,24 @@ pub struct LaunchTemplateData {
     /// VPC's default security group.
     #[prost(message, repeated, tag = "9")]
     pub network_interfaces: ::prost::alloc::vec::Vec<LaunchTemplateNetworkInterface>,
+    /// Disks on the machine the instance runs on, beside its boot volume,
+    /// created blank at launch; at most 16. A local disk is temporary: it
+    /// comes back empty after every stop and start and after its machine
+    /// restarts, and it is deleted with the instance.
+    #[prost(message, repeated, tag = "10")]
+    pub local_disks: ::prost::alloc::vec::Vec<LocalDisk>,
+}
+/// A disk on the machine an instance runs on.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct LocalDisk {
+    /// The size in GiB, at least 1.
+    #[prost(int32, tag = "1")]
+    pub size_gib: i32,
+    /// The device name the guest sees the disk under, `vda` to `vdz` but
+    /// `vdc`, and none the boot volume or another local disk has. The first
+    /// free one, in the order the disks are listed, when left empty.
+    #[prost(string, tag = "2")]
+    pub device: ::prost::alloc::string::String,
 }
 /// The boot volume a recipe asks for.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -734,6 +752,15 @@ pub struct Instance {
     /// have been changed or deleted.
     #[prost(string, tag = "18")]
     pub launch_template: ::prost::alloc::string::String,
+    /// Disks on the machine the instance runs on, beside its boot volume,
+    /// created blank at launch; at most 16. A local disk is temporary: it
+    /// comes back empty after every stop and start and after its machine
+    /// restarts, and it is deleted with the instance. It can't be the boot
+    /// disk, snapshotted, resized or detached, and an instance with one isn't
+    /// moved to another machine while it runs. Each appears among the
+    /// instance's volume attachments.
+    #[prost(message, repeated, tag = "19")]
+    pub local_disks: ::prost::alloc::vec::Vec<LocalDisk>,
 }
 /// Nested message and enum types in `Instance`.
 pub mod instance {
@@ -1132,8 +1159,8 @@ pub struct LaunchInstanceRequest {
     /// it is: a field left empty keeps the version's, so an override can't
     /// clear one. `image` or `image_family` replaces both of the version's,
     /// `size_gib` and `storage_class` of `boot_volume` each replace the
-    /// version's own, and `tags` and `network_interfaces` replace the
-    /// version's whole.
+    /// version's own, and `tags`, `network_interfaces` and `local_disks`
+    /// replace the version's whole.
     #[prost(message, optional, tag = "2")]
     pub launch_template_data: ::core::option::Option<LaunchTemplateData>,
     /// A UUID; a repeat with the same id returns the first request's
@@ -5556,6 +5583,9 @@ impl serde::Serialize for Instance {
         if !self.launch_template.is_empty() {
             len += 1;
         }
+        if !self.local_disks.is_empty() {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.compute.v1beta1.Instance", len)?;
         if !self.name.is_empty() {
@@ -5613,6 +5643,9 @@ impl serde::Serialize for Instance {
         if !self.launch_template.is_empty() {
             struct_ser.serialize_field("launchTemplate", &self.launch_template)?;
         }
+        if !self.local_disks.is_empty() {
+            struct_ser.serialize_field("localDisks", &self.local_disks)?;
+        }
         struct_ser.end()
     }
 }
@@ -5651,6 +5684,8 @@ impl<'de> serde::Deserialize<'de> for Instance {
             "serviceAccount",
             "launch_template",
             "launchTemplate",
+            "local_disks",
+            "localDisks",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -5671,6 +5706,7 @@ impl<'de> serde::Deserialize<'de> for Instance {
             InterfaceAddresses,
             ServiceAccount,
             LaunchTemplate,
+            LocalDisks,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -5733,6 +5769,9 @@ impl<'de> serde::Deserialize<'de> for Instance {
                             "launchTemplate" | "launch_template" => {
                                 Ok(GeneratedField::LaunchTemplate)
                             }
+                            "localDisks" | "local_disks" => {
+                                Ok(GeneratedField::LocalDisks)
+                            }
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -5770,6 +5809,7 @@ impl<'de> serde::Deserialize<'de> for Instance {
                 let mut interface_addresses__ = None;
                 let mut service_account__ = None;
                 let mut launch_template__ = None;
+                let mut local_disks__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Name => {
@@ -5890,6 +5930,12 @@ impl<'de> serde::Deserialize<'de> for Instance {
                             }
                             launch_template__ = Some(map_.next_value()?);
                         }
+                        GeneratedField::LocalDisks => {
+                            if local_disks__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("localDisks"));
+                            }
+                            local_disks__ = Some(map_.next_value()?);
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -5913,6 +5959,7 @@ impl<'de> serde::Deserialize<'de> for Instance {
                     interface_addresses: interface_addresses__.unwrap_or_default(),
                     service_account: service_account__.unwrap_or_default(),
                     launch_template: launch_template__.unwrap_or_default(),
+                    local_disks: local_disks__.unwrap_or_default(),
                 })
             }
         }
@@ -7512,6 +7559,9 @@ impl serde::Serialize for LaunchTemplateData {
         if !self.network_interfaces.is_empty() {
             len += 1;
         }
+        if !self.local_disks.is_empty() {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.compute.v1beta1.LaunchTemplateData", len)?;
         if !self.instance_type.is_empty() {
@@ -7541,6 +7591,9 @@ impl serde::Serialize for LaunchTemplateData {
         if !self.network_interfaces.is_empty() {
             struct_ser.serialize_field("networkInterfaces", &self.network_interfaces)?;
         }
+        if !self.local_disks.is_empty() {
+            struct_ser.serialize_field("localDisks", &self.local_disks)?;
+        }
         struct_ser.end()
     }
 }
@@ -7567,6 +7620,8 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplateData {
             "tags",
             "network_interfaces",
             "networkInterfaces",
+            "local_disks",
+            "localDisks",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -7579,6 +7634,7 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplateData {
             ServiceAccount,
             Tags,
             NetworkInterfaces,
+            LocalDisks,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -7625,6 +7681,9 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplateData {
                             "networkInterfaces" | "network_interfaces" => {
                                 Ok(GeneratedField::NetworkInterfaces)
                             }
+                            "localDisks" | "local_disks" => {
+                                Ok(GeneratedField::LocalDisks)
+                            }
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -7658,6 +7717,7 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplateData {
                 let mut service_account__ = None;
                 let mut tags__ = None;
                 let mut network_interfaces__ = None;
+                let mut local_disks__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::InstanceType => {
@@ -7724,6 +7784,12 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplateData {
                             }
                             network_interfaces__ = Some(map_.next_value()?);
                         }
+                        GeneratedField::LocalDisks => {
+                            if local_disks__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("localDisks"));
+                            }
+                            local_disks__ = Some(map_.next_value()?);
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -7739,6 +7805,7 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplateData {
                     service_account: service_account__.unwrap_or_default(),
                     tags: tags__.unwrap_or_default(),
                     network_interfaces: network_interfaces__.unwrap_or_default(),
+                    local_disks: local_disks__.unwrap_or_default(),
                 })
             }
         }
@@ -10343,6 +10410,133 @@ impl<'de> serde::Deserialize<'de> for ListVolumeAttachmentsResponse {
         deserializer
             .deserialize_struct(
                 "origincloud.compute.v1beta1.ListVolumeAttachmentsResponse",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
+impl serde::Serialize for LocalDisk {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if self.size_gib != 0 {
+            len += 1;
+        }
+        if !self.device.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct("origincloud.compute.v1beta1.LocalDisk", len)?;
+        if self.size_gib != 0 {
+            struct_ser.serialize_field("sizeGib", &self.size_gib)?;
+        }
+        if !self.device.is_empty() {
+            struct_ser.serialize_field("device", &self.device)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for LocalDisk {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["size_gib", "sizeGib", "device"];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            SizeGib,
+            Device,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "sizeGib" | "size_gib" => Ok(GeneratedField::SizeGib),
+                            "device" => Ok(GeneratedField::Device),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = LocalDisk;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter.write_str("struct origincloud.compute.v1beta1.LocalDisk")
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<LocalDisk, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut size_gib__ = None;
+                let mut device__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::SizeGib => {
+                            if size_gib__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("sizeGib"));
+                            }
+                            size_gib__ = Some(
+                                map_
+                                    .next_value::<::pbjson::private::NumberDeserialize<_>>()?
+                                    .0,
+                            );
+                        }
+                        GeneratedField::Device => {
+                            if device__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("device"));
+                            }
+                            device__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(LocalDisk {
+                    size_gib: size_gib__.unwrap_or_default(),
+                    device: device__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.compute.v1beta1.LocalDisk",
                 FIELDS,
                 GeneratedVisitor,
             )
