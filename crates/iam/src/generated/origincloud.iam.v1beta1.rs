@@ -990,6 +990,127 @@ pub struct LookupUserRequest {
     #[prost(string, tag = "2")]
     pub organization: ::prost::alloc::string::String,
 }
+/// The request for ActivatePendingRoleBindings.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ActivatePendingRoleBindingsRequest {
+    /// The user whose pending role bindings to activate: `users/me`, or the
+    /// caller's own `users/{user}`.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+}
+impl serde::Serialize for ActivatePendingRoleBindingsRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.iam.v1beta1.ActivatePendingRoleBindingsRequest",
+                len,
+            )?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for ActivatePendingRoleBindingsRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["name"];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = ActivatePendingRoleBindingsRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.iam.v1beta1.ActivatePendingRoleBindingsRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<ActivatePendingRoleBindingsRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(ActivatePendingRoleBindingsRequest {
+                    name: name__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.iam.v1beta1.ActivatePendingRoleBindingsRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
 impl serde::Serialize for AuditLogEntry {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -8673,7 +8794,9 @@ impl ServiceAccountKeyClient {
 /// or by their own id; the role bindings they hold are listed by
 /// ListRoleBindings with the parent `organizations/-`. Anyone who may grant
 /// roles in an organization can look a user up by email address, to name
-/// them in a role binding.
+/// them in a role binding. A client calls ActivatePendingRoleBindings once a
+/// user has signed in, so the role bindings pending for their address become
+/// theirs.
 #[derive(Clone, Debug)]
 pub struct UserClient {
     service: ::origincloud_core::Service,
@@ -8732,6 +8855,30 @@ impl UserClient {
             )
             .with_query(query)
             .idempotent();
+        self.service.call(call).await
+    }
+    /// Activates the role bindings pending for the caller's email address,
+    /// once the caller's account has verified it, and returns the caller's
+    /// profile, as GetUser does. Each binding becomes active under its own
+    /// name with the caller as its member, while whoever created it still
+    /// holds every permission of its role in the organization; otherwise it
+    /// is dropped. An address not yet verified activates nothing. Calling it
+    /// again activates only what has been granted to the address since. A
+    /// service account caller is refused with `BAD_REQUEST`; any user but the
+    /// caller is `NOT_FOUND`.
+    pub async fn activate_pending_role_bindings(
+        &self,
+        mut request: ActivatePendingRoleBindingsRequest,
+    ) -> ::core::result::Result<User, ::origincloud_core::Error> {
+        let n0 = self.service.relative_name("name", &request.name, &["iam"])?;
+        let p0 = ::origincloud_core::path_value("name", &n0, "users/*")?;
+        request.name = n0;
+        let body = ::origincloud_core::json_body(&request)?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::POST,
+                format!("/v1beta1/{p0}:activatePendingRoleBindings"),
+            )
+            .with_body(body);
         self.service.call(call).await
     }
 }
