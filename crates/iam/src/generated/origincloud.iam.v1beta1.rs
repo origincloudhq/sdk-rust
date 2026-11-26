@@ -85,7 +85,10 @@ pub mod audit_log_entry {
         Unspecified = 0,
         /// It was made.
         Succeeded = 1,
-        /// It was refused for lack of a permission.
+        /// It was refused for lack of a permission: an attempted change the actor
+        /// holds no permission for. `action` is the permission, `target` what it
+        /// was checked on, and `details` names both. The same denial again within
+        /// a minute is not recorded again.
         Denied = 2,
         /// It was attempted and refused for another reason, which `details`
         /// names in `reason`, such as a key asked to decrypt under the wrong
