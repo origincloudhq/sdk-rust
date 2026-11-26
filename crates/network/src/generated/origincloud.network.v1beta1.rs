@@ -2019,8 +2019,10 @@ pub struct Vpc {
     /// it in equal sizes.
     #[prost(string, tag = "3")]
     pub ipv4_cidr_block: ::prost::alloc::string::String,
-    /// The IPv6 range the platform assigned, a `/56`. Each subnet gets a
-    /// `/72` of it.
+    /// The private IPv6 range, unique local space (RFC 4193) from `/48` to
+    /// `/60`, overlapping none of the organization's other VPCs. A globally
+    /// routable `/56` from the zone's pool when left empty. Each subnet gets a
+    /// range 16 bits longer: a `/64` of a `/48`, a `/72` of a `/56`.
     #[prost(string, tag = "4")]
     pub ipv6_cidr_block: ::prost::alloc::string::String,
     /// The prefix length of every subnet's IPv4 range.
