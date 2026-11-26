@@ -7736,7 +7736,10 @@ impl<'de> serde::Deserialize<'de> for User {
 /// An organization's audit log: a record of each change to who may do what
 /// in it, written when the change is made and never changed afterwards.
 /// It records role bindings created and deleted, members removed, invites
-/// created and deleted, and service accounts created and deleted.
+/// created and deleted, and service accounts created and deleted; and the
+/// organization's own lifecycle and its projects': each created, renamed and
+/// deleted (`resourcemanager.organization.*`, `resourcemanager.project.*`).
+/// An organization's log is kept after the organization is deleted.
 ///
 /// This API serves a recent window of the log, 90 days unless the platform
 /// sets it longer: a list says where its window starts in
