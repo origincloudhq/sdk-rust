@@ -283,8 +283,11 @@ pub mod image {
 /// A disk of an image.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ImageBlockDevice {
-    /// The device name the disk appears under on every instance launched from
-    /// the image: `vda` to `vdz` but `vdc`, unique within the image.
+    /// The slot the disk takes on every instance launched from the image:
+    /// `vda` to `vdz` but `vdc`, unique within the image. It is a hint at
+    /// most, not the name the guest gives the disk. In the guest, the disk's
+    /// serial is its volume's id, which a Linux guest links as
+    /// `/dev/disk/by-id/virtio-<volume-id>`.
     #[prost(string, tag = "1")]
     pub device: ::prost::alloc::string::String,
     /// The disk's size in GiB, at least the snapshot's.
@@ -586,9 +589,12 @@ pub struct LocalDisk {
     /// The size in GiB, at least 1.
     #[prost(int32, tag = "1")]
     pub size_gib: i32,
-    /// The device name the guest sees the disk under, `vda` to `vdz` but
-    /// `vdc`, and none the boot volume or another local disk has. The first
-    /// free one, in the order the disks are listed, when left empty.
+    /// The slot the disk takes on the instance, `vda` to `vdz` but `vdc`, and
+    /// none the boot volume or another local disk has; the first free one, in
+    /// the order the disks are listed, when left empty. It is a hint at most,
+    /// not the name the guest gives the disk. In the guest, the disk's serial
+    /// is its volume's id, which a Linux guest links as
+    /// `/dev/disk/by-id/virtio-<volume-id>`.
     #[prost(string, tag = "2")]
     pub device: ::prost::alloc::string::String,
 }
@@ -1364,8 +1370,8 @@ pub struct PublicImage {
 /// A disk of a public image.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct PublicImageBlockDevice {
-    /// The device name the disk appears under on every instance launched from
-    /// the image.
+    /// The slot the disk takes on every instance launched from the image. It
+    /// is a hint at most, not the name the guest gives the disk.
     #[prost(string, tag = "1")]
     pub device: ::prost::alloc::string::String,
     /// The disk's size in GiB.
@@ -1412,8 +1418,12 @@ pub struct VolumeAttachment {
     /// The volume's full name, in the instance's project and zone.
     #[prost(string, tag = "3")]
     pub volume: ::prost::alloc::string::String,
-    /// The device name the guest sees the volume under, `vda` to `vdz`. The
-    /// first free one when left empty.
+    /// The slot the volume's disk takes on the instance, `vda` to `vdz` but
+    /// `vdc`; the first free one when left empty. It is a hint at most, not
+    /// the name the guest gives the disk: a guest names its disks in the
+    /// order it finds them, so a disk attached to a running instance often
+    /// gets another name. In the guest, the disk's serial is the volume's id,
+    /// which a Linux guest links as `/dev/disk/by-id/virtio-<volume-id>`.
     #[prost(string, tag = "4")]
     pub device: ::prost::alloc::string::String,
     /// Whether this is the instance's boot volume, which was attached at
@@ -13346,8 +13356,8 @@ impl PublicImageClient {
 /// Calls `VolumeAttachmentService`.
 ///
 /// Volume attachments: which volumes of the persistent volume service an
-/// instance holds, and the device names its guest sees them under. Creating
-/// one attaches a volume, deleting it detaches the volume.
+/// instance holds, and the slot each one takes on the instance. Creating one
+/// attaches a volume, deleting it detaches the volume.
 #[derive(Clone, Debug)]
 pub struct VolumeAttachmentClient {
     service: ::origincloud_core::Service,
