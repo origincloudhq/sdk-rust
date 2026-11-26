@@ -412,8 +412,9 @@ pub struct ListRolesResponse {
     #[prost(message, repeated, tag = "1")]
     pub roles: ::prost::alloc::vec::Vec<Role>,
 }
-/// One role granted to one member, organization-wide or in one project. A
-/// binding can't be changed: delete it and create another.
+/// One role granted to one member, organization-wide, in one project or on
+/// one service account. A binding can't be changed: delete it and create
+/// another.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct RoleBinding {
     /// The binding's resource name. A pending binding keeps its name when it
@@ -438,9 +439,21 @@ pub struct RoleBinding {
     /// The full name of the project the binding is limited to, one of the
     /// organization's: `//resourcemanager.origincloudapis.eu/projects/{project}`.
     /// Empty for a binding on the whole organization, which covers every
-    /// project in it.
+    /// project in it, and for a binding on one service account.
     #[prost(string, tag = "5")]
     pub project: ::prost::alloc::string::String,
+    /// The full name of the service account the binding is limited to, one of
+    /// the organization's active accounts:
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`.
+    /// Such a binding grants its role on that account alone, and nothing on
+    /// the organization or its projects. Only a role whose every permission
+    /// acts on one service account can be bound so:
+    /// `roles/iam.service-account-token-creator`, which lets the member get an
+    /// access token for that account and no other. Empty for a binding on the
+    /// whole organization or a project; never set together with `project`.
+    /// The binding is removed when the account is deleted.
+    #[prost(string, tag = "9")]
+    pub service_account: ::prost::alloc::string::String,
     /// The full name of who created the binding: `//iam.origincloudapis.eu/users/{user}`,
     /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`,
     /// `//iam.origincloudapis.eu/serviceAgents/{service_agent}` for a platform
@@ -534,6 +547,12 @@ pub struct ListRoleBindingsRequest {
     /// A previous response's `next_page_token`, for the page after it.
     #[prost(string, tag = "5")]
     pub page_token: ::prost::alloc::string::String,
+    /// Only the bindings limited to this service account, by its full name,
+    /// `//iam.origincloudapis.eu/organizations/{organization}/serviceAccounts/{service_account}`.
+    /// Every binding, whatever its scope, when empty. Can't be set together
+    /// with `project`: no binding is limited to both.
+    #[prost(string, tag = "6")]
+    pub service_account: ::prost::alloc::string::String,
 }
 /// The response for ListRoleBindings.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -553,7 +572,7 @@ pub struct CreateRoleBindingRequest {
     #[prost(string, tag = "1")]
     pub parent: ::prost::alloc::string::String,
     /// The binding to create: its member and role, and optionally its
-    /// project.
+    /// project or its service account.
     #[prost(message, optional, tag = "2")]
     pub role_binding: ::core::option::Option<RoleBinding>,
     /// A UUID. A repeat of the request with the same `request_id` within a
@@ -4690,6 +4709,9 @@ impl serde::Serialize for ListRoleBindingsRequest {
         if !self.page_token.is_empty() {
             len += 1;
         }
+        if !self.service_account.is_empty() {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.iam.v1beta1.ListRoleBindingsRequest", len)?;
         if !self.parent.is_empty() {
@@ -4706,6 +4728,9 @@ impl serde::Serialize for ListRoleBindingsRequest {
         }
         if !self.page_token.is_empty() {
             struct_ser.serialize_field("pageToken", &self.page_token)?;
+        }
+        if !self.service_account.is_empty() {
+            struct_ser.serialize_field("serviceAccount", &self.service_account)?;
         }
         struct_ser.end()
     }
@@ -4724,6 +4749,8 @@ impl<'de> serde::Deserialize<'de> for ListRoleBindingsRequest {
             "pageSize",
             "page_token",
             "pageToken",
+            "service_account",
+            "serviceAccount",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -4732,6 +4759,7 @@ impl<'de> serde::Deserialize<'de> for ListRoleBindingsRequest {
             Project,
             PageSize,
             PageToken,
+            ServiceAccount,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -4764,6 +4792,9 @@ impl<'de> serde::Deserialize<'de> for ListRoleBindingsRequest {
                             "project" => Ok(GeneratedField::Project),
                             "pageSize" | "page_size" => Ok(GeneratedField::PageSize),
                             "pageToken" | "page_token" => Ok(GeneratedField::PageToken),
+                            "serviceAccount" | "service_account" => {
+                                Ok(GeneratedField::ServiceAccount)
+                            }
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -4793,6 +4824,7 @@ impl<'de> serde::Deserialize<'de> for ListRoleBindingsRequest {
                 let mut project__ = None;
                 let mut page_size__ = None;
                 let mut page_token__ = None;
+                let mut service_account__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Parent => {
@@ -4829,6 +4861,14 @@ impl<'de> serde::Deserialize<'de> for ListRoleBindingsRequest {
                             }
                             page_token__ = Some(map_.next_value()?);
                         }
+                        GeneratedField::ServiceAccount => {
+                            if service_account__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("serviceAccount"),
+                                );
+                            }
+                            service_account__ = Some(map_.next_value()?);
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -4840,6 +4880,7 @@ impl<'de> serde::Deserialize<'de> for ListRoleBindingsRequest {
                     project: project__.unwrap_or_default(),
                     page_size: page_size__.unwrap_or_default(),
                     page_token: page_token__.unwrap_or_default(),
+                    service_account: service_account__.unwrap_or_default(),
                 })
             }
         }
@@ -6294,6 +6335,9 @@ impl serde::Serialize for RoleBinding {
         if !self.project.is_empty() {
             len += 1;
         }
+        if !self.service_account.is_empty() {
+            len += 1;
+        }
         if !self.creator.is_empty() {
             len += 1;
         }
@@ -6316,6 +6360,9 @@ impl serde::Serialize for RoleBinding {
         }
         if !self.project.is_empty() {
             struct_ser.serialize_field("project", &self.project)?;
+        }
+        if !self.service_account.is_empty() {
+            struct_ser.serialize_field("serviceAccount", &self.service_account)?;
         }
         if !self.creator.is_empty() {
             struct_ser.serialize_field("creator", &self.creator)?;
@@ -6344,6 +6391,8 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
             "member",
             "role",
             "project",
+            "service_account",
+            "serviceAccount",
             "creator",
             "create_time",
             "createTime",
@@ -6355,6 +6404,7 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
             Member,
             Role,
             Project,
+            ServiceAccount,
             Creator,
             CreateTime,
             State,
@@ -6389,6 +6439,9 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                             "member" => Ok(GeneratedField::Member),
                             "role" => Ok(GeneratedField::Role),
                             "project" => Ok(GeneratedField::Project),
+                            "serviceAccount" | "service_account" => {
+                                Ok(GeneratedField::ServiceAccount)
+                            }
                             "creator" => Ok(GeneratedField::Creator),
                             "createTime" | "create_time" => {
                                 Ok(GeneratedField::CreateTime)
@@ -6421,6 +6474,7 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                 let mut member__ = None;
                 let mut role__ = None;
                 let mut project__ = None;
+                let mut service_account__ = None;
                 let mut creator__ = None;
                 let mut create_time__ = None;
                 let mut state__ = None;
@@ -6449,6 +6503,14 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                                 return Err(serde::de::Error::duplicate_field("project"));
                             }
                             project__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::ServiceAccount => {
+                            if service_account__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("serviceAccount"),
+                                );
+                            }
+                            service_account__ = Some(map_.next_value()?);
                         }
                         GeneratedField::Creator => {
                             if creator__.is_some() {
@@ -6480,6 +6542,7 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                     member: member__.unwrap_or_default(),
                     role: role__.unwrap_or_default(),
                     project: project__.unwrap_or_default(),
+                    service_account: service_account__.unwrap_or_default(),
                     creator: creator__.unwrap_or_default(),
                     create_time: create_time__,
                     state: state__.unwrap_or_default(),
@@ -8268,7 +8331,8 @@ impl RoleClient {
 /// Calls `RoleBindingService`.
 ///
 /// Role bindings: each grants one role to one member, in a whole
-/// organization or in one of its projects. A member's access is the union
+/// organization, in one of its projects or on one of its service accounts.
+/// A member's access is the union
 /// of its bindings. Each binding is managed on its own, so creating or
 /// deleting one never touches another, whoever made it.
 ///
@@ -8345,7 +8409,8 @@ impl RoleBindingClient {
         self.service.call(call).await
     }
     /// Lists an organization's role bindings, active and pending, oldest
-    /// first, optionally only a member's or a project's. Needs
+    /// first, optionally only a member's, a project's or a service account's.
+    /// Needs
     /// `iam.member.list` on the organization. With the parent
     /// `organizations/-` it lists the caller's own active bindings in every
     /// organization and needs no permission; `member` must be empty there.
@@ -8392,18 +8457,23 @@ impl RoleBindingClient {
     /// the role at the binding's scope: a permission held on the organization
     /// counts for any scope, one held on a project only for that project.
     /// Refused with `NOT_FOUND` when `member` names a user without an enabled
-    /// account or a service account of another organization.
+    /// account or a service account of another organization, and when
+    /// `service_account` names an account the organization doesn't have.
     /// Refused with `CONFLICT` when the member already holds the role at that
     /// scope, and with `BAD_REQUEST` when the member is a deleted service
     /// account, names no service agent the platform has, or is a service
-    /// agent and the role isn't one its service needs.
+    /// agent and the role isn't one its service needs; when both `project`
+    /// and `service_account` are set; when `service_account` names a deleted
+    /// account; and when the role has a permission that doesn't act on one
+    /// service account, which only `roles/iam.service-account-token-creator`
+    /// has none of.
     ///
     /// With `member` set to `user:{email}`, the account that verified the
     /// address is bound, as above. If no enabled account has verified it, the
     /// binding is created `role_binding::State::Pending`, organization-wide, and an invitation
     /// email is sent to the address. That also needs `iam.member.create` on
-    /// the organization, and is refused with `BAD_REQUEST` when `project` is
-    /// set and with `CONFLICT` when the address already holds a pending
+    /// the organization, and is refused with `BAD_REQUEST` when `project` or
+    /// `service_account` is set and with `CONFLICT` when the address already holds a pending
     /// binding of the role in the organization. An address more than one
     /// account has verified is refused with `CONFLICT`. Repeated under its
     /// `request_id`, the call answers with the binding it created, pending or
