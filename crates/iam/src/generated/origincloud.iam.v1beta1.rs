@@ -368,6 +368,19 @@ pub struct TestIamPermissionsRequest {
     /// at most 100.
     #[prost(string, repeated, tag = "2")]
     pub permissions: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// The full name of one resource in `resource` to test the permissions on
+    /// instead, such as
+    /// `//secretmanager.origincloudapis.eu/projects/{project}/regions/{region}/secrets/{secret}`:
+    /// the answer is what a call on that resource is allowed, counting the
+    /// role bindings that list it as well as those on its organization or
+    /// project. Refused with `BAD_REQUEST` when it isn't a full name, isn't in
+    /// `resource` (in the organization, or in the project), or names a kind
+    /// of resource a role binding can't list: only the bindings on its
+    /// organization or project apply to such a resource, so testing on the
+    /// project answers for it. The resource need not exist. Empty to test on
+    /// `resource` itself.
+    #[prost(string, tag = "3")]
+    pub full_resource_name: ::prost::alloc::string::String,
 }
 /// The response for TestIamPermissions.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -413,8 +426,8 @@ pub struct ListRolesResponse {
     pub roles: ::prost::alloc::vec::Vec<Role>,
 }
 /// One role granted to one member, organization-wide, in one project or on
-/// one service account. A binding can't be changed: delete it and create
-/// another.
+/// one service account, optionally only on a list of resources there. A
+/// binding can't be changed: delete it and create another.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct RoleBinding {
     /// The binding's resource name. A pending binding keeps its name when it
@@ -467,6 +480,19 @@ pub struct RoleBinding {
     /// Whether the binding grants its role yet.
     #[prost(enumeration = "role_binding::State", tag = "8")]
     pub state: i32,
+    /// The full names of the resources the binding is limited to within its
+    /// organization or project, such as
+    /// `//secretmanager.origincloudapis.eu/projects/{project}/regions/{region}/secrets/{secret}`,
+    /// in name order; at most 100. The binding grants its role on these
+    /// resources alone, and nothing on the rest of its scope or on the
+    /// organization or the project itself. Empty for a binding on its whole
+    /// scope. Each entry must be a resource of the binding's organization, in
+    /// the binding's project if `project` is set, of a kind that can be
+    /// listed. Never set together with `service_account`, nor on a pending
+    /// binding. A resource deleted after the binding was created stays listed,
+    /// and the binding covers a resource created later under the same name.
+    #[prost(string, repeated, tag = "10")]
+    pub resources: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// Nested message and enum types in `RoleBinding`.
 pub mod role_binding {
@@ -553,6 +579,19 @@ pub struct ListRoleBindingsRequest {
     /// with `project`: no binding is limited to both.
     #[prost(string, tag = "6")]
     pub service_account: ::prost::alloc::string::String,
+    /// Only the active bindings that apply to this resource, by its full
+    /// name, such as
+    /// `//secretmanager.origincloudapis.eu/projects/{project}/regions/{region}/secrets/{secret}`:
+    /// those that list it in `resources`, and those with `resources` empty on
+    /// the organization or on the resource's project, which cover it as a
+    /// whole. A binding on a service account applies to no resource here, and
+    /// a pending binding to none until it is active. Every binding when empty.
+    /// Combines with the other filters. Refused with `BAD_REQUEST` when it
+    /// isn't a full name or names a kind of resource a binding can't list:
+    /// only the bindings on its organization or project apply to such a
+    /// resource, which the `project` filter, or none, lists.
+    #[prost(string, tag = "7")]
+    pub resource: ::prost::alloc::string::String,
 }
 /// The response for ListRoleBindings.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -4712,6 +4751,9 @@ impl serde::Serialize for ListRoleBindingsRequest {
         if !self.service_account.is_empty() {
             len += 1;
         }
+        if !self.resource.is_empty() {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.iam.v1beta1.ListRoleBindingsRequest", len)?;
         if !self.parent.is_empty() {
@@ -4732,6 +4774,9 @@ impl serde::Serialize for ListRoleBindingsRequest {
         if !self.service_account.is_empty() {
             struct_ser.serialize_field("serviceAccount", &self.service_account)?;
         }
+        if !self.resource.is_empty() {
+            struct_ser.serialize_field("resource", &self.resource)?;
+        }
         struct_ser.end()
     }
 }
@@ -4751,6 +4796,7 @@ impl<'de> serde::Deserialize<'de> for ListRoleBindingsRequest {
             "pageToken",
             "service_account",
             "serviceAccount",
+            "resource",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -4760,6 +4806,7 @@ impl<'de> serde::Deserialize<'de> for ListRoleBindingsRequest {
             PageSize,
             PageToken,
             ServiceAccount,
+            Resource,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -4795,6 +4842,7 @@ impl<'de> serde::Deserialize<'de> for ListRoleBindingsRequest {
                             "serviceAccount" | "service_account" => {
                                 Ok(GeneratedField::ServiceAccount)
                             }
+                            "resource" => Ok(GeneratedField::Resource),
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -4825,6 +4873,7 @@ impl<'de> serde::Deserialize<'de> for ListRoleBindingsRequest {
                 let mut page_size__ = None;
                 let mut page_token__ = None;
                 let mut service_account__ = None;
+                let mut resource__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Parent => {
@@ -4869,6 +4918,12 @@ impl<'de> serde::Deserialize<'de> for ListRoleBindingsRequest {
                             }
                             service_account__ = Some(map_.next_value()?);
                         }
+                        GeneratedField::Resource => {
+                            if resource__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("resource"));
+                            }
+                            resource__ = Some(map_.next_value()?);
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -4881,6 +4936,7 @@ impl<'de> serde::Deserialize<'de> for ListRoleBindingsRequest {
                     page_size: page_size__.unwrap_or_default(),
                     page_token: page_token__.unwrap_or_default(),
                     service_account: service_account__.unwrap_or_default(),
+                    resource: resource__.unwrap_or_default(),
                 })
             }
         }
@@ -6347,6 +6403,9 @@ impl serde::Serialize for RoleBinding {
         if self.state != 0 {
             len += 1;
         }
+        if !self.resources.is_empty() {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.iam.v1beta1.RoleBinding", len)?;
         if !self.name.is_empty() {
@@ -6377,6 +6436,9 @@ impl serde::Serialize for RoleBinding {
                 ))?;
             struct_ser.serialize_field("state", &v)?;
         }
+        if !self.resources.is_empty() {
+            struct_ser.serialize_field("resources", &self.resources)?;
+        }
         struct_ser.end()
     }
 }
@@ -6397,6 +6459,7 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
             "create_time",
             "createTime",
             "state",
+            "resources",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -6408,6 +6471,7 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
             Creator,
             CreateTime,
             State,
+            Resources,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -6447,6 +6511,7 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                                 Ok(GeneratedField::CreateTime)
                             }
                             "state" => Ok(GeneratedField::State),
+                            "resources" => Ok(GeneratedField::Resources),
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -6478,6 +6543,7 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                 let mut creator__ = None;
                 let mut create_time__ = None;
                 let mut state__ = None;
+                let mut resources__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Name => {
@@ -6532,6 +6598,12 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                                 map_.next_value::<role_binding::State>()? as i32,
                             );
                         }
+                        GeneratedField::Resources => {
+                            if resources__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("resources"));
+                            }
+                            resources__ = Some(map_.next_value()?);
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -6546,6 +6618,7 @@ impl<'de> serde::Deserialize<'de> for RoleBinding {
                     creator: creator__.unwrap_or_default(),
                     create_time: create_time__,
                     state: state__.unwrap_or_default(),
+                    resources: resources__.unwrap_or_default(),
                 })
             }
         }
@@ -7493,6 +7566,9 @@ impl serde::Serialize for TestIamPermissionsRequest {
         if !self.permissions.is_empty() {
             len += 1;
         }
+        if !self.full_resource_name.is_empty() {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.iam.v1beta1.TestIamPermissionsRequest", len)?;
         if !self.resource.is_empty() {
@@ -7500,6 +7576,9 @@ impl serde::Serialize for TestIamPermissionsRequest {
         }
         if !self.permissions.is_empty() {
             struct_ser.serialize_field("permissions", &self.permissions)?;
+        }
+        if !self.full_resource_name.is_empty() {
+            struct_ser.serialize_field("fullResourceName", &self.full_resource_name)?;
         }
         struct_ser.end()
     }
@@ -7510,11 +7589,17 @@ impl<'de> serde::Deserialize<'de> for TestIamPermissionsRequest {
     where
         D: serde::Deserializer<'de>,
     {
-        const FIELDS: &[&str] = &["resource", "permissions"];
+        const FIELDS: &[&str] = &[
+            "resource",
+            "permissions",
+            "full_resource_name",
+            "fullResourceName",
+        ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
             Resource,
             Permissions,
+            FullResourceName,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -7544,6 +7629,9 @@ impl<'de> serde::Deserialize<'de> for TestIamPermissionsRequest {
                         match value {
                             "resource" => Ok(GeneratedField::Resource),
                             "permissions" => Ok(GeneratedField::Permissions),
+                            "fullResourceName" | "full_resource_name" => {
+                                Ok(GeneratedField::FullResourceName)
+                            }
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -7572,6 +7660,7 @@ impl<'de> serde::Deserialize<'de> for TestIamPermissionsRequest {
             {
                 let mut resource__ = None;
                 let mut permissions__ = None;
+                let mut full_resource_name__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Resource => {
@@ -7588,6 +7677,14 @@ impl<'de> serde::Deserialize<'de> for TestIamPermissionsRequest {
                             }
                             permissions__ = Some(map_.next_value()?);
                         }
+                        GeneratedField::FullResourceName => {
+                            if full_resource_name__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("fullResourceName"),
+                                );
+                            }
+                            full_resource_name__ = Some(map_.next_value()?);
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -7596,6 +7693,7 @@ impl<'de> serde::Deserialize<'de> for TestIamPermissionsRequest {
                 Ok(TestIamPermissionsRequest {
                     resource: resource__.unwrap_or_default(),
                     permissions: permissions__.unwrap_or_default(),
+                    full_resource_name: full_resource_name__.unwrap_or_default(),
                 })
             }
         }
@@ -8247,11 +8345,14 @@ impl PermissionClient {
         self.service.call(call).await
     }
     /// Returns the subset of `permissions` the caller holds on an organization
-    /// or a project. A permission held on the organization counts for each of
-    /// its projects; one held on a project counts only there. Every resource
-    /// in a project is governed by the project's permissions, so asking about
-    /// the project answers for each of its resources. A permission the
-    /// catalog doesn't name is never held.
+    /// or a project, or on one resource in it. A permission held on the
+    /// organization counts for each of its projects; one held on a project
+    /// counts only there. A role binding limited to a list of resources counts
+    /// only for the resources it lists, never for the organization or the
+    /// project itself, so asking about the project answers for each of its
+    /// resources only as far as bindings on the whole project go: name the
+    /// resource in `full_resource_name` to have it answered as a call on that
+    /// resource is. A permission the catalog doesn't name is never held.
     pub async fn test_iam_permissions(
         &self,
         mut request: TestIamPermissionsRequest,
@@ -8332,9 +8433,21 @@ impl RoleClient {
 ///
 /// Role bindings: each grants one role to one member, in a whole
 /// organization, in one of its projects or on one of its service accounts.
-/// A member's access is the union
+/// A binding on an organization or a project can be limited further, to a
+/// list of resources within it. A member's access is the union
 /// of its bindings. Each binding is managed on its own, so creating or
 /// deleting one never touches another, whoever made it.
+///
+/// A binding's `resources` lists the full names of the resources it grants
+/// its role on, such as one secret of a project. A binding with `resources`
+/// empty covers its whole scope: every resource in the organization or the
+/// project, and the organization or the project itself. A binding with
+/// `resources` set covers exactly the resources it lists, and neither the
+/// rest of its scope nor the organization or the project itself. A binding
+/// grants on a resource's name: deleting a listed resource keeps the
+/// binding, and a resource created later under the same name is covered by
+/// it again. Only some kinds of resource can be listed; a service that
+/// offers per-resource access says which of its resources can.
 ///
 /// A member is named by its full name, one of:
 /// - `//iam.origincloudapis.eu/users/{user}`: a user, by the id of their
@@ -8409,7 +8522,8 @@ impl RoleBindingClient {
         self.service.call(call).await
     }
     /// Lists an organization's role bindings, active and pending, oldest
-    /// first, optionally only a member's, a project's or a service account's.
+    /// first, optionally only a member's, a project's or a service account's,
+    /// or only those that apply to one resource.
     /// Needs
     /// `iam.member.list` on the organization. With the parent
     /// `organizations/-` it lists the caller's own active bindings in every
@@ -8455,12 +8569,23 @@ impl RoleBindingClient {
     /// Grants a role to a member. Needs `iam.role.assign` on the
     /// organization, for a project binding as well, and every permission of
     /// the role at the binding's scope: a permission held on the organization
-    /// counts for any scope, one held on a project only for that project.
+    /// counts for any scope, one held on a project only for that project. A
+    /// binding with `resources` needs every permission of the role on each
+    /// resource it lists: a permission held on the resource's scope counts,
+    /// and so does one held through a binding that lists the resource.
     /// Refused with `NOT_FOUND` when `member` names a user without an enabled
     /// account or a service account of another organization, and when
     /// `service_account` names an account the organization doesn't have.
     /// Refused with `CONFLICT` when the member already holds the role at that
-    /// scope, and with `BAD_REQUEST` when the member is a deleted service
+    /// scope with the same `resources`, and, for now, also with other
+    /// `resources`: a member holds a role at one scope in one binding. Refused
+    /// with `BAD_REQUEST`, naming the entry, when an entry of `resources` isn't
+    /// a full name, is a resource of a kind that can't be listed, is outside
+    /// the binding's organization or project, or is listed twice; when
+    /// `resources` has more than 100 entries, is set together with
+    /// `service_account`, or lists a kind of resource none of the role's
+    /// permissions applies to. Refused with `BAD_REQUEST` when the member is a
+    /// deleted service
     /// account, names no service agent the platform has, or is a service
     /// agent and the role isn't one its service needs; when both `project`
     /// and `service_account` are set; when `service_account` names a deleted
@@ -8472,8 +8597,8 @@ impl RoleBindingClient {
     /// address is bound, as above. If no enabled account has verified it, the
     /// binding is created `role_binding::State::Pending`, organization-wide, and an invitation
     /// email is sent to the address. That also needs `iam.member.create` on
-    /// the organization, and is refused with `BAD_REQUEST` when `project` or
-    /// `service_account` is set and with `CONFLICT` when the address already holds a pending
+    /// the organization, and is refused with `BAD_REQUEST` when `project`,
+    /// `service_account` or `resources` is set and with `CONFLICT` when the address already holds a pending
     /// binding of the role in the organization. An address more than one
     /// account has verified is refused with `CONFLICT`. Repeated under its
     /// `request_id`, the call answers with the binding it created, pending or
