@@ -426,8 +426,9 @@ pub struct ListRolesResponse {
     pub roles: ::prost::alloc::vec::Vec<Role>,
 }
 /// One role granted to one member, organization-wide, in one project or on
-/// one service account, optionally only on a list of resources there. A
-/// binding can't be changed: delete it and create another.
+/// one service account, optionally only on a list of resources there. Only
+/// its list of resources can be changed, with UpdateRoleBinding; to change
+/// anything else, delete the binding and create another.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct RoleBinding {
     /// The binding's resource name. A pending binding keeps its name when it
@@ -491,6 +492,7 @@ pub struct RoleBinding {
     /// listed. Never set together with `service_account`, nor on a pending
     /// binding. A resource deleted after the binding was created stays listed,
     /// and the binding covers a resource created later under the same name.
+    /// The one field UpdateRoleBinding changes.
     #[prost(string, repeated, tag = "10")]
     pub resources: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
@@ -617,6 +619,22 @@ pub struct CreateRoleBindingRequest {
     /// A UUID. A repeat of the request with the same `request_id` within a
     /// day returns the binding the first request created, as it is now,
     /// instead of being refused as a conflict.
+    #[prost(string, tag = "3")]
+    pub request_id: ::prost::alloc::string::String,
+}
+/// The request for UpdateRoleBinding.
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct UpdateRoleBindingRequest {
+    /// The binding to change, by its `name`, with the list of resources to
+    /// limit it to in `resources`. Its other fields are ignored.
+    #[prost(message, optional, tag = "1")]
+    pub role_binding: ::core::option::Option<RoleBinding>,
+    /// The fields to change: `resources`, the only field that can.
+    #[prost(message, optional, tag = "2")]
+    pub update_mask: ::core::option::Option<::origincloud_core::protobuf::FieldMask>,
+    /// A UUID. A repeat of the request with the same `request_id` within a
+    /// day answers with the binding as it is now, instead of changing it
+    /// again.
     #[prost(string, tag = "3")]
     pub request_id: ::prost::alloc::string::String,
 }
@@ -7820,6 +7838,159 @@ impl<'de> serde::Deserialize<'de> for TestIamPermissionsResponse {
             )
     }
 }
+impl serde::Serialize for UpdateRoleBindingRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if self.role_binding.is_some() {
+            len += 1;
+        }
+        if self.update_mask.is_some() {
+            len += 1;
+        }
+        if !self.request_id.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct("origincloud.iam.v1beta1.UpdateRoleBindingRequest", len)?;
+        if let Some(v) = self.role_binding.as_ref() {
+            struct_ser.serialize_field("roleBinding", v)?;
+        }
+        if let Some(v) = self.update_mask.as_ref() {
+            struct_ser.serialize_field("updateMask", v)?;
+        }
+        if !self.request_id.is_empty() {
+            struct_ser.serialize_field("requestId", &self.request_id)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for UpdateRoleBindingRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "role_binding",
+            "roleBinding",
+            "update_mask",
+            "updateMask",
+            "request_id",
+            "requestId",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            RoleBinding,
+            UpdateMask,
+            RequestId,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "roleBinding" | "role_binding" => {
+                                Ok(GeneratedField::RoleBinding)
+                            }
+                            "updateMask" | "update_mask" => {
+                                Ok(GeneratedField::UpdateMask)
+                            }
+                            "requestId" | "request_id" => Ok(GeneratedField::RequestId),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = UpdateRoleBindingRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str("struct origincloud.iam.v1beta1.UpdateRoleBindingRequest")
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<UpdateRoleBindingRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut role_binding__ = None;
+                let mut update_mask__ = None;
+                let mut request_id__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::RoleBinding => {
+                            if role_binding__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("roleBinding"),
+                                );
+                            }
+                            role_binding__ = map_.next_value()?;
+                        }
+                        GeneratedField::UpdateMask => {
+                            if update_mask__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("updateMask"));
+                            }
+                            update_mask__ = map_.next_value()?;
+                        }
+                        GeneratedField::RequestId => {
+                            if request_id__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("requestId"));
+                            }
+                            request_id__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(UpdateRoleBindingRequest {
+                    role_binding: role_binding__,
+                    update_mask: update_mask__,
+                    request_id: request_id__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.iam.v1beta1.UpdateRoleBindingRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
 impl serde::Serialize for User {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -8435,8 +8606,10 @@ impl RoleClient {
 /// organization, in one of its projects or on one of its service accounts.
 /// A binding on an organization or a project can be limited further, to a
 /// list of resources within it. A member's access is the union
-/// of its bindings. Each binding is managed on its own, so creating or
-/// deleting one never touches another, whoever made it.
+/// of its bindings. Each binding is managed on its own, so creating,
+/// updating or deleting one never touches another, whoever made it. Of a
+/// binding, only `resources` can change; its member, role and scope never
+/// do.
 ///
 /// A binding's `resources` lists the full names of the resources it grants
 /// its role on, such as one secret of a project. A binding with `resources`
@@ -8657,6 +8830,65 @@ impl RoleBindingClient {
                 ::origincloud_core::Method::DELETE,
                 format!("/v1beta1/{p0}"),
             )
+            .with_query(query)
+            .idempotent();
+        self.service.call(call).await
+    }
+    /// Replaces the list of resources a binding is limited to, and answers
+    /// with the binding as it is now. `update_mask` must be `resources`: no
+    /// other field of a binding can change. The new list replaces the old one
+    /// at once: the member keeps the role on every entry in both throughout,
+    /// gains it on the entries added and loses it on those removed. An empty
+    /// list widens the binding to its whole scope. The new list is checked as
+    /// on CreateRoleBinding, and refused with `BAD_REQUEST` for the same
+    /// entries.
+    ///
+    /// Needs `iam.role.assign` on the organization, and every permission of
+    /// the role on each resource of the new list and of the old one, as
+    /// CreateRoleBinding and DeleteRoleBinding need: a permission held on the
+    /// binding's scope counts, and so does one held through a binding that
+    /// lists the resource; for a binding on its whole scope, only one held on
+    /// that scope counts. Refused with `NOT_FOUND` when the organization has no
+    /// such binding, and with `BAD_REQUEST` when `update_mask` is empty or names
+    /// another field, and for a pending binding, which is on the whole
+    /// organization until it is active. Recorded in the audit log, naming the
+    /// entries added and removed, unless the list stayed the same. Repeated
+    /// under its `request_id`, the call answers with the binding as it is now
+    /// and changes nothing.
+    pub async fn update_role_binding(
+        &self,
+        mut request: UpdateRoleBindingRequest,
+    ) -> ::core::result::Result<RoleBinding, ::origincloud_core::Error> {
+        if request.request_id.is_empty() {
+            request.request_id = ::origincloud_core::new_request_id();
+        }
+        let n0 = self
+            .service
+            .relative_name(
+                "roleBinding.name",
+                request.role_binding.as_ref().map_or("", |m| m.name.as_str()),
+                &["iam"],
+            )?;
+        let p0 = ::origincloud_core::path_value(
+            "roleBinding.name",
+            &n0,
+            "organizations/*/roleBindings/*",
+        )?;
+        if let Some(m) = request.role_binding.as_mut() {
+            m.name = n0;
+        }
+        let body = ::origincloud_core::json_body(
+            request.role_binding.as_ref().unwrap_or(&::core::default::Default::default()),
+        )?;
+        let query = ::origincloud_core::query(
+            &request,
+            &["roleBinding.name", "roleBinding"],
+        )?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::PATCH,
+                format!("/v1beta1/{p0}"),
+            )
+            .with_body(body)
             .with_query(query)
             .idempotent();
         self.service.call(call).await
