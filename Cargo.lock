@@ -1508,10 +1508,13 @@ dependencies = [
 name = "origincloud-secretmanager"
 version = "0.69.0"
 dependencies = [
+ "fake-server",
  "origincloud-core",
  "pbjson",
  "prost",
  "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

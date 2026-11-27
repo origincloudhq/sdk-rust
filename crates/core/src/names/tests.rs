@@ -21,6 +21,7 @@ fn the_services_are_the_api_s_with_resources() {
             "network",
             "pvs",
             "resourcemanager",
+            "secretmanager",
             "support"
         ]
     );
