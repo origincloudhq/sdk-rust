@@ -582,6 +582,10 @@ pub struct LaunchTemplateData {
     /// restarts, and it is deleted with the instance.
     #[prost(message, repeated, tag = "10")]
     pub local_disks: ::prost::alloc::vec::Vec<LocalDisk>,
+    /// What happens when the instance's operating system shuts it down. `ShutdownBehavior::Stop`
+    /// when left unspecified.
+    #[prost(enumeration = "ShutdownBehavior", tag = "11")]
+    pub shutdown_behavior: i32,
 }
 /// A disk on the machine an instance runs on.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
@@ -658,6 +662,43 @@ pub struct NetworkInterfaceSpec {
     /// but address resolution and replies to its own traffic.
     #[prost(string, repeated, tag = "2")]
     pub security_groups: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+/// What happens to an instance when its own operating system shuts it down,
+/// such as with `poweroff` inside it. A stop through the API, and one the
+/// platform makes, always stops the instance, and a guest that crashed is
+/// `instance::State::Stopped` with a `state_reason` saying so.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ShutdownBehavior {
+    /// Not set: `ShutdownBehavior::Stop`.
+    Unspecified = 0,
+    /// The instance stops, keeping its volumes and addresses.
+    Stop = 1,
+    /// The instance is terminated, and its resources released, as
+    /// `DeleteInstance` terminates it.
+    Terminate = 2,
+}
+impl ShutdownBehavior {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "SHUTDOWN_BEHAVIOR_UNSPECIFIED",
+            Self::Stop => "STOP",
+            Self::Terminate => "TERMINATE",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SHUTDOWN_BEHAVIOR_UNSPECIFIED" => Some(Self::Unspecified),
+            "STOP" => Some(Self::Stop),
+            "TERMINATE" => Some(Self::Terminate),
+            _ => None,
+        }
+    }
 }
 /// A virtual machine in one zone.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -767,6 +808,11 @@ pub struct Instance {
     /// instance's volume attachments.
     #[prost(message, repeated, tag = "19")]
     pub local_disks: ::prost::alloc::vec::Vec<LocalDisk>,
+    /// What happens when the instance's operating system shuts it down: it
+    /// stops, or it is terminated. `ShutdownBehavior::Stop` when left unspecified at launch.
+    /// Changeable at any time before the instance is terminated.
+    #[prost(enumeration = "ShutdownBehavior", tag = "20")]
+    pub shutdown_behavior: i32,
 }
 /// Nested message and enum types in `Instance`.
 pub mod instance {
@@ -1191,9 +1237,10 @@ pub struct UpdateInstanceRequest {
     /// The instance, by its name, with the fields to change.
     #[prost(message, optional, tag = "1")]
     pub instance: ::core::option::Option<Instance>,
-    /// The fields to change: any of `instance_type`, `tags` and
-    /// `service_account`. `*` is all three, so an empty `service_account`
-    /// under it removes the instance's.
+    /// The fields to change: any of `instance_type`, `tags`,
+    /// `service_account` and `shutdown_behavior`. `*` is all four, so an empty
+    /// `service_account` under it removes the instance's, and an unspecified
+    /// `shutdown_behavior` is `ShutdownBehavior::Stop`.
     #[prost(message, optional, tag = "2")]
     pub update_mask: ::core::option::Option<::origincloud_core::protobuf::FieldMask>,
     /// A UUID; a repeat with the same id returns the first request's
@@ -5596,6 +5643,9 @@ impl serde::Serialize for Instance {
         if !self.local_disks.is_empty() {
             len += 1;
         }
+        if self.shutdown_behavior != 0 {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.compute.v1beta1.Instance", len)?;
         if !self.name.is_empty() {
@@ -5656,6 +5706,13 @@ impl serde::Serialize for Instance {
         if !self.local_disks.is_empty() {
             struct_ser.serialize_field("localDisks", &self.local_disks)?;
         }
+        if self.shutdown_behavior != 0 {
+            let v = ShutdownBehavior::try_from(self.shutdown_behavior)
+                .map_err(|_| serde::ser::Error::custom(
+                    format!("Invalid variant {}", self.shutdown_behavior),
+                ))?;
+            struct_ser.serialize_field("shutdownBehavior", &v)?;
+        }
         struct_ser.end()
     }
 }
@@ -5696,6 +5753,8 @@ impl<'de> serde::Deserialize<'de> for Instance {
             "launchTemplate",
             "local_disks",
             "localDisks",
+            "shutdown_behavior",
+            "shutdownBehavior",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -5717,6 +5776,7 @@ impl<'de> serde::Deserialize<'de> for Instance {
             ServiceAccount,
             LaunchTemplate,
             LocalDisks,
+            ShutdownBehavior,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -5782,6 +5842,9 @@ impl<'de> serde::Deserialize<'de> for Instance {
                             "localDisks" | "local_disks" => {
                                 Ok(GeneratedField::LocalDisks)
                             }
+                            "shutdownBehavior" | "shutdown_behavior" => {
+                                Ok(GeneratedField::ShutdownBehavior)
+                            }
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -5820,6 +5883,7 @@ impl<'de> serde::Deserialize<'de> for Instance {
                 let mut service_account__ = None;
                 let mut launch_template__ = None;
                 let mut local_disks__ = None;
+                let mut shutdown_behavior__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::Name => {
@@ -5946,6 +6010,16 @@ impl<'de> serde::Deserialize<'de> for Instance {
                             }
                             local_disks__ = Some(map_.next_value()?);
                         }
+                        GeneratedField::ShutdownBehavior => {
+                            if shutdown_behavior__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("shutdownBehavior"),
+                                );
+                            }
+                            shutdown_behavior__ = Some(
+                                map_.next_value::<ShutdownBehavior>()? as i32,
+                            );
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -5970,6 +6044,7 @@ impl<'de> serde::Deserialize<'de> for Instance {
                     service_account: service_account__.unwrap_or_default(),
                     launch_template: launch_template__.unwrap_or_default(),
                     local_disks: local_disks__.unwrap_or_default(),
+                    shutdown_behavior: shutdown_behavior__.unwrap_or_default(),
                 })
             }
         }
@@ -7572,6 +7647,9 @@ impl serde::Serialize for LaunchTemplateData {
         if !self.local_disks.is_empty() {
             len += 1;
         }
+        if self.shutdown_behavior != 0 {
+            len += 1;
+        }
         let mut struct_ser = serializer
             .serialize_struct("origincloud.compute.v1beta1.LaunchTemplateData", len)?;
         if !self.instance_type.is_empty() {
@@ -7604,6 +7682,13 @@ impl serde::Serialize for LaunchTemplateData {
         if !self.local_disks.is_empty() {
             struct_ser.serialize_field("localDisks", &self.local_disks)?;
         }
+        if self.shutdown_behavior != 0 {
+            let v = ShutdownBehavior::try_from(self.shutdown_behavior)
+                .map_err(|_| serde::ser::Error::custom(
+                    format!("Invalid variant {}", self.shutdown_behavior),
+                ))?;
+            struct_ser.serialize_field("shutdownBehavior", &v)?;
+        }
         struct_ser.end()
     }
 }
@@ -7632,6 +7717,8 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplateData {
             "networkInterfaces",
             "local_disks",
             "localDisks",
+            "shutdown_behavior",
+            "shutdownBehavior",
         ];
         #[allow(clippy::enum_variant_names)]
         enum GeneratedField {
@@ -7645,6 +7732,7 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplateData {
             Tags,
             NetworkInterfaces,
             LocalDisks,
+            ShutdownBehavior,
             __SkipField__,
         }
         impl<'de> serde::Deserialize<'de> for GeneratedField {
@@ -7694,6 +7782,9 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplateData {
                             "localDisks" | "local_disks" => {
                                 Ok(GeneratedField::LocalDisks)
                             }
+                            "shutdownBehavior" | "shutdown_behavior" => {
+                                Ok(GeneratedField::ShutdownBehavior)
+                            }
                             _ => Ok(GeneratedField::__SkipField__),
                         }
                     }
@@ -7728,6 +7819,7 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplateData {
                 let mut tags__ = None;
                 let mut network_interfaces__ = None;
                 let mut local_disks__ = None;
+                let mut shutdown_behavior__ = None;
                 while let Some(k) = map_.next_key()? {
                     match k {
                         GeneratedField::InstanceType => {
@@ -7800,6 +7892,16 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplateData {
                             }
                             local_disks__ = Some(map_.next_value()?);
                         }
+                        GeneratedField::ShutdownBehavior => {
+                            if shutdown_behavior__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("shutdownBehavior"),
+                                );
+                            }
+                            shutdown_behavior__ = Some(
+                                map_.next_value::<ShutdownBehavior>()? as i32,
+                            );
+                        }
                         GeneratedField::__SkipField__ => {
                             let _ = map_.next_value::<serde::de::IgnoredAny>()?;
                         }
@@ -7816,6 +7918,7 @@ impl<'de> serde::Deserialize<'de> for LaunchTemplateData {
                     tags: tags__.unwrap_or_default(),
                     network_interfaces: network_interfaces__.unwrap_or_default(),
                     local_disks: local_disks__.unwrap_or_default(),
+                    shutdown_behavior: shutdown_behavior__.unwrap_or_default(),
                 })
             }
         }
@@ -11116,6 +11219,83 @@ impl<'de> serde::Deserialize<'de> for PublicImageBlockDevice {
                 FIELDS,
                 GeneratedVisitor,
             )
+    }
+}
+impl serde::Serialize for ShutdownBehavior {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let variant = match self {
+            Self::Unspecified => "SHUTDOWN_BEHAVIOR_UNSPECIFIED",
+            Self::Stop => "STOP",
+            Self::Terminate => "TERMINATE",
+        };
+        serializer.serialize_str(variant)
+    }
+}
+impl<'de> serde::Deserialize<'de> for ShutdownBehavior {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &["SHUTDOWN_BEHAVIOR_UNSPECIFIED", "STOP", "TERMINATE"];
+        struct GeneratedVisitor;
+        impl serde::de::Visitor<'_> for GeneratedVisitor {
+            type Value = ShutdownBehavior;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                write!(formatter, "expected one of: {:?}", & FIELDS)
+            }
+            fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                i32::try_from(v)
+                    .ok()
+                    .and_then(|x| {
+                        x.try_into().ok().or_else(|| Some(ShutdownBehavior::default()))
+                    })
+                    .ok_or_else(|| {
+                        serde::de::Error::invalid_value(
+                            serde::de::Unexpected::Signed(v),
+                            &self,
+                        )
+                    })
+            }
+            fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                i32::try_from(v)
+                    .ok()
+                    .and_then(|x| {
+                        x.try_into().ok().or_else(|| Some(ShutdownBehavior::default()))
+                    })
+                    .ok_or_else(|| {
+                        serde::de::Error::invalid_value(
+                            serde::de::Unexpected::Unsigned(v),
+                            &self,
+                        )
+                    })
+            }
+            fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match value {
+                    "SHUTDOWN_BEHAVIOR_UNSPECIFIED" => Ok(ShutdownBehavior::Unspecified),
+                    "STOP" => Ok(ShutdownBehavior::Stop),
+                    "TERMINATE" => Ok(ShutdownBehavior::Terminate),
+                    _ => Ok(ShutdownBehavior::default()),
+                }
+            }
+        }
+        deserializer.deserialize_any(GeneratedVisitor)
     }
 }
 impl serde::Serialize for StartInstanceRequest {

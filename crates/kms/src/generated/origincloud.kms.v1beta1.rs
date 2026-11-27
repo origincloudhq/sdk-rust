@@ -400,6 +400,23 @@ pub struct DeleteKeyRequest {
     #[prost(string, tag = "3")]
     pub request_id: ::prost::alloc::string::String,
 }
+/// The request for RetireEncryptionContext.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RetireEncryptionContextRequest {
+    /// The platform-managed key to retire the context on.
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    /// The encryption context to retire, exactly: at least one pair.
+    #[prost(btree_map = "string, string", tag = "2")]
+    pub encryption_context: ::prost::alloc::collections::BTreeMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
+    /// A UUID; a repeat with the same id within a day returns the key as the
+    /// first request left it.
+    #[prost(string, tag = "3")]
+    pub request_id: ::prost::alloc::string::String,
+}
 /// The request for UndeleteKey.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct UndeleteKeyRequest {
@@ -4056,6 +4073,163 @@ impl<'de> serde::Deserialize<'de> for RenewGrantRequest {
             )
     }
 }
+impl serde::Serialize for RetireEncryptionContextRequest {
+    #[allow(deprecated)]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut len = 0;
+        if !self.name.is_empty() {
+            len += 1;
+        }
+        if !self.encryption_context.is_empty() {
+            len += 1;
+        }
+        if !self.request_id.is_empty() {
+            len += 1;
+        }
+        let mut struct_ser = serializer
+            .serialize_struct(
+                "origincloud.kms.v1beta1.RetireEncryptionContextRequest",
+                len,
+            )?;
+        if !self.name.is_empty() {
+            struct_ser.serialize_field("name", &self.name)?;
+        }
+        if !self.encryption_context.is_empty() {
+            struct_ser.serialize_field("encryptionContext", &self.encryption_context)?;
+        }
+        if !self.request_id.is_empty() {
+            struct_ser.serialize_field("requestId", &self.request_id)?;
+        }
+        struct_ser.end()
+    }
+}
+impl<'de> serde::Deserialize<'de> for RetireEncryptionContextRequest {
+    #[allow(deprecated)]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        const FIELDS: &[&str] = &[
+            "name",
+            "encryption_context",
+            "encryptionContext",
+            "request_id",
+            "requestId",
+        ];
+        #[allow(clippy::enum_variant_names)]
+        enum GeneratedField {
+            Name,
+            EncryptionContext,
+            RequestId,
+            __SkipField__,
+        }
+        impl<'de> serde::Deserialize<'de> for GeneratedField {
+            fn deserialize<D>(
+                deserializer: D,
+            ) -> std::result::Result<GeneratedField, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct GeneratedVisitor;
+                impl serde::de::Visitor<'_> for GeneratedVisitor {
+                    type Value = GeneratedField;
+                    fn expecting(
+                        &self,
+                        formatter: &mut std::fmt::Formatter<'_>,
+                    ) -> std::fmt::Result {
+                        write!(formatter, "expected one of: {:?}", & FIELDS)
+                    }
+                    #[allow(unused_variables)]
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> std::result::Result<GeneratedField, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        match value {
+                            "name" => Ok(GeneratedField::Name),
+                            "encryptionContext" | "encryption_context" => {
+                                Ok(GeneratedField::EncryptionContext)
+                            }
+                            "requestId" | "request_id" => Ok(GeneratedField::RequestId),
+                            _ => Ok(GeneratedField::__SkipField__),
+                        }
+                    }
+                }
+                deserializer.deserialize_identifier(GeneratedVisitor)
+            }
+        }
+        struct GeneratedVisitor;
+        impl<'de> serde::de::Visitor<'de> for GeneratedVisitor {
+            type Value = RetireEncryptionContextRequest;
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter
+                    .write_str(
+                        "struct origincloud.kms.v1beta1.RetireEncryptionContextRequest",
+                    )
+            }
+            fn visit_map<V>(
+                self,
+                mut map_: V,
+            ) -> std::result::Result<RetireEncryptionContextRequest, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut name__ = None;
+                let mut encryption_context__ = None;
+                let mut request_id__ = None;
+                while let Some(k) = map_.next_key()? {
+                    match k {
+                        GeneratedField::Name => {
+                            if name__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("name"));
+                            }
+                            name__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::EncryptionContext => {
+                            if encryption_context__.is_some() {
+                                return Err(
+                                    serde::de::Error::duplicate_field("encryptionContext"),
+                                );
+                            }
+                            encryption_context__ = Some(
+                                map_.next_value::<std::collections::BTreeMap<_, _>>()?,
+                            );
+                        }
+                        GeneratedField::RequestId => {
+                            if request_id__.is_some() {
+                                return Err(serde::de::Error::duplicate_field("requestId"));
+                            }
+                            request_id__ = Some(map_.next_value()?);
+                        }
+                        GeneratedField::__SkipField__ => {
+                            let _ = map_.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                Ok(RetireEncryptionContextRequest {
+                    name: name__.unwrap_or_default(),
+                    encryption_context: encryption_context__.unwrap_or_default(),
+                    request_id: request_id__.unwrap_or_default(),
+                })
+            }
+        }
+        deserializer
+            .deserialize_struct(
+                "origincloud.kms.v1beta1.RetireEncryptionContextRequest",
+                FIELDS,
+                GeneratedVisitor,
+            )
+    }
+}
 impl serde::Serialize for RotateKeyRequest {
     #[allow(deprecated)]
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -4835,7 +5009,8 @@ impl GrantClient {
     /// Makes a grant on an `key::Purpose::EncryptDecrypt` key for one host, refused with
     /// `BAD_REQUEST` for a key of another purpose, a host that isn't one of
     /// the region's, an empty encryption context, or a `ttl` outside 1 to 60
-    /// minutes, and with `CONFLICT` for a key that isn't enabled. Needs
+    /// minutes, with `CONFLICT` for a key that isn't enabled, and with
+    /// `FORBIDDEN` for an encryption context retired on the key. Needs
     /// `kms.grant.create` on the project.
     pub async fn create_grant(
         &self,
@@ -4865,8 +5040,9 @@ impl GrantClient {
         self.service.call(call).await
     }
     /// Extends a grant that hasn't expired to `ttl` from now. An expired
-    /// grant isn't renewed: `CONFLICT`, and a new one is made instead. Needs
-    /// `kms.grant.update` on the project.
+    /// grant isn't renewed: `CONFLICT`, and a new one is made instead. A grant
+    /// whose encryption context was retired on the key since isn't renewed
+    /// either: `FORBIDDEN`. Needs `kms.grant.update` on the project.
     pub async fn renew_grant(
         &self,
         mut request: RenewGrantRequest,
@@ -5154,11 +5330,46 @@ impl KeyClient {
             .idempotent();
         self.service.call(call).await
     }
+    /// Retires an encryption context on a key the platform manages, for good:
+    /// from then on every zone refuses Encrypt, Decrypt and GenerateDataKey
+    /// under exactly that context, and the making, renewal and use of a grant
+    /// constrained to it, each with `FORBIDDEN`. A ciphertext made under it,
+    /// wherever a copy of it is kept, never decrypts again. Only the platform
+    /// retires a context: the storage service retires a deleted volume's
+    /// `volume` context. Retiring a context already retired succeeds and
+    /// changes nothing. Refused with `FORBIDDEN` for a key the platform doesn't
+    /// manage and for anyone but a platform service agent, and with
+    /// `BAD_REQUEST` for an empty context. Needs `kms.key.retire_context` on
+    /// the project, which no customer role holds.
+    pub async fn retire_encryption_context(
+        &self,
+        mut request: RetireEncryptionContextRequest,
+    ) -> ::core::result::Result<Key, ::origincloud_core::Error> {
+        if request.request_id.is_empty() {
+            request.request_id = ::origincloud_core::new_request_id();
+        }
+        let n0 = self.service.relative_name("name", &request.name, &["kms"])?;
+        let p0 = ::origincloud_core::path_value(
+            "name",
+            &n0,
+            "projects/*/regions/*/keys/*",
+        )?;
+        request.name = n0;
+        let body = ::origincloud_core::json_body(&request)?;
+        let call = ::origincloud_core::Request::new(
+                ::origincloud_core::Method::POST,
+                format!("/v1beta1/{p0}:retireEncryptionContext"),
+            )
+            .with_body(body)
+            .idempotent();
+        self.service.call(call).await
+    }
     /// Encrypts up to 64 KiB with an `key::Purpose::EncryptDecrypt` key's primary version,
     /// bound to the encryption context. For more data, encrypt it yourself
     /// with a data key from GenerateDataKey. Refused with `CONFLICT` for a key
-    /// that isn't enabled, and with `BAD_REQUEST` for a signing key. Needs
-    /// `kms.key.encrypt` on the project.
+    /// that isn't enabled, with `BAD_REQUEST` for a signing key, and with
+    /// `FORBIDDEN` under a context retired on the key. Needs `kms.key.encrypt`
+    /// on the project.
     pub async fn encrypt(
         &self,
         mut request: EncryptRequest,
@@ -5180,9 +5391,10 @@ impl KeyClient {
     }
     /// Decrypts a ciphertext Encrypt or GenerateDataKey made with this key,
     /// given the same encryption context. Refused with `BAD_REQUEST` for a
-    /// ciphertext that doesn't decrypt under this key and context, and with
-    /// `CONFLICT` for a key that isn't enabled. Needs `kms.key.decrypt` on the
-    /// project.
+    /// ciphertext that doesn't decrypt under this key and context, with
+    /// `CONFLICT` for a key that isn't enabled, and with `FORBIDDEN` under a
+    /// context retired on the key, whatever the ciphertext. Needs
+    /// `kms.key.decrypt` on the project.
     pub async fn decrypt(
         &self,
         mut request: DecryptRequest,
@@ -5205,7 +5417,8 @@ impl KeyClient {
     /// Returns a new random 256-bit data key, in plaintext and encrypted under
     /// an `key::Purpose::EncryptDecrypt` key's primary version with the encryption context.
     /// Encrypt your data with the plaintext, keep only the ciphertext beside
-    /// it, and recover the data key with Decrypt when you need it. Needs
+    /// it, and recover the data key with Decrypt when you need it. Refused
+    /// with `FORBIDDEN` under a context retired on the key. Needs
     /// `kms.key.generate_data_key` on the project.
     pub async fn generate_data_key(
         &self,

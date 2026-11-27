@@ -28,6 +28,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 | [`origincloud-dns`](crates/dns) | Hosted zones, their record sets, and private zones' VPC attachments (`origincloud_dns::v1beta1`) |
 | [`origincloud-sts`](crates/sts) | The security token service: it turns a token from an identity provider outside Origin Cloud, such as a CI job's OIDC token, into the access token of a WORKLOAD service account that trusts it through a federated credential (`origincloud_sts::v1beta1`) |
 | [`origincloud-kms`](crates/kms) | Grants: permission for one platform host to use one key for one operation and one encryption context, for at most an hour at a time (`origincloud_kms::v1beta1`) |
+| [`origincloud-secretmanager`](crates/secretmanager) | Secrets: small confidential values, such as a database password, an API key or a TLS private key, kept encrypted and versioned by the platform and read by the people and workloads you allow (`origincloud_secretmanager::v1beta1`) |
 
 ## Example
 
