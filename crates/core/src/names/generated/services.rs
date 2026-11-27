@@ -15,5 +15,6 @@ pub const RESOURCE_SERVICES: &[&str] = &[
     "network",
     "pvs",
     "resourcemanager",
+    "secretmanager",
     "support",
 ];
